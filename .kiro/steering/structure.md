@@ -10,16 +10,21 @@ inclusion: always
   specs/           one folder per spec (requirements, design, tasks)
   hooks/           agent hooks
   agents/          custom agents (layout designer, accessibility reviewer)
+/index.html        entry page for the skeleton demo (loads skeleton/demo/main.ts)
+/board/index.html  entry page for App A (loads apps/board/src/main.ts)
+/game/index.html   entry page for App B (loads apps/game/src/main.ts)
 /skeleton/         the template package
   src/engine/      deterministic logic: dwell, scanning, gesture, smoothing, calibration
   src/adapters/    camera (MediaPipe head + face gesture), keyboard/switch, mouse, gamepad
   src/ui/          optional helpers: dwell ring, scan highlight, calibration screen
   src/index.ts     the public API
+  demo/main.ts     skeleton demo script (entry loaded by /index.html)
   test/            unit and property tests
-  demo/            a small themed demo page
   examples/        the 15-line integration example
 /apps/board/       App A: communication board
+  src/main.ts      board app script (entry loaded by /board/index.html)
 /apps/game/        App B: haunted target game
+  src/main.ts      game app script (entry loaded by /game/index.html)
 /tools/dwell-sim-mcp/  MCP server for simulated users
 /power/            the "Make this app hands-free" Kiro power (check the current power
                    format on kiro.dev before building it)

@@ -137,6 +137,45 @@ The `source` field on `TimestampedSample` now takes `'camera' | 'keyboard' | 'mo
 
 ---
 
+## 2 Jul 2025 (follow-up: single entry points, self-contained build test)
+
+### What Kiro did
+
+Fixed two issues left over from the path-fix commit.
+
+**Issue 1 — duplicate HTML files.** `skeleton/demo/index.html`, `apps/board/index.html`
+and `apps/game/index.html` were left alongside the root-level entry pages, creating two
+HTML files per page. Deleted the three source-directory copies. Updated the three root
+entry pages (`index.html`, `board/index.html`, `game/index.html`) to load their
+respective scripts via `<script type="module">`:
+
+- `index.html` → `skeleton/demo/main.ts`
+- `board/index.html` → `../apps/board/src/main.ts`
+- `game/index.html` → `../apps/game/src/main.ts`
+
+Created placeholder entry scripts at those three paths (single comment lines) so
+Vite resolves them immediately without the app specs being complete.
+
+Updated `structure.md` to list the three root entry pages and show `demo/main.ts`,
+`apps/board/src/main.ts` and `apps/game/src/main.ts` as the script homes. Updated
+tasks 17.1 and 17.3 to reflect that the demo shell is `index.html` and the script
+target is `skeleton/demo/main.ts`.
+
+**Issue 2 — `build-output.test.ts` required a pre-existing `dist/`.** The test
+asserted `existsSync` paths under a hard-coded `dist/` directory, so it always failed
+on a clean checkout. Rewrote the test to call Vite's `build()` programmatically into
+a `mkdtempSync` temporary directory (using the same `rollupOptions.input` as
+`vite.config.ts`), check output paths there, and clean up in `afterAll`. The test is
+now fully self-contained: `npm test` passes from a fresh clone with no prior build.
+
+**Validation:**
+
+- `rm -rf dist/` then `npm test` — 5/5 pass, no pre-existing dist/ needed.
+- `npm run build` — `dist/index.html`, `dist/board/index.html`, `dist/game/index.html`
+  produced cleanly, 0 warnings.
+
+---
+
 ## 2 Jul 2025
 
 ### What Kiro did
