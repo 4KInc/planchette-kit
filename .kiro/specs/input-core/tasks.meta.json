@@ -1,0 +1,59 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Create root `package.json` with `workspaces: [\"skeleton\"]` and scripts: `test`, `test:e2e`, `build`, `dev`. (Other packages are added in their own specs.)": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795108815112
+      },
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109035322
+      }
+    ],
+    "1.2 Create `skeleton/package.json` with `name: \"@planchette/skeleton\"`, devDependencies: `vitest` (pinned), `fast-check` (pinned), `typescript` (pinned). Add `tsconfig.json` with `strict: true`, `noImplicitAny: true`.": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109338137
+      }
+    ],
+    "1.3 Create `vite.config.ts` at root with multi-page entries: `/` → `skeleton/demo/index.html`, `/board/` → `apps/board/index.html`, `/game/` → `apps/game/index.html`.": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109340253
+      }
+    ],
+    "1.3a Create placeholder `apps/board/index.html` and `apps/game/index.html` (minimal valid HTML, \"coming soon\" text) so the multi-page build and `npm run dev` work immediately without the app specs being complete.": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109342928
+      }
+    ],
+    "1.4 Create `skeleton/vitest.config.ts`. Confirm `npm test` runs and exits cleanly (zero tests, zero failures).": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109344986
+      }
+    ],
+    "1.5 Create stub `THIRD_PARTY.md` listing `vitest` (MIT), `fast-check` (MIT), `vite` (MIT), `typescript` (Apache-2.0).": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109347044
+      }
+    ],
+    "1.6 Append a dated entry to the existing `docs/kiro-journal.md` describing the scaffolding step (what was set up, any decisions made). Do not recreate the file.": [
+      {
+        "executionId": "719e2fe3-d7e0-4cd4-8688-e0619430c079",
+        "chatSessionId": "sess_561f84b1-7a5c-41d4-9140-f15afea19072",
+        "timestamp": 1795109349118
+      }
+    ]
+  }
+}

@@ -16,13 +16,13 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 Set up the npm workspace, Vite multi-page build, Vitest and fast-check so every later
 task has a working test runner from the start.
 
-- [ ] 1.1 Create root `package.json` with `workspaces: ["skeleton"]` and scripts: `test`, `test:e2e`, `build`, `dev`. (Other packages are added in their own specs.)
-- [ ] 1.2 Create `skeleton/package.json` with `name: "@planchette/skeleton"`, devDependencies: `vitest` (pinned), `fast-check` (pinned), `typescript` (pinned). Add `tsconfig.json` with `strict: true`, `noImplicitAny: true`.
-- [ ] 1.3 Create `vite.config.ts` at root with multi-page entries: `/` → `skeleton/demo/index.html`, `/board/` → `apps/board/index.html`, `/game/` → `apps/game/index.html`.
-- [ ] 1.3a Create placeholder `apps/board/index.html` and `apps/game/index.html` (minimal valid HTML, "coming soon" text) so the multi-page build and `npm run dev` work immediately without the app specs being complete.
-- [ ] 1.4 Create `skeleton/vitest.config.ts`. Confirm `npm test` runs and exits cleanly (zero tests, zero failures).
-- [ ] 1.5 Create stub `THIRD_PARTY.md` listing `vitest` (MIT), `fast-check` (MIT), `vite` (MIT), `typescript` (Apache-2.0).
-- [ ] 1.6 Append a dated entry to the existing `docs/kiro-journal.md` describing the scaffolding step (what was set up, any decisions made). Do not recreate the file.
+- [x] 1.1 Create root `package.json` with `workspaces: ["skeleton"]` and scripts: `test`, `test:e2e`, `build`, `dev`. (Other packages are added in their own specs.)
+- [x] 1.2 Create `skeleton/package.json` with `name: "@planchette/skeleton"`, devDependencies: `vitest` (pinned), `fast-check` (pinned), `typescript` (pinned). Add `tsconfig.json` with `strict: true`, `noImplicitAny: true`.
+- [x] 1.3 Create `vite.config.ts` at root with multi-page entries: `/` → `skeleton/demo/index.html`, `/board/` → `apps/board/index.html`, `/game/` → `apps/game/index.html`.
+- [x] 1.3a Create placeholder `apps/board/index.html` and `apps/game/index.html` (minimal valid HTML, "coming soon" text) so the multi-page build and `npm run dev` work immediately without the app specs being complete.
+- [x] 1.4 Create `skeleton/vitest.config.ts`. Confirm `npm test` runs and exits cleanly (zero tests, zero failures).
+- [x] 1.5 Create stub `THIRD_PARTY.md` listing `vitest` (MIT), `fast-check` (MIT), `vite` (MIT), `typescript` (Apache-2.0).
+- [x] 1.6 Append a dated entry to the existing `docs/kiro-journal.md` describing the scaffolding step (what was set up, any decisions made). Do not recreate the file.
 
 **Covers:** Req 9 (deterministic engine infrastructure); tech.md build/test commands.
 

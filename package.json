@@ -1,0 +1,15 @@
+{
+  "name": "planchette-kit",
+  "private": true,
+  "type": "module",
+  "workspaces": ["skeleton"],
+  "scripts": {
+    "test": "npm run test --workspace=skeleton",
+    "test:e2e": "playwright test",
+    "build": "vite build",
+    "dev": "vite"
+  },
+  "devDependencies": {
+    "vite": "8.3.8"
+  }
+}

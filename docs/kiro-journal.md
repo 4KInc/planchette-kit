@@ -134,3 +134,56 @@ The `source` field on `TimestampedSample` now takes `'camera' | 'keyboard' | 'mo
   from camera adapter into head-pointer engine.
 - tasks.md: 18 tasks written, ordered tooling → pure engines → adapters → UI →
   deploy.
+
+---
+
+## 2 Jul 2025
+
+### What Kiro did
+
+Executed Task 1 (workspace and tooling scaffold) of the input-core spec.
+
+**Files created:**
+
+- `package.json` (root) — npm workspace pointing at `skeleton`; scripts: `test`, `test:e2e`, `build`, `dev`; `"type": "module"` so Vite's native config loader works without warnings.
+- `skeleton/package.json` — workspace package `@planchette/skeleton`; `"type": "module"`; `vitest run --passWithNoTests` as the test script (exits 0 when no test files exist yet).
+- `skeleton/tsconfig.json` — `strict: true`, `noImplicitAny: true`, `moduleResolution: bundler`, target ES2022.
+- `skeleton/vitest.config.ts` — includes `test/**/*.test.ts`.
+- `skeleton/src/index.ts` — empty stub export.
+- `skeleton/demo/index.html` — placeholder Vite entry point for `/`.
+- `apps/board/index.html` — placeholder for `/board/`.
+- `apps/game/index.html` — placeholder for `/game/`.
+- `vite.config.ts` (root) — multi-page build using `build.rollupOptions.input` with `import.meta.dirname` (not `__dirname`, which is unavailable in native ESM).
+- `THIRD_PARTY.md` — lists vite 8.3.8 (MIT), vitest 5.1.1 (MIT), fast-check 4.10.3 (MIT), typescript 7.0.2 (Apache-2.0).
+- `.gitignore` — ignores `node_modules/`, `dist/`, `.cache/`.
+
+**Decisions made:**
+
+- Pinned exact versions: vite 8.3.8, vitest 5.1.1, fast-check 4.10.3, typescript 7.0.2 (latest stable at time of writing).
+- Added `--passWithNoTests` to the vitest invocation so `npm test` exits 0 before any test files exist. This is the correct baseline for the scaffold task; real tests are added per subsequent tasks.
+- Used `import.meta.dirname` instead of `__dirname` in `vite.config.ts` to stay compatible with Vite 8's native ESM config loader.
+- `vite` is a root devDependency (the build runs from the root). `vitest`, `fast-check` and `typescript` are skeleton devDependencies because they are only needed to build and test that package.
+- `npm run test:e2e` delegates to Playwright (not installed yet; added in task 14 when the camera adapter and e2e tests are written).
+
+**Validation:**
+
+- `npm install` — 91 packages added, 0 vulnerabilities.
+- `npm test` — exits 0, zero tests, zero failures.
+- `npm run build` — all three HTML entry points built cleanly, 0 warnings.
+
+
+### Bugfix: Vite build output paths (Task 1 follow-up)
+
+The initial scaffold used `rollupOptions.input` paths pointing at
+`skeleton/demo/index.html`, `apps/board/index.html` and `apps/game/index.html`.
+Vite mirrors source directory structure into `dist/`, so the build produced
+`dist/skeleton/demo/index.html`, `dist/apps/board/index.html` and
+`dist/apps/game/index.html` — not the required `dist/index.html`,
+`dist/board/index.html`, `dist/game/index.html`.
+
+**Fix:** Added root-level `index.html`, `board/index.html` and `game/index.html` as
+the actual Vite entry points. `skeleton/demo/` and `apps/*/` remain the source
+directories for each app; the root-level HTML files are the Vite entry points with
+`root: "."` in `vite.config.ts`. Added a test (`skeleton/test/build-output.test.ts`)
+that asserts the three correct output paths exist and the two wrong paths do not,
+so this regression cannot recur silently.
