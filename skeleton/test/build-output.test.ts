@@ -3,62 +3,66 @@
  * paths the spec requires: dist/index.html, dist/board/index.html,
  * dist/game/index.html (not mirroring source directory structure).
  *
- * Runs Vite's build() programmatically into a temporary directory so the
- * test is self-contained and works on a clean checkout with no prior dist/.
+ * Runs Vite's build() programmatically against the real vite.config.ts,
+ * outputting into a temporary directory, so the test is self-contained,
+ * works on a clean checkout, and catches a misconfigured vite.config.ts.
+ *
+ * Note: outDir is passed as a path relative to the repo root (not absolute).
+ * Vite 8 (rolldown) computes HTML output fileNames as paths relative to
+ * outDir; an absolute outDir outside root produces "../" prefixes that
+ * rolldown rejects. A relative string is resolved by Vite against root,
+ * keeping the computation inside the root tree.
  *
  * Covers: Task 1.3 / tech.md build requirement.
  */
-import { existsSync, mkdtempSync, rmSync } from "fs";
-import { tmpdir } from "os";
+import { existsSync, rmSync } from "fs";
 import { resolve } from "path";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { build } from "vite";
 
 const root = resolve(import.meta.dirname, "../../");
 
-let outDir: string;
+// Unique relative outDir per test run, nested under .build-test-tmp/ so it
+// is easy to gitignore and clean up without touching a real dist/.
+const relOutDir = `.build-test-tmp/run-${Date.now()}`;
 
 beforeAll(async () => {
-  outDir = mkdtempSync(resolve(tmpdir(), "planchette-build-test-"));
   await build({
-    root,
+    configFile: resolve(root, "vite.config.ts"),
+    root,          // explicit root so the relative outDir below resolves against it,
+                   // regardless of the process cwd when vitest runs
     logLevel: "silent",
     build: {
-      outDir,
+      outDir: relOutDir,   // relative to root — required by rolldown (see note above)
       emptyOutDir: true,
-      rollupOptions: {
-        input: {
-          main:  resolve(root, "index.html"),
-          board: resolve(root, "board/index.html"),
-          game:  resolve(root, "game/index.html"),
-        },
-      },
     },
   });
 }, 60_000);
 
 afterAll(() => {
-  if (outDir) rmSync(outDir, { recursive: true, force: true });
+  rmSync(resolve(root, ".build-test-tmp"), { recursive: true, force: true });
 });
 
 describe("Vite build output paths", () => {
+  const out = (p: string) => existsSync(resolve(root, relOutDir, p));
+
   it("produces index.html at the output root (skeleton demo at /)", () => {
-    expect(existsSync(resolve(outDir, "index.html"))).toBe(true);
+    expect(out("index.html")).toBe(true);
   });
 
   it("produces board/index.html (App A at /board/)", () => {
-    expect(existsSync(resolve(outDir, "board/index.html"))).toBe(true);
+    expect(out("board/index.html")).toBe(true);
   });
 
   it("produces game/index.html (App B at /game/)", () => {
-    expect(existsSync(resolve(outDir, "game/index.html"))).toBe(true);
+    expect(out("game/index.html")).toBe(true);
   });
 
   it("does NOT output index.html inside a skeleton/demo/ subdirectory", () => {
-    expect(existsSync(resolve(outDir, "skeleton/demo/index.html"))).toBe(false);
+    expect(out("skeleton/demo/index.html")).toBe(false);
   });
 
   it("does NOT output board/index.html inside an apps/ subdirectory", () => {
-    expect(existsSync(resolve(outDir, "apps/board/index.html"))).toBe(false);
+    expect(out("apps/board/index.html")).toBe(false);
   });
 });
