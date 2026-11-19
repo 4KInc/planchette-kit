@@ -237,3 +237,33 @@ correctly regardless of the process cwd when vitest runs. The temp dir lives und
 **Validation:**
 
 - `npm test` from clean checkout (no dist/) — 5/5 pass.
+
+---
+
+## 19 Nov 2026 (Task 2: Profile type, defaults, clamping, import/export)
+
+### What Kiro did
+
+Implemented `skeleton/src/engine/profile.ts` with all 30 fields from the Profile fields table in requirements.md. Cross-checked count: the requirements table has exactly 30 data rows (confirmed by extracting all pipe-delimited rows from the `## Profile fields` section and counting them). Task 2.6 includes a test that enumerates `Object.keys(defaultProfile)` and asserts the count is 30.
+
+**Files created:**
+
+- `skeleton/src/engine/profile.ts` — `Profile` interface (30 fields, no `any`), `defaultProfile`, `clampProfile`, `exportProfile`, `importProfile`.
+- `skeleton/test/profile.test.ts` — 15 example tests covering defaults round-trip, field count, clamping order, `__proto__` ignored, missing field defaults, dependent clamping.
+- `skeleton/test/profile.props.test.ts` — P17 in full: (a) round-trip for any valid profile; (b) every field in range for any arbitrary JSON input; (c) exactly 30 known fields regardless of input, including `__proto__` injection.
+
+**Clamping order implemented (Req 7 AC 5):**
+1. Calibration ranges (3–90 deg each)
+2. Dead zone (0 to 0.5 × min range)
+3. Cancel hold time (1000–5000 ms)
+4. Both acceptance times (must be < cancelHoldTime)
+5. Gesture threshold (0.1–0.95)
+6. Release threshold (0.05 to gestureThreshold − 0.05)
+
+**`importProfile` reads each of the 30 fields by name explicitly — never spreads the parsed object — so `__proto__` and unknown keys are silently ignored (Req 7 AC 6).**
+
+**One implementation note:** `fc.float` in fast-check requires `Math.fround`-rounded bounds (32-bit float values). Applied `Math.fround` to all float min/max values in the property test arbitraries.
+
+**Validation:**
+
+- `npm test` — 25/25 pass (5 existing + 15 example + 5 property).
