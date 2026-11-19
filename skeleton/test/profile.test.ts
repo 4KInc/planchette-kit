@@ -128,7 +128,7 @@ describe('importProfile', () => {
   it('ignores __proto__ key', () => {
     const json = '{"__proto__": {"evil": true}, "headGain": 1.2}';
     const { profile } = importProfile(json);
-    expect((profile as Record<string, unknown>)['evil']).toBeUndefined();
+    expect((profile as unknown as Record<string, unknown>)['evil']).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(profile, '__proto__')).toBe(false);
     expect(profile.headGain).toBe(1.2);
   });

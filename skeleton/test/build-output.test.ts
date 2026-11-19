@@ -17,6 +17,7 @@
  */
 import { existsSync, rmSync } from "fs";
 import { resolve } from "path";
+import { randomBytes } from "crypto";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { build } from "vite";
 
@@ -24,7 +25,7 @@ const root = resolve(import.meta.dirname, "../../");
 
 // Unique relative outDir per test run, nested under .build-test-tmp/ so it
 // is easy to gitignore and clean up without touching a real dist/.
-const relOutDir = `.build-test-tmp/run-${Date.now()}`;
+const relOutDir = `.build-test-tmp/run-${Date.now()}-${randomBytes(4).toString("hex")}`;
 
 beforeAll(async () => {
   await build({
@@ -40,7 +41,8 @@ beforeAll(async () => {
 }, 60_000);
 
 afterAll(() => {
-  rmSync(resolve(root, ".build-test-tmp"), { recursive: true, force: true });
+  // Remove only this run's folder so concurrent runs are unaffected.
+  rmSync(resolve(root, relOutDir), { recursive: true, force: true });
 });
 
 describe("Vite build output paths", () => {

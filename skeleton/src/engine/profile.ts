@@ -443,8 +443,8 @@ export function importProfile(json: string): ImportResult {
   // already recorded above).
   const keys = Object.keys(profile) as (keyof Profile)[];
   for (const key of keys) {
-    const pre = (beforeClamp as Record<string, unknown>)[key];
-    const post = (profile as Record<string, unknown>)[key];
+    const pre = (beforeClamp as unknown as Record<string, unknown>)[key];
+    const post = (profile as unknown as Record<string, unknown>)[key];
     if (pre !== post && !changes.some((c) => c.startsWith(`${key}:`))) {
       changes.push(`${key}: clamped from ${pre} to ${post}`);
     }

@@ -322,8 +322,8 @@ describe('P17(c) only the 30 known fields — no extra keys', () => {
       expect(keys).toHaveLength(30);
       expect(keys.includes('__proto__')).toBe(false);
       expect(keys.includes('extraKey')).toBe(false);
-      expect((profile as Record<string, unknown>)['injected']).toBeUndefined();
-      expect((profile as Record<string, unknown>)['evil']).toBeUndefined();
+      expect((profile as unknown as Record<string, unknown>)['injected']).toBeUndefined();
+      expect((profile as unknown as Record<string, unknown>)['evil']).toBeUndefined();
     }
   });
 

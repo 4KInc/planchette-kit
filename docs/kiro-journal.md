@@ -269,3 +269,5 @@ Implemented `skeleton/src/engine/profile.ts` with all 30 fields from the Profile
 - `npm test` — 25/25 pass (5 existing + 15 example + 5 property).
 
 19 Nov 2026: Task 2 review fixes: clampProfile falls back (and clamps the fallback) on NaN, Infinity and wrong types; import reports missing fields; scanLoopsBeforePause rounded; unused variable removed; __proto__ test uses a raw JSON string.
+
+19 Nov 2026: Task 3: press machine with example and property tests (P7, P18, P5 partial); build-output test now deletes only its own temp folder.
