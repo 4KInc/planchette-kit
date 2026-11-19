@@ -30,6 +30,37 @@ describe('clampProfile', () => {
     expect(clampProfile({ headGain: 1.5 }).headGain).toBe(1.5);
   });
 
+  it('falls back to base when headGain is NaN', () => {
+    expect(clampProfile({ headGain: NaN }).headGain).toBe(defaultProfile.headGain);
+  });
+
+  it('falls back to base when headGain is Infinity', () => {
+    expect(clampProfile({ headGain: Infinity }).headGain).toBe(defaultProfile.headGain);
+  });
+
+  it('falls back to base when headGain is -Infinity', () => {
+    expect(clampProfile({ headGain: -Infinity }).headGain).toBe(defaultProfile.headGain);
+  });
+
+  it('falls back to base when a numeric field receives a string', () => {
+    // TypeScript prevents this at compile time, but runtime callers (importProfile
+    // reading untrusted JSON) can pass any value.
+    const p = clampProfile({ headGain: 'fast' as unknown as number });
+    expect(p.headGain).toBe(defaultProfile.headGain);
+  });
+
+  it('falls back to base when a boolean field receives a non-boolean', () => {
+    const p = clampProfile({ cancelByHold: 1 as unknown as boolean });
+    expect(p.cancelByHold).toBe(defaultProfile.cancelByHold);
+  });
+
+  it('rounds scanLoopsBeforePause to an integer', () => {
+    expect(clampProfile({ scanLoopsBeforePause: 2.7 }).scanLoopsBeforePause).toBe(3);
+    expect(clampProfile({ scanLoopsBeforePause: 2.2 }).scanLoopsBeforePause).toBe(2);
+    // NaN falls back to default (which is already an integer)
+    expect(Number.isInteger(clampProfile({ scanLoopsBeforePause: NaN }).scanLoopsBeforePause)).toBe(true);
+  });
+
   it('enforces clamping order: dead zone ≤ 0.5 × min calibration range', () => {
     // Set all ranges to 10 deg → max dead zone = 5 deg
     const p = clampProfile({
@@ -37,9 +68,24 @@ describe('clampProfile', () => {
       calibrationRangeRight: 10,
       calibrationRangeUp: 10,
       calibrationRangeDown: 10,
-      headDeadZone: 999, // way out of range
+      headDeadZone: 999,
     });
     expect(p.headDeadZone).toBe(5);
+  });
+
+  it('falls back to base when calibration range is NaN (not Infinity)', () => {
+    // NaN range → falls back to base (15 deg) → dead zone max = 0.5 × 15 = 7.5
+    const p = clampProfile({ calibrationRangeLeft: NaN, headDeadZone: 999 });
+    expect(p.calibrationRangeLeft).toBe(defaultProfile.calibrationRangeLeft);
+    expect(p.headDeadZone).toBeLessThanOrEqual(
+      0.5 *
+        Math.min(
+          p.calibrationRangeLeft,
+          p.calibrationRangeRight,
+          p.calibrationRangeUp,
+          p.calibrationRangeDown,
+        ),
+    );
   });
 
   it('clamps gesture release threshold below gesture threshold', () => {
@@ -52,6 +98,11 @@ describe('clampProfile', () => {
     expect(p.gestureReleaseThreshold).toBeLessThanOrEqual(p.gestureThreshold - 0.05);
   });
 
+  it('falls back to base when gestureThreshold is NaN', () => {
+    const p = clampProfile({ gestureThreshold: NaN, gestureReleaseThreshold: 0.9 });
+    expect(p.gestureThreshold).toBe(defaultProfile.gestureThreshold);
+  });
+
   it('clamps acceptance times below cancelHoldTime', () => {
     const p = clampProfile({
       cancelHoldTime: 1500,
@@ -60,6 +111,11 @@ describe('clampProfile', () => {
     });
     expect(p.switchAcceptanceTime).toBeLessThan(p.cancelHoldTime);
     expect(p.gestureAcceptanceTime).toBeLessThan(p.cancelHoldTime);
+  });
+
+  it('falls back when acceptance time is NaN', () => {
+    const p = clampProfile({ switchAcceptanceTime: NaN });
+    expect(p.switchAcceptanceTime).toBe(defaultProfile.switchAcceptanceTime);
   });
 
   it('fills missing fields from defaultProfile', () => {
@@ -72,7 +128,6 @@ describe('importProfile', () => {
   it('ignores __proto__ key', () => {
     const json = '{"__proto__": {"evil": true}, "headGain": 1.2}';
     const { profile } = importProfile(json);
-    // The profile should not have evil on its prototype
     expect((profile as Record<string, unknown>)['evil']).toBeUndefined();
     expect(Object.prototype.hasOwnProperty.call(profile, '__proto__')).toBe(false);
     expect(profile.headGain).toBe(1.2);
@@ -82,6 +137,24 @@ describe('importProfile', () => {
     const json = '{}';
     const { profile } = importProfile(json);
     expect(profile).toEqual(defaultProfile);
+  });
+
+  it('reports each missing field in changes', () => {
+    const json = '{}';
+    const { changes } = importProfile(json);
+    // Every field is absent, so every field should produce a "missing" entry.
+    expect(changes.length).toBe(30);
+    expect(changes.every((c) => c.includes('missing'))).toBe(true);
+  });
+
+  it('reports only the missing fields (present fields produce no missing entry)', () => {
+    const json = JSON.stringify({ headGain: 1.5 });
+    const { changes } = importProfile(json);
+    // headGain is present and valid → no missing entry for it
+    expect(changes.some((c) => c.startsWith('headGain:') && c.includes('missing'))).toBe(false);
+    // 29 other fields are absent → 29 missing entries (headGain itself may add a
+    // clamped entry if 1.5 ≠ clamped value, but it won't since 1.5 is in range)
+    expect(changes.filter((c) => c.includes('missing')).length).toBe(29);
   });
 
   it('reports clamping in changes array', () => {

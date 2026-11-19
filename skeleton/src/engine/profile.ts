@@ -161,8 +161,16 @@ export const defaultProfile: Profile = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(Math.max(value, min), max);
+/**
+ * Clamp `value` to [min, max].
+ * Uses `fallback` if `value` is not a finite number (NaN, ±Infinity, wrong type).
+ * The fallback is clamped too, because a dependent field's range can move after
+ * the base value was chosen (for example the release threshold after the
+ * gesture threshold is clamped down).
+ */
+function clampOrFallback(value: unknown, min: number, max: number, fallback: number): number {
+  const v = typeof value === 'number' && isFinite(value) ? value : fallback;
+  return Math.min(Math.max(v, min), max);
 }
 
 const VALID_MODES: Mode[] = [
@@ -185,77 +193,69 @@ const VALID_GESTURES: SwitchGesture[] = ['jaw open', 'brow raise'];
  *   calibration ranges → dead zone → cancel hold time → both acceptance times
  *   → gesture threshold → release threshold
  *
- * Any missing or invalid field falls back to `base` (defaults to `defaultProfile`).
+ * Any missing, non-finite, or wrong-type field falls back to `base`
+ * (defaults to `defaultProfile`).
  */
 export function clampProfile(
   partial: Partial<Profile>,
   base: Profile = defaultProfile,
 ): Profile {
-  const changes: string[] = [];
-  void changes; // used only in importProfile; here we just clamp silently
-
   // Helper: pick a value or fall back to base
   function pick<K extends keyof Profile>(key: K): Profile[K] {
     return key in partial ? (partial[key] as Profile[K]) : base[key];
   }
 
+  // Clamp a numeric field, falling back to the base value if the picked value
+  // is not a finite number.
+  function cn(key: keyof Profile, min: number, max: number): number {
+    return clampOrFallback(pick(key), min, max, base[key] as number);
+  }
+
   // ---- simple fields (no cross-field dependency) -------------------------
 
-  const mode = VALID_MODES.includes(pick('mode') as Mode)
-    ? (pick('mode') as Mode)
-    : base.mode;
+  const rawMode = pick('mode');
+  const mode = VALID_MODES.includes(rawMode as Mode) ? (rawMode as Mode) : base.mode;
 
+  const rawStartCamera = pick('startCameraOnLoad');
   const startCameraOnLoad =
-    typeof pick('startCameraOnLoad') === 'boolean'
-      ? pick('startCameraOnLoad')
-      : base.startCameraOnLoad;
+    typeof rawStartCamera === 'boolean' ? rawStartCamera : base.startCameraOnLoad;
 
-  const switchGesture = VALID_GESTURES.includes(pick('switchGesture') as SwitchGesture)
-    ? (pick('switchGesture') as SwitchGesture)
+  const rawGesture = pick('switchGesture');
+  const switchGesture = VALID_GESTURES.includes(rawGesture as SwitchGesture)
+    ? (rawGesture as SwitchGesture)
     : base.switchGesture;
 
+  const rawBinding = pick('switchBinding');
   const switchBinding =
-    typeof pick('switchBinding') === 'string' && pick('switchBinding') !== ''
-      ? (pick('switchBinding') as string)
-      : base.switchBinding;
+    typeof rawBinding === 'string' && rawBinding !== '' ? rawBinding : base.switchBinding;
 
-  const headGain = clamp(pick('headGain') as number, 1.0, 2.0);
-  const smoothingStrength = clamp(pick('smoothingStrength') as number, 0, 1);
-  const dwellTime = clamp(pick('dwellTime') as number, 400, 3000);
-  const graceTime = clamp(pick('graceTime') as number, 0, 500);
-  const postSelectionPause = clamp(pick('postSelectionPause') as number, 200, 3000);
-  const autoRepeatInterval = clamp(pick('autoRepeatInterval') as number, 500, 3000);
-  const scanInterval = clamp(pick('scanInterval') as number, 500, 5000);
-  const scanLoopsBeforePause = clamp(pick('scanLoopsBeforePause') as number, 1, 10);
-  const noFaceTimeout = clamp(pick('noFaceTimeout') as number, 3000, 60000);
-  const inputTimeout = clamp(pick('inputTimeout') as number, 500, 10000);
+  const headGain = cn('headGain', 1.0, 2.0);
+  const smoothingStrength = cn('smoothingStrength', 0, 1);
+  const dwellTime = cn('dwellTime', 400, 3000);
+  const graceTime = cn('graceTime', 0, 500);
+  const postSelectionPause = cn('postSelectionPause', 200, 3000);
+  const autoRepeatInterval = cn('autoRepeatInterval', 500, 3000);
+  const scanInterval = cn('scanInterval', 500, 5000);
+  // scanLoopsBeforePause is an integer count
+  const scanLoopsBeforePause = Math.round(cn('scanLoopsBeforePause', 1, 10));
+  const noFaceTimeout = cn('noFaceTimeout', 3000, 60000);
+  const inputTimeout = cn('inputTimeout', 500, 10000);
+
+  const rawCancelByHold = pick('cancelByHold');
   const cancelByHold =
-    typeof pick('cancelByHold') === 'boolean'
-      ? pick('cancelByHold')
-      : base.cancelByHold;
-  const targetSize = clamp(pick('targetSize') as number, 64, 400);
-  const targetSpacing = clamp(pick('targetSpacing') as number, 8, 64);
-  const calibrationStillnessThreshold = clamp(
-    pick('calibrationStillnessThreshold') as number,
-    0.5,
-    6,
-  );
-  const calibrationStillnessTime = clamp(
-    pick('calibrationStillnessTime') as number,
-    500,
-    4000,
-  );
-  const calibrationStepTimeout = clamp(
-    pick('calibrationStepTimeout') as number,
-    3000,
-    20000,
-  );
+    typeof rawCancelByHold === 'boolean' ? rawCancelByHold : base.cancelByHold;
+
+  const targetSize = cn('targetSize', 64, 400);
+  const targetSpacing = cn('targetSpacing', 8, 64);
+  const calibrationStillnessThreshold = cn('calibrationStillnessThreshold', 0.5, 6);
+  const calibrationStillnessTime = cn('calibrationStillnessTime', 500, 4000);
+  const calibrationStepTimeout = cn('calibrationStepTimeout', 3000, 20000);
 
   // ---- step 1: calibration ranges ----------------------------------------
-  const calibrationRangeLeft = clamp(pick('calibrationRangeLeft') as number, 3, 90);
-  const calibrationRangeRight = clamp(pick('calibrationRangeRight') as number, 3, 90);
-  const calibrationRangeUp = clamp(pick('calibrationRangeUp') as number, 3, 90);
-  const calibrationRangeDown = clamp(pick('calibrationRangeDown') as number, 3, 90);
+  const calibrationRangeLeft = cn('calibrationRangeLeft', 3, 90);
+  const calibrationRangeRight = cn('calibrationRangeRight', 3, 90);
+  const calibrationRangeUp = cn('calibrationRangeUp', 3, 90);
+  const calibrationRangeDown = cn('calibrationRangeDown', 3, 90);
 
   // ---- step 2: dead zone (≤ 0.5 × min range) ----------------------------
   const minRange = Math.min(
@@ -265,32 +265,35 @@ export function clampProfile(
     calibrationRangeDown,
   );
   const headDeadZoneMax = 0.5 * minRange;
-  const headDeadZone = clamp(pick('headDeadZone') as number, 0, headDeadZoneMax);
+  const headDeadZone = clampOrFallback(pick('headDeadZone'), 0, headDeadZoneMax, base.headDeadZone);
 
   // ---- step 3: cancel hold time ------------------------------------------
-  const cancelHoldTime = clamp(pick('cancelHoldTime') as number, 1000, 5000);
+  const cancelHoldTime = cn('cancelHoldTime', 1000, 5000);
 
   // ---- step 4: both acceptance times (must be < cancelHoldTime) ----------
-  const switchAcceptanceTime = clamp(
-    pick('switchAcceptanceTime') as number,
+  const switchAcceptanceTime = clampOrFallback(
+    pick('switchAcceptanceTime'),
     0,
     Math.min(2000, cancelHoldTime - 1),
+    base.switchAcceptanceTime,
   );
-  const gestureAcceptanceTime = clamp(
-    pick('gestureAcceptanceTime') as number,
+  const gestureAcceptanceTime = clampOrFallback(
+    pick('gestureAcceptanceTime'),
     100,
     Math.min(2000, cancelHoldTime - 1),
+    base.gestureAcceptanceTime,
   );
 
   // ---- step 5: gesture threshold -----------------------------------------
-  const gestureThreshold = clamp(pick('gestureThreshold') as number, 0.1, 0.95);
+  const gestureThreshold = cn('gestureThreshold', 0.1, 0.95);
 
   // ---- step 6: release threshold (≥ 0.05, ≤ gestureThreshold − 0.05) ----
   const releaseThresholdMax = gestureThreshold - 0.05;
-  const gestureReleaseThreshold = clamp(
-    pick('gestureReleaseThreshold') as number,
+  const gestureReleaseThreshold = clampOrFallback(
+    pick('gestureReleaseThreshold'),
     0.05,
     releaseThresholdMax,
+    base.gestureReleaseThreshold,
   );
 
   return {
@@ -341,18 +344,25 @@ export function exportProfile(p: Profile): string {
 
 /**
  * Parse `json`, read each of the 30 known fields by name (never spread),
- * apply clamping, and report what changed.
+ * apply clamping, and report what changed (including missing fields and
+ * fields whose values were clamped).
  */
 export function importProfile(json: string): ImportResult {
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
   } catch {
-    return { profile: { ...defaultProfile }, changes: ['invalid JSON — all fields reset to defaults'] };
+    return {
+      profile: { ...defaultProfile },
+      changes: ['invalid JSON — all fields reset to defaults'],
+    };
   }
 
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-    return { profile: { ...defaultProfile }, changes: ['parsed value is not an object — all fields reset to defaults'] };
+    return {
+      profile: { ...defaultProfile },
+      changes: ['parsed value is not an object — all fields reset to defaults'],
+    };
   }
 
   // Read each field by name explicitly — never spread the parsed object.
@@ -360,23 +370,35 @@ export function importProfile(json: string): ImportResult {
   const changes: string[] = [];
 
   function readNumber(key: string, def: number): number {
+    if (!(key in raw)) {
+      changes.push(`${key}: missing — using default`);
+      return def;
+    }
     const v = raw[key];
     if (typeof v === 'number' && isFinite(v)) return v;
-    if (v !== undefined) changes.push(`${key}: invalid value "${v}" — using default`);
+    changes.push(`${key}: invalid value "${v}" — using default`);
     return def;
   }
 
   function readBoolean(key: string, def: boolean): boolean {
+    if (!(key in raw)) {
+      changes.push(`${key}: missing — using default`);
+      return def;
+    }
     const v = raw[key];
     if (typeof v === 'boolean') return v;
-    if (v !== undefined) changes.push(`${key}: invalid value "${v}" — using default`);
+    changes.push(`${key}: invalid value "${v}" — using default`);
     return def;
   }
 
   function readString(key: string, def: string): string {
+    if (!(key in raw)) {
+      changes.push(`${key}: missing — using default`);
+      return def;
+    }
     const v = raw[key];
     if (typeof v === 'string' && v !== '') return v;
-    if (v !== undefined) changes.push(`${key}: invalid value "${v}" — using default`);
+    changes.push(`${key}: invalid value "${v}" — using default`);
     return def;
   }
 
@@ -413,13 +435,15 @@ export function importProfile(json: string): ImportResult {
     targetSpacing: readNumber('targetSpacing', defaultProfile.targetSpacing),
   };
 
-  const before = partial as Profile;
+  // Record the values as read (before clamping) so we can detect clamping below.
+  const beforeClamp = { ...partial } as Profile;
   const profile = clampProfile(partial, defaultProfile);
 
-  // Detect values that were clamped (changed during clamping)
+  // Report any additional changes caused by clamping (after the read-stage changes
+  // already recorded above).
   const keys = Object.keys(profile) as (keyof Profile)[];
   for (const key of keys) {
-    const pre = (before as Record<string, unknown>)[key];
+    const pre = (beforeClamp as Record<string, unknown>)[key];
     const post = (profile as Record<string, unknown>)[key];
     if (pre !== post && !changes.some((c) => c.startsWith(`${key}:`))) {
       changes.push(`${key}: clamped from ${pre} to ${post}`);

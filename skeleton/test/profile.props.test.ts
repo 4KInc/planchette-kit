@@ -5,6 +5,10 @@
  * (b) Every field of any import result is in range.
  * (c) The result has exactly the 30 known fields — no __proto__, no unknown keys —
  *     for arbitrary JSON input including injected __proto__ and out-of-order fields.
+ *
+ * Additional property: clampProfile with any partial value (NaN, Infinity, undefined,
+ * wrong type) always returns a profile whose every field is in range and of the
+ * correct type.
  */
 
 import { describe, it, expect } from 'vitest';
@@ -33,10 +37,10 @@ const modeArb = fc.constantFrom<Mode>(
 
 const gestureArb = fc.constantFrom<SwitchGesture>('jaw open', 'brow raise');
 
-/** Generate a fully valid Profile by building a partial and clamping it. */
 // fast-check fc.float requires 32-bit float bounds — use Math.fround
 const f = Math.fround;
 
+/** Generate a fully valid Profile by building a partial and clamping it. */
 const validProfileArb: fc.Arbitrary<Profile> = fc
   .record({
     mode: modeArb,
@@ -73,6 +77,90 @@ const validProfileArb: fc.Arbitrary<Profile> = fc
   })
   .map((raw) => clampProfile(raw));
 
+// An arbitrary that generates wild partial Profile values: any mix of correct types,
+// NaN, Infinity, wrong types (string where number expected, etc.), and undefined
+// (key absent). Used to verify clampProfile is defensive regardless of input.
+const wildPartialArb: fc.Arbitrary<Partial<Profile>> = fc
+  .record(
+    {
+      mode: fc.oneof(modeArb, fc.string(), fc.constant(undefined)),
+      startCameraOnLoad: fc.oneof(fc.boolean(), fc.integer(), fc.constant(undefined)),
+      switchGesture: fc.oneof(gestureArb, fc.string(), fc.constant(undefined)),
+      switchBinding: fc.oneof(fc.string(), fc.integer(), fc.constant(undefined)),
+      headGain: fc.oneof(
+        fc.float({ noNaN: true }),
+        fc.constant(NaN),
+        fc.constant(Infinity),
+        fc.constant(-Infinity),
+        fc.string(),
+        fc.constant(undefined),
+      ),
+      headDeadZone: fc.oneof(
+        fc.float({ noNaN: true }),
+        fc.constant(NaN),
+        fc.constant(Infinity),
+        fc.constant(undefined),
+      ),
+      smoothingStrength: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      dwellTime: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(Infinity), fc.constant(undefined)),
+      graceTime: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      postSelectionPause: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      autoRepeatInterval: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      scanInterval: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      scanLoopsBeforePause: fc.oneof(
+        fc.float({ noNaN: true }), // includes non-integers to test rounding
+        fc.constant(NaN),
+        fc.constant(Infinity),
+        fc.constant(undefined),
+      ),
+      switchAcceptanceTime: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      gestureAcceptanceTime: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      gestureThreshold: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      gestureReleaseThreshold: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      cancelByHold: fc.oneof(fc.boolean(), fc.integer(), fc.constant(undefined)),
+      cancelHoldTime: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      noFaceTimeout: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      inputTimeout: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      calibrationRangeLeft: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(Infinity), fc.constant(undefined)),
+      calibrationRangeRight: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      calibrationRangeUp: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      calibrationRangeDown: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      calibrationStillnessThreshold: fc.oneof(fc.float({ noNaN: true }), fc.constant(NaN), fc.constant(undefined)),
+      calibrationStillnessTime: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      calibrationStepTimeout: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      targetSize: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+      targetSpacing: fc.oneof(fc.integer(), fc.constant(NaN), fc.constant(undefined)),
+    },
+    { requiredKeys: [] }, // all keys optional so undefined values are possible
+  )
+  .map((rec) => {
+    // Drop keys whose value is undefined so they are genuinely absent from the partial.
+    const out: Partial<Profile> = {};
+    for (const [k, v] of Object.entries(rec)) {
+      if (v !== undefined) {
+        (out as Record<string, unknown>)[k] = v;
+      }
+    }
+    return out;
+  });
+
+// ---------------------------------------------------------------------------
+// clampProfile defensive property
+// ---------------------------------------------------------------------------
+
+describe('clampProfile defensive: any partial input → valid result', () => {
+  it('every field is in range and of the correct type for any partial value', () => {
+    fc.assert(
+      fc.property(wildPartialArb, (partial) => {
+        const p = clampProfile(partial);
+        checkAllFieldsInRange(p);
+        return true;
+      }),
+      { numRuns: 1000 },
+    );
+  });
+});
+
 // ---------------------------------------------------------------------------
 // P17(a) — round-trip
 // ---------------------------------------------------------------------------
@@ -82,7 +170,6 @@ describe('P17(a) round-trip', () => {
     fc.assert(
       fc.property(validProfileArb, (p) => {
         const { profile: p2 } = importProfile(exportProfile(p));
-        // Compare field by field for precise error messages on failure
         for (const key of Object.keys(p) as (keyof Profile)[]) {
           if (p[key] !== p2[key]) {
             throw new Error(
@@ -103,9 +190,7 @@ describe('P17(a) round-trip', () => {
 
 describe('P17(b) every imported field is in range', () => {
   it('holds for any arbitrary JSON string', () => {
-    // Generate arbitrary JSON values (including non-objects, bad values, etc.)
     const jsonArb = fc.oneof(
-      // random JSON-serialisable objects with arbitrary keys and values
       fc
         .dictionary(
           fc.oneof(fc.string(), fc.constant('__proto__'), fc.constant('mode')),
@@ -139,6 +224,7 @@ function checkAllFieldsInRange(p: Profile): void {
   expect(typeof p.switchBinding).toBe('string');
   expect(p.headGain).toBeGreaterThanOrEqual(1.0);
   expect(p.headGain).toBeLessThanOrEqual(2.0);
+  expect(isFinite(p.headGain)).toBe(true);
 
   const minRange = Math.min(
     p.calibrationRangeLeft,
@@ -148,6 +234,7 @@ function checkAllFieldsInRange(p: Profile): void {
   );
   expect(p.headDeadZone).toBeGreaterThanOrEqual(0);
   expect(p.headDeadZone).toBeLessThanOrEqual(0.5 * minRange + 1e-9); // float tolerance
+  expect(isFinite(p.headDeadZone)).toBe(true);
 
   expect(p.smoothingStrength).toBeGreaterThanOrEqual(0);
   expect(p.smoothingStrength).toBeLessThanOrEqual(1);
@@ -163,6 +250,7 @@ function checkAllFieldsInRange(p: Profile): void {
   expect(p.scanInterval).toBeLessThanOrEqual(5000);
   expect(p.scanLoopsBeforePause).toBeGreaterThanOrEqual(1);
   expect(p.scanLoopsBeforePause).toBeLessThanOrEqual(10);
+  expect(Number.isInteger(p.scanLoopsBeforePause)).toBe(true);
   expect(p.switchAcceptanceTime).toBeGreaterThanOrEqual(0);
   expect(p.switchAcceptanceTime).toBeLessThan(p.cancelHoldTime);
   expect(p.gestureAcceptanceTime).toBeGreaterThanOrEqual(100);
@@ -181,6 +269,7 @@ function checkAllFieldsInRange(p: Profile): void {
   for (const key of ['calibrationRangeLeft', 'calibrationRangeRight', 'calibrationRangeUp', 'calibrationRangeDown'] as const) {
     expect(p[key]).toBeGreaterThanOrEqual(3);
     expect(p[key]).toBeLessThanOrEqual(90);
+    expect(isFinite(p[key])).toBe(true);
   }
   expect(p.calibrationStillnessThreshold).toBeGreaterThanOrEqual(0.5);
   expect(p.calibrationStillnessThreshold).toBeLessThanOrEqual(6);
@@ -218,9 +307,14 @@ describe('P17(c) only the 30 known fields — no extra keys', () => {
 
   it('ignores __proto__ injection', () => {
     const malicious = [
+      // Raw strings with a literal "__proto__" key — the object-literal form
+      // `{ __proto__: ... }` sets the prototype rather than adding a key, so
+      // JSON.stringify would not include it. These strings must be written as
+      // literals to actually contain the key in the JSON.
       '{"__proto__":{"injected":true},"headGain":1.5}',
       '{"constructor":{"prototype":{"injected":true}}}',
-      JSON.stringify({ ...defaultProfile, __proto__: { evil: true }, extraKey: 42 }),
+      // A profile with an extra unknown key alongside a known one
+      '{"headGain":1.5,"__proto__":{"evil":true},"extraKey":42}',
     ];
     for (const json of malicious) {
       const { profile } = importProfile(json);
@@ -228,7 +322,6 @@ describe('P17(c) only the 30 known fields — no extra keys', () => {
       expect(keys).toHaveLength(30);
       expect(keys.includes('__proto__')).toBe(false);
       expect(keys.includes('extraKey')).toBe(false);
-      // Prototype should not be polluted
       expect((profile as Record<string, unknown>)['injected']).toBeUndefined();
       expect((profile as Record<string, unknown>)['evil']).toBeUndefined();
     }
