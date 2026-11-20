@@ -157,15 +157,16 @@ Implement `skeleton/src/engine/gesture.ts`. Depends on `press-machine.ts`,
 
 ## Task 9: Calibration engine
 
-Implement `skeleton/src/engine/calibration.ts`. Depends on `profile.ts`.
+Implement `skeleton/src/engine/calibration.ts`. Depends on `profile.ts`, plus `head-pointer.ts` and `gesture.ts` for shared types, `MIN_RANGE_DEG` and `switchGestureScore`. Pure: time is an input, no DOM, no devices. Design: §5 "Calibration engine details".
 
-- [ ] 9.1 Define `CalibrationState` (current step, accumulated rotations, stillness window, tremor std-dev accumulator).
-- [ ] 9.2 Implement `stepCalibration(state, { rotation }, now, profile): CalibrationEvent[]` covering: five steps (centre, left, right, up, down), stillness-time advance, step-timeout advance, rejection when any measured range < MIN_RANGE, tremor std-dev measurement, `suggestHighTremor` flag in the done event.
-- [ ] 9.3 Implement `cloneCalibrationState`.
-- [ ] 9.4 Write `skeleton/test/calibration.test.ts`: stillness advance, timeout advance, range-too-small rejection, tremor std-dev above 0.5° sets flag, symmetric and asymmetric ranges stored correctly.
-- [ ] 9.5 Support a centre-only run (`run: 'centre'`, design §4 "Centre step"): only the centre step, same stillness and step-timeout rules; the result is the centre only (mean over the stillness window; on timeout the mean of the samples seen; with no face seen, no centre). Test it in `calibration.test.ts`.
+- [x] 9.1 Define `CalibrationState` (run, current step, step start time, sample window, tremor flag, measurements so far, gesture rest and deliberate scores).
+- [x] 9.2 Implement `stepCalibration(state, { rotation, gestureScores }, now, profile): CalibrationEvent[]` covering: five head steps (centre, left, right, up, down), stillness-time advance, step-timeout advance, rejection when any measured range < MIN_RANGE, tremor std-dev measurement, `suggestHighTremor` flag in the done event.
+- [x] 9.3 Implement `cloneCalibrationState`.
+- [x] 9.4 Write `skeleton/test/calibration.test.ts`: stillness advance, timeout advance, range-too-small rejection, tremor std-dev above 0.5° sets flag, symmetric and asymmetric ranges stored correctly.
+- [x] 9.5 Support a centre-only run (`run: 'centre'`, design §4 "Centre step"): only the centre step, same stillness and step-timeout rules; the result is the centre only (mean over the stillness window; on timeout the mean of the samples seen; with no face seen, no centre). Test it in `calibration.test.ts`.
 
-**Covers:** Req 7 AC 1–2; Req 2 AC 6.
+- [x] 9.6 Add the hands-free gesture step after the five head steps in a full run (design §5 "Calibration engine details"): a `rest` phase measuring the resting score of `profile.switchGesture`, then a `gesture` phase measuring the deliberate score, each with the same stillness and step-timeout rules as the head steps. Set `gestureThreshold = rest + 0.6 × range` and `gestureReleaseThreshold = rest + 0.3 × range` (range = deliberate − rest), clamped to the profile limits with release below threshold. If the range is below 0.15, keep the existing thresholds and say so in the done event; do not reject the calibration. A centre-only run skips this step. Test in `calibration.test.ts`: thresholds set from rest and deliberate scores; range too small keeps the old thresholds; centre-only skips the gesture step; stillness and timeout rules apply to both gesture phases.
+**Covers:** Req 7 AC 1–2; Req 2 AC 6; Req 5 AC 5.
 
 ---
 

@@ -573,7 +573,7 @@ skeleton/src/engine/
   gesture.ts           blendshape → signal, calls press-machine; step(state, { gestureScores }, now, profile) → press/cancel events
   switch.ts            key/button → signal, calls press-machine; step(state, { signal }, now, profile) → events + press
   scan.ts              scan cycle + highlight; step(state, { press, targets }, now, profile) → events
-  calibration.ts       stillness detector + range recorder; step(state, { rotation }, now, profile) → events
+  calibration.ts       stillness detector + range recorder + gesture thresholds; step(state, { rotation, gestureScores }, now, profile) → events
   profile.ts           Profile type, defaults, clampProfile, importProfile, exportProfile
 ```
 
@@ -679,6 +679,91 @@ nothing was highlighted yet. The host creates a fresh state when the mode change
   index that no longer exists wraps to the first slot. A row level that no longer
   exists, or a layout that stopped being a grid, returns to the top level.
 
+### Calibration engine details (`calibration.ts`)
+The engine is pure: time comes in as `now`, input comes in as a sample, and it touches
+no DOM and no device. It never changes the profile. The result carries the profile
+fields to apply, and the host applies them with `setProfile`, which clamps.
+**Runs and steps.**
+- `run: 'full'`: `centre`, `left`, `right`, `up`, `down`, `rest`, `gesture`, then `done`.
+- `run: 'centre'`: `centre`, then `done`. It skips the gesture step and measures
+  nothing else (see "Centre step" in §4).
+**Input.** `{ rotation: FaceRotation | null, gestureScores: GestureScores | null }` per
+camera sample. `rotation` is `null` when no face is detected, or when a value is not
+finite; such a sample carries no measurement. A sample with a non-finite `now` is ignored.
+**Stillness and timeout (every step, the gesture phases included).**
+- A step keeps a window of the samples since the head last moved. The head is still
+  while, over the window, the spread (max − min) of yaw and of pitch are both at most
+  `calibrationStillnessThreshold`. A sample that would break this restarts the window
+  at that sample. A sample with no face empties the window.
+- The step ends when the window has lasted `calibrationStillnessTime` (`timeout: false`),
+  or when `calibrationStepTimeout` has passed since the step started (`timeout: true`),
+  whichever comes first. If both hold on the same sample, stillness wins.
+- A step starts at the `now` of the first sample the engine sees (first step) or at
+  the `now` of the sample that ended the previous step. That ending sample is not
+  measured in the next step.
+- The measurement is over the window on stillness, and over every sample of the step on
+  timeout. With no face sample at all, the measurement is missing.
+
+**Head steps.** The centre is the mean `(yaw, pitch)`. Ranges are relative to the run's
+centre: `left = c.yaw − mean.yaw`, `right = mean.yaw − c.yaw`, `down = c.pitch − mean.pitch`,
+`up = mean.pitch − c.pitch` (same signs as §4). After the `down` step, if the centre or a
+range is missing, or any range is below `MIN_RANGE`, the head result is rejected
+(`range-too-small`, or `no-centre` when the centre step saw no face). A rejection drops the
+four ranges only: the profile keeps its old ranges. The run carries on to the gesture
+step, because a person who cannot point with their head is exactly the person who needs
+the gesture switch.
+
+**Tremor.** For each of the five head steps the population standard deviation of yaw and
+of pitch is taken over the measured samples. `suggestHighTremor` is true if any of them
+exceeds `0.5°`. The gesture phases are not measured for tremor, because opening the jaw
+moves the head. A centre-only run reports `suggestHighTremor: false`.
+
+**Gesture step (full run only, hands-free).** Two phases, each with the stillness and
+timeout rules above, so the person never needs a hand:
+1. `rest`: the person relaxes their face. The score is that of `profile.switchGesture`
+   (`jawOpen` or `browRaise`, via `switchGestureScore`; a face with no scores counts
+   as 0). `rest` is the mean score over the measured samples.
+2. `gesture`: the person makes the gesture and holds it. `deliberate` is the 90th
+   percentile of the measured scores (nearest rank: the value at index `ceil(0.9 n) − 1`
+   of the sorted scores). A percentile rather than the mean, because the gesture starts
+   part-way into the window. A percentile rather than the maximum, so one noisy frame
+   does not set the threshold.
+
+`range = deliberate − rest`. Constants: `GESTURE_MIN_RANGE = 0.15`,
+`GESTURE_THRESHOLD_FRACTION = 0.6`, `GESTURE_RELEASE_FRACTION = 0.3`.
+```
+if range ≥ 0.15:
+  threshold = rest + 0.6 × range
+  release   = rest + 0.3 × range
+  both clamped by clampProfile (threshold to 0.1–0.95, release to 0.05–threshold − 0.05)
+else:
+  gestureThreshold and gestureReleaseThreshold are kept as they were
+```
+With a range of at least 0.15 the unclamped release is already at least 0.045 below the
+threshold, and the clamp widens it to the 0.05 gap. If a phase has no measurement (no
+face) the thresholds are also kept. The calibration as a whole is never rejected for the
+gesture: the done event says what happened.
+
+**Done event.** `{ type: 'done', run, result }`. `result` is
+`{ run, centre: FaceRotation | null, ranges: {left,right,up,down} | null,
+rejected: 'range-too-small' | 'no-centre' | null, suggestHighTremor, gesture, profile }`.
+`gesture` is `null` for a centre-only run, otherwise
+`{ rest, deliberate, range, applied, kept: null | 'range-too-small' | 'no-measurement' }`
+(`rest`, `deliberate` and `range` are `null` when missing). `profile` is the
+`Partial<Profile>` to apply: the four ranges unless rejected, and the two thresholds only
+when `applied`.
+
+**Step events.** `{ type: 'step', run, step, completed, timeout }`: `completed: false`
+when a step starts, `completed: true` when it ends (`timeout` says how). The first
+step's start event comes on the first sample. When a step ends, its end event and the
+next step's start event are emitted from the same call. After `done`, further samples
+produce nothing.
+
+**Known limit.** A person who is already still when a step starts finishes that step
+after `calibrationStillnessTime` without having moved. For a head step this measures a
+range near 0, which is rejected. For the gesture phase it gives a range near 0, so the
+thresholds are kept. The UI should give a short cue before each step.
+
 ---
 
 ## 6. Public API (skeleton/src/index.ts)
@@ -751,7 +836,7 @@ type InputEventType =
   | 'cancel'             // {}
   | 'tracking-status'    // { status: TrackingStatus }
   | 'mode-change'        // { mode: InputMode }
-  | 'calibration-step'   // { run: 'full' | 'centre'; step: CalibrationStep; completed: boolean; timeout: boolean }
+  | 'calibration-step'   // { run: 'full' | 'centre'; step: CalibrationStep; completed: boolean; timeout: boolean; result?: CalibrationResult }  // result on 'done' only (§5 "Calibration engine details")
 
 /**
  * What a scan highlight is on (the `kind` of a `highlight` event):
@@ -771,7 +856,7 @@ type TrackingStatus =
   | 'found' | 'lost' | 'low-confidence'
   | 'permission-denied' | 'load-failed' | 'no-face-timeout'
 
-type CalibrationStep = 'centre' | 'left' | 'right' | 'up' | 'down' | 'done'
+type CalibrationStep = 'centre' | 'left' | 'right' | 'up' | 'down' | 'rest' | 'gesture' | 'done'
 ```
 
 ### TimestampedSample
