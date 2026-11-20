@@ -12,8 +12,21 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "rootDir": "."
+    "rootDir": ".",
+    "paths": {
+      "@planchette/skeleton": [
+        "./src/index.ts"
+      ]
+    }
   },
-  "include": ["src", "test", "demo", "examples"],
-  "exclude": ["node_modules", "dist"]
+  "include": [
+    "src",
+    "test",
+    "demo",
+    "examples"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist"
+  ]
 }

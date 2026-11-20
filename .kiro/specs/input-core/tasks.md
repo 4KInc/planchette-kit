@@ -208,9 +208,9 @@ Assemble all engines into the `Planchette` instance behind the factory function.
 Write the cross-cutting property tests that require the full pipeline assembled in
 task 11.
 
-- [ ] 12.1 Write `skeleton/test/frame-rate.props.test.ts` implementing **P15**: same pointer path at 15 fps and 60 fps (same fast-check seed) produces the same `select` events, each within 67 ms of its counterpart, for paths satisfying the boundary conditions.
-- [ ] 12.2 Write `skeleton/test/timestamps.props.test.ts` implementing **P16** in full: interleaved camera and switch streams with 20–80 ms camera delay, with duplicate/backwards timestamps injected independently per source, never drop valid camera frames due to switch timestamps.
-- [ ] 12.3 Write example tests for the boundary conditions excluded from P15 (stays within 67 ms of dwell time, pointer within 20 px of target edge) to document the expected behaviour at the edge.
+- [x] 12.1 Write `skeleton/test/frame-rate.props.test.ts` implementing **P15**: same pointer path at 15 fps and 60 fps (same fast-check seed) produces the same `select` events, each within 67 ms of its counterpart, for paths satisfying the boundary conditions.
+- [x] 12.2 Write `skeleton/test/timestamps.props.test.ts` implementing **P16** in full: interleaved camera and switch streams with 20–80 ms camera delay, with duplicate/backwards timestamps injected independently per source, never drop valid camera frames due to switch timestamps.
+- [x] 12.3 Write example tests for the boundary conditions excluded from P15 (stays within 67 ms of dwell time, pointer within 20 px of target edge) to document the expected behaviour at the edge.
 
 **Covers:** Req 9 AC 4–5; P15, P16.
 
@@ -220,8 +220,8 @@ task 11.
 
 Write the 15-line integration example and the test that verifies the line count.
 
-- [ ] 13.1 Write `skeleton/examples/minimal.ts`: a complete working integration of `createPlanchette` in 15 lines or fewer (imports excluded from the count per the convention used in the test).
-- [ ] 13.2 Write `skeleton/test/example.test.ts` that reads `minimal.ts`, counts non-blank non-import lines, and asserts the count ≤ 15.
+- [x] 13.1 Write `skeleton/examples/minimal.ts`: a complete working integration of `createPlanchette` in 15 lines or fewer (imports excluded from the count per the convention used in the test).
+- [x] 13.2 Write `skeleton/test/example.test.ts` that reads `minimal.ts`, counts non-blank non-import lines, and asserts the count ≤ 15.
 
 **Covers:** Req 1 AC 6.
 

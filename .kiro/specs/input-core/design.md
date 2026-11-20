@@ -610,6 +610,11 @@ Each file exports one `step` function and its state type. `profile.ts` has no `s
   a select, and the post-selection pause applies. A `select` event never carries the role
   `cancel`. The same rule holds for a cancel-role target selected by scan (as an ordinary
   item, in a row or at the top level), by a head + gesture press and by a mouse click.
+- **Known quirk: float sums.** The timer adds the sample intervals. Fifteen intervals of
+  `1000 / 15` ms add up to 999.9999999999995 ms, so a stay counted in exact 15 fps frame
+  times reaches a 1000 ms dwell time one frame late. Real camera timestamps rarely fall on
+  exact multiples, and the effect is at most one frame. Recorded in `frame-rate.test.ts`;
+  not changed.
 - **Stay end.** When a stay ends, one `dwell-progress` with `progress: 0` is emitted for
   the old target, before any event for a new stay. A stay ends when the pointer moves
   onto a different target, when the grace time is exceeded, when the input timeout
@@ -1029,6 +1034,14 @@ sample, the dwell has no stay, the gesture and every switch press machine are ID
 the scan is at the top of its cycle (level top, slot 0, no loops) or paused (a paused scan
 stays paused until a press, §5). Silence never produces a `select` or `cancel`.
 **Errors.** `feedSamples` and the other methods never throw on malformed input.
+**Integration example (Req 1 AC 6, Task 13).** `skeleton/examples/minimal.ts` is a head +
+dwell page: create, two targets, a `select` listener, `setScreen` on resize and
+`startCamera()`. It imports `'@planchette/skeleton'` as a user's code would; the skeleton
+`tsconfig.json` maps that name to `src/index.ts` (`paths`) for `npm run typecheck`, and the
+root `vite.config.ts` does the same for the dev server. Line count: lines that are not
+blank, not comments and not part of an import statement, at most 15. `example.test.ts`
+also builds the package into a temporary folder and type-checks `minimal.ts` alone against
+the built `dist/index.d.ts`.
 
 ---
 
@@ -1111,8 +1124,8 @@ the real engine, not stubs.
 | 12 | **One gesture, one press** | Gesture score traces that cross gestureThreshold once and stay above releaseThreshold for any duration | Exactly one press per activation |
 | 13 | **Gesture does not drift the selection** | Random head movement after the score rises above releaseThreshold; random targets | `select` uses the target under the pointer at the moment score crossed releaseThreshold |
 | 14 | **Moving targets keep progress** | Pointer on a target; `updateTarget` with rectangle still containing the pointer | `dwell-progress` does not decrease |
-| 15 | **Frame-rate independence** | Pointer paths satisfying boundary conditions (stays > 67 ms from dwellTime, pointer > 20 px from edges); same seed at 15 fps and 60 fps | Same `select` events; each within 67 ms of its counterpart |
-| 16 | **Bad timestamps ignored** | Interleaved camera (`source: 'camera'`), keyboard (`source: 'keyboard'`) and gamepad (`source: 'gamepad'`) streams with realistic camera delay (camera `now` lags keyboard/gamepad `now` by 20–80 ms); duplicate and backwards timestamps injected independently into each stream | Camera frames are never dropped due to keyboard or gamepad timestamps; each source ignores its own duplicates and reversals; events are identical to the clean versions of each stream |
+| 15 | **Frame-rate independence** | The same pointer path at 15 fps and 60 fps (same seed), through `createPlanchette` + `feedSamples`, for paths meeting the boundary conditions B1–B5 below | Same `select` events; each within 67 ms of its counterpart |
+| 16 | **Bad timestamps ignored** | Interleaved camera (`source: 'camera'`), keyboard (`source: 'keyboard'`) and gamepad (`source: 'gamepad'`) streams in delivery order: camera `now` is the capture time, delivered 20–80 ms later; keyboard and gamepad share the same `now` on every frame and are delivered 0–30 ms later; duplicate and backwards timestamps (with different content and `cancel: true`) injected independently into each stream | Injected samples change no event; camera events equal those of the camera stream alone; scan events equal those of the switch streams alone; keyboard and gamepad each count their own presses |
 | 17 | **Profile round-trip and clamping** | Arbitrary JSON strings: random valid profiles exported then reimported; random JSON objects with extra keys, `__proto__` keys, missing fields, out-of-range values, fields in any order | (a) `importProfile(exportProfile(p))` equals `p` for valid profiles; (b) every field in an imported profile is within its declared range; (c) the imported profile has exactly the known fields — no unknown keys, no `__proto__` |
 | 18 | **Cancel hold never selects** | Hold durations ≥ cancelHoldTime; cancel-by-hold ON | No press or `select`; exactly one `cancel` |
 | 19 | **Auto-repeat respects the pause** | Stays on an auto-repeat target; random autoRepeatInterval and postSelectionPause | Consecutive `select` events ≥ max(autoRepeatInterval, postSelectionPause) apart |
@@ -1138,6 +1151,28 @@ stream's timestamps offset behind the switch stream by a realistic processing de
 (20–80 ms). The property checks that neither stream drops valid samples due to the
 other's clock, and that injected bad timestamps within each stream are ignored without
 affecting the other.
+
+**P15 boundary conditions** (`frame-rate.props.test.ts`, decided in Task 12):
+- B1: every stay on a target lasts less than `dwellTime − 67 ms` or more than
+  `dwellTime + postSelectionPause + 134 ms`.
+- B2: a resting pointer is more than 20 px from every target edge.
+- B3: the pointer path is the same at both frame rates. The smoother's lag depends on the
+  frame rate (§2: 133 ms at 15 fps and 50 ms at 60 fps for a 20° step), so a moving head
+  gives two different pointer paths. The generated paths therefore move through one 15 fps
+  frame with no face detected, which resets the filter, so the pointer jumps to the new
+  position at both rates. Moves start on 15 fps frame times.
+- B4: no stay begins inside a post-selection pause. Its counting starts at the pause end,
+  which is itself up to one frame late, and adds its own rounding: 116.7 ms was measured.
+- B5: no auto-repeat targets, for the same reason (repeats are timed from the last select).
+A second property drops B3 (the head moves, the smoother is in the path) and checks the
+same targets are selected in order and that the time from the pointer reaching a target
+to its select differs by at most 67 ms. Measured while deciding this: with the smoother
+in the path, select times differed by up to 133 ms between 15 and 60 fps (the pointer
+arrived up to 117 ms apart; the dwell part stayed within 66.7 ms), and by up to 66.7 ms
+between 30 and 60 fps. The excluded cases are examples in `frame-rate.test.ts`, which
+record the measured behaviour: a stay 10 ms longer than the dwell time that starts between
+15 fps frames selects at 60 fps only; tremor across a target edge can select at one frame
+rate and not the other.
 
 **P20** generates two identical runs — same pointer path, same profile, head + dwell
 mode — differing only in whether gesture scores are present. The check is that
