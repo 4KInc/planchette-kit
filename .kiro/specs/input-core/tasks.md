@@ -123,12 +123,12 @@ final filter parameters.
 Implement `skeleton/src/engine/head-pointer.ts`. Depends on `smoother.ts` and
 `profile.ts`.
 
-- [ ] 7.1 Implement the asymmetric four-range mapping formula from design §1: filter on raw centred angle → dead zone → mapping with `R_eff = R_direction − D` → screen pixel clamp.
-- [ ] 7.2 Implement the face-lock rule from design §4: initial lock (largest area), frame-to-frame continuity score, one-face immediate lock, lost/re-acquire, `relockFace`. Implement the no-face timeout: track `t_face_lost` using `now` on each sample; emit `tracking-status: no-face-timeout` once when `now − t_face_lost ≥ profile.noFaceTimeout`, then clear the counter.
-- [ ] 7.3 Implement the gesture-induced pointer freeze (head + gesture mode): freeze starts at release threshold crossing, expiry at `gestureAcceptanceTime + 300 ms`, unfreeze on score drop below release threshold.
-- [ ] 7.4 Implement `cloneHeadPointerState`.
-- [ ] 7.5 Write `skeleton/test/head-pointer.test.ts` with example tests: pointer at centre with zero deflection, pointer at screen edge with full range, dead zone leaves pointer centred, gain doubles reachable speed, face lost freezes pointer and emits tracking-status, re-acquire re-locks closest face, freeze starts at release threshold, expiry unfreezes without press.
-- [ ] 7.6 Write `skeleton/test/head-pointer.props.test.ts` implementing:
+- [x] 7.1 Implement the asymmetric four-range mapping formula from design §1: filter on raw centred angle → dead zone → mapping with `R_eff = R_direction − D` → screen pixel clamp.
+- [x] 7.2 Implement the face-lock rule from design §4: initial lock (largest area), frame-to-frame continuity score, one-face immediate lock, lost/re-acquire, `relockFace`. Implement the no-face timeout: track `t_face_lost` using `now` on each sample; emit `tracking-status: no-face-timeout` once when `now − t_face_lost ≥ profile.noFaceTimeout`, and not again until a face is found and lost again.
+- [x] 7.3 Implement the gesture-induced pointer freeze (head + gesture mode): freeze starts at release threshold crossing, expiry at `gestureAcceptanceTime + 300 ms`, unfreeze on score drop below release threshold.
+- [x] 7.4 Implement `cloneHeadPointerState`.
+- [x] 7.5 Write `skeleton/test/head-pointer.test.ts` with example tests: pointer at centre with zero deflection, pointer at screen edge with full range, dead zone leaves pointer centred, gain doubles reachable speed, face lost freezes pointer and emits tracking-status, re-acquire re-locks closest face, freeze starts at release threshold, expiry unfreezes without press.
+- [x] 7.6 Write `skeleton/test/head-pointer.props.test.ts` implementing:
   - **P10** pointer bounded (all inputs including extremes and ±Inf);
   - **P11** every target reachable (analytical inverse for all R ≥ MIN_RANGE, D clamped, G ∈ [1.0, 2.0]);
   - **P13** gesture does not drift the selection (freeze_pos at release-threshold crossing);

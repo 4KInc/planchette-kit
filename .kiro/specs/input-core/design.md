@@ -396,7 +396,9 @@ between two faces: the engine always picks the better-scoring one. The threshold
 When no face is detected, the engine:
 
 1. freezes the pointer at its last position;
-2. resets dwell progress silently (no event);
+2. resets dwell progress: the host passes a `null` pointer to the dwell engine, which ends
+   the stay and emits one `dwell-progress` with progress 0 to clear the ring (§5). No
+   `select` and no `cancel` are emitted;
 3. emits `tracking-status: lost`;
 4. retains `lock` at its last known value;
 5. starts (or continues) the no-face timeout counter using `now`.
@@ -459,6 +461,54 @@ so there is no position jump on resume.
 
 In head + dwell mode this freeze never occurs.
 
+### Head-pointer engine details (`head-pointer.ts`)
+Choices made where the sections above leave something open:
+- **Rotation input.** Each detected face carries `rotation: { yaw, pitch }` in degrees.
+  The camera adapter (Task 14) computes it from MediaPipe's facial transformation
+  matrix and un-mirrors the image, so the engine never works with landmarks. Sign
+  convention: positive yaw is the person turning to their right and moves the pointer
+  right (uses `R_right`); positive pitch is the person looking up and moves the pointer
+  up, to smaller `y` (uses `R_up`).
+- **Centre.** The calibrated centre `(θ_cx, θ_cy)` is passed in on every step as
+  `centre: { yaw, pitch }`, together with `screen`. It is not a profile field.
+- **Gesture scores per face.** A face may carry its own `gestureScores`. The engine uses
+  the locked face's scores and falls back to the sample-level `gestureScores` only when
+  the face has none, so a bystander's jaw or brows cannot freeze the pointer. The score
+  used is `jawOpen` for `switchGesture` 'jaw open' and `browRaise` for 'brow raise'. A
+  missing or non-finite score counts as 0.
+- **Invalid faces.** A face whose box is not finite, or has `w ≤ 0` or `h ≤ 0`, is
+  ignored as if not detected. A face with a non-finite rotation is detected and locked,
+  but the pointer and the filter hold for that sample. More than two faces are handled
+  with the same rules.
+- **Tracking status.** `found` and `lost` are emitted only when the state changes. The
+  first face ever seen emits `found`. Before any face is found, a frameless sample emits
+  no `lost` (nothing was lost), but it does start the no-face timer, so
+  `no-face-timeout` also fires when the camera runs and no face ever appears
+  (Requirement 8 AC 1). `no-face-timeout` is emitted at most once per loss: a further
+  one needs a face to be found and lost again.
+- **Filter reset.** Both axis filters reset on loss and on a carer re-lock, so the first
+  sample afterwards goes straight to the new pose with no stale history.
+- **Pointer output.** There is no pointer before the first face. `pointer-move` is
+  emitted only when the shown position changes, after any `tracking-status` from the
+  same sample. While the face is lost the pointer holds, but it is still clamped when the
+  screen shrinks. `selectionPointer(state)` gives the position for target lookup: `null`
+  while no face is tracked, the freeze position during a gesture freeze, otherwise the
+  pointer.
+- **Freeze details.** The freeze starts on the sample where the score first goes above
+  (`>`) the release threshold, and ends when it goes below (`<`) it. `freeze_pos` is the
+  pointer shown before that sample, so head movement on the crossing frame itself does
+  not count. The gesture threshold counts as reached at `≥`, including on the expiry
+  sample. After an expiry, no new freeze starts until the score has fallen below the
+  release threshold. While frozen, no `pointer-move` is emitted; on release the pointer
+  moves to the live (still filtered) position. Losing the face, or leaving
+  head + gesture mode, clears the freeze. The head pointer never counts presses; Task 8
+  makes sure an expired freeze produces no press.
+- **Lock warning.** The engine is pure, so it does not log. It sets `lockWarning` (and
+  `lockScore`) when a re-acquire with several faces picks one scoring above
+  `LOCK_THRESHOLD`, and the host logs it.
+- **Re-lock.** `relockFace(state, i)` uses the faces from the most recent sample. An
+  invalid index, or a most recent sample with no face, does nothing.
+
 ---
 
 ## 5. Engine file layout
@@ -467,7 +517,7 @@ In head + dwell mode this freeze never occurs.
 skeleton/src/engine/
   press-machine.ts     shared press/cancel state machine; used by gesture.ts and switch.ts
   smoother.ts          One Euro filter on angles; step(state, { angle, dt }) → { angle }
-  head-pointer.ts      face lock + dead zone + mapping; step(state, { faces }, now, profile) → events
+  head-pointer.ts      face lock + smoothing + dead zone + mapping; step(state, { faces, gestureScores?, screen, centre }, now, profile) → events
   targets.ts           Rect, TargetRole, DwellTarget (types only, no dependencies)
   dwell.ts             dwell timer; step(state, { pointer, targets }, now, profile) → events
   gesture.ts           blendshape → signal, calls press-machine; step(state, { score }, now, profile) → events + press
@@ -680,7 +730,9 @@ interface TimestampedSample {
   now: number
   source: 'camera' | 'keyboard' | 'mouse' | 'gamepad' | 'synthetic'
   faces?: Array<{ bbox: { cx: number; cy: number; w: number; h: number }
-                  landmarks: NormalisedLandmarks }>
+                  rotation: { yaw: number; pitch: number }          // degrees, see §4
+                  gestureScores?: { jawOpen: number; browRaise: number }
+                  landmarks?: NormalisedLandmarks }>
   pointer?: { x: number; y: number }              // mouse mode: direct pointer position
   signal?: boolean                                 // switch held (true) or released (false)
   cancel?: boolean                                 // true = cancel input (e.g. Escape key)
@@ -804,7 +856,7 @@ the real engine, not stubs.
 | 8 | **Pause respected** | Random sequences of valid selections | Gap between consecutive `select` events ≥ `postSelectionPause` |
 | 9 | **Resume does not select** | Scan sequences reaching pause; then one press | First event is `highlight`, not `select` |
 | 10 | **Pointer bounded** | Random head rotation values including extremes and ±Inf | Every `pointer-move` has `x ∈ [0, W−1]`, `y ∈ [0, H−1]` |
-| 11 | **Every target reachable** | Random screen points; random calibrated ranges R ≥ MIN_RANGE per direction; random G ∈ [1.0, 2.0]; D clamped by constraint | For each point a head rotation with `\|θ\| ≤ R` maps to it (verified analytically via the inverse formula) |
+| 11 | **Every target reachable** | Random screen points; random calibrated ranges R ≥ MIN_RANGE per direction; random G ∈ [1.0, 2.0]; D clamped by constraint | For each point, the rotation from the inverse formula has `\|δ\| ≤ R` on its side, and fed forward through the real engine (smoother, dead zone, gain, clamp, rounding) it lands within 1 px of the point |
 | 12 | **One gesture, one press** | Gesture score traces that cross gestureThreshold once and stay above releaseThreshold for any duration | Exactly one press per activation |
 | 13 | **Gesture does not drift the selection** | Random head movement after the score rises above releaseThreshold; random targets | `select` uses the target under the pointer at the moment score crossed releaseThreshold |
 | 14 | **Moving targets keep progress** | Pointer on a target; `updateTarget` with rectangle still containing the pointer | `dwell-progress` does not decrease |
