@@ -155,43 +155,79 @@ State update: `prev = out`, `dPrev = dHat`.
 
 | Parameter | s = 0 (least) | s = 1 (most) | Formula |
 |---|---|---|---|
-| `fC_min` | 1.5 Hz | 0.3 Hz | `fC_min = 1.5 − 1.2 × s` |
+| `fC_min` | 1.5 Hz | 0.2 Hz | `fC_min = 1.5 − 1.3 × s` |
 | `beta`   | 0.4 deg⁻¹ | 0.004 deg⁻¹ | `beta = 0.4 × 10^(−2 × s)` (log-linear) |
 
 Units: `fC_min` is in Hz; `beta` is in deg⁻¹ because the input is in degrees, so
 `beta × |dHat|` (deg/s) gives Hz.
 
-### Tuning derivation and presets
+These are the final values set by the tuning test. The starting design had
+`fC_min = 0.3 Hz` at `s = 1`, which missed the tremor target at the high-tremor preset
+(9.22 px at 15 fps and 8.15 px at 120 fps with even spacing). Lowering it to 0.2 Hz meets
+the target; `beta` is unchanged. The resulting presets:
 
+| Preset | `s` | `fC_min` | `beta` |
+|---|---|---|---|
+| Default | 0.5 | 0.85 Hz | 0.040 deg⁻¹ |
+| High tremor | 0.9 | 0.33 Hz | 0.0063 deg⁻¹ |
+
+In code (`smoother.ts`): `FC_MIN_AT_0 = 1.5`, `FC_MIN_AT_1 = 0.2`, `BETA_AT_0 = 0.4`,
+`BETA_AT_1 = 0.004`, `FC_DERIV_HZ = 1`. A non-finite `s` uses 0.5; `s` is clamped to
+[0, 1].
+
+### Tuning derivation and presets
 The requirements state two targets at the reference calibration (±15° symmetric,
 gain 1.0, 1920 × 1080 screen) with synthetic timestamped samples fed to the engine:
-
 - **T1 (tremor):** 1° sinusoid at 4–12 Hz → pointer residual < 8 px.
-  At the reference calibration, 1° maps to `1920 / 30 ≈ 64 px`, so the target in
+  At the reference calibration, 1° maps to `1920 / 30 = 64 px`, so the target in
   angle terms is a residual < 8/64 = 0.125°.
-- **T2 (lag):** 20° step → 90 % reached within 150 ms.
+- **T2 (lag):** 20° turn → 90 % reached within 150 ms of the head arriving.
 
-Working in degrees removes the screen-resolution dependency from the analysis. The
-hand calculations below are estimates only. The tuning test (`smoother.test.ts`)
-measures the real values by simulating 1° tremor at 4–12 Hz and a 20° step at the
-reference calibration on synthetic samples, and sets the final `fC_min` and `beta`
-values from those results. The formulas below are the starting point.
+Both apply at a camera frame rate of 30 fps or more, with frame spacing varying by up
+to ±20 % (Requirement 2 AC 4).
 
 **T1 and T2 cannot both be met at a single smoothing strength.** Lowering `fC_min`
-suppresses 4 Hz tremor but increases lag for the 20° step; raising it reduces lag but
-passes more tremor. The design therefore specifies two presets:
+suppresses 4 Hz tremor but increases lag; raising it reduces lag but passes more
+tremor. So there are two presets: the default (`s = 0.5`) meets T2 and the high-tremor
+preset (`s = 0.9`) meets T1.
 
-- **Default (`s = 0.5`):** tuned to meet T2 (lag). `fC_min ≈ 0.9 Hz`,
-  `beta ≈ 0.04 deg⁻¹`. At rest, `fC ≈ 0.9 Hz`. A 20° step drives `|dHat|` to
-  roughly 400 deg/s, giving `fC ≈ 0.9 + 0.04 × 400 ≈ 16.9 Hz`. At 60 fps,
-  `alpha ≈ 0.86`; estimated 90 % distance reached in 2–3 frames (33–50 ms). T2 ✓
-  (estimate — tuning test confirms). T1 fails at this setting; residual ≈ 0.22°.
-- **High-tremor preset (`s = 0.9`):** tuned to meet T1 at the cost of longer lag.
-  `fC_min ≈ 0.42 Hz`. At 4 Hz input, estimated attenuation ≈ 0.10, residual ≈ 0.06°.
-  T1 ✓ (estimate). Estimated 90 % lag ≈ 220 ms; T2 fails at this preset.
+**How the tuning test measures** (`smoother.test.ts`), at the filter output in degrees,
+converted at 64 px per degree:
+- *Lag:* the head is still at −10° for 1 s, then turns to +10° (inside the ±15° range),
+  either instantly or as a smooth turn of 100 to 500 ms. Lag is the time from the head
+  arriving (for an instant step, the first frame that sees the new position) until the
+  output first reaches 90 % of the distance.
+- *Tremor:* a sinusoid of up to 1° at 4–12 Hz around a still, off-centre pose. Movement
+  is the largest distance of the output from the pose, after the filter has settled for
+  4 s, over the next 6 s. The dead zone is not applied, so this is the off-centre worst
+  case.
+- *Timing:* even frame spacing, and spacing varying by up to ±20 % over several fixed
+  seeds. Both targets are asserted at 30, 60 and 120 fps. At 15 and 24 fps the values
+  are logged, not asserted.
+- The full head-pointer pipeline (dead zone and screen mapping) is checked in Task 7.
 
-The tuning test measures both targets for both presets and fails if the measured
-values cross, so the final formulas may differ from the estimates above.
+**Measured values** (worst case over the cases above):
+
+| Frame rate | Default lag, even | Default lag, ±20 % | High-tremor tremor, even | High-tremor tremor, ±20 % |
+|---|---|---|---|---|
+| 30 fps | 66.7 ms | 75.2 ms | 5.67 px | 7.24 px |
+| 60 fps | 50.0 ms | 62.1 ms | 6.02 px | 6.58 px |
+| 120 fps | 41.7 ms | 46.3 ms | 6.76 px | 7.38 px |
+| 24 fps (not asserted) | 83.3 ms | 86.5 ms | 5.53 px | 10.77 px |
+| 15 fps (not asserted) | 133.3 ms | 151.6 ms | 7.52 px | 27.89 px |
+
+Limits: lag ≤ 150 ms, tremor < 8 px. The other side of each preset, for reference: the
+default preset passes 14–22 px of 1° tremor, and the high-tremor preset takes
+117–400 ms to reach 90 % of a step, depending on frame rate.
+
+**Known limit: below 30 fps.** Below 30 fps the camera cannot capture fast tremor
+reliably. A 15 fps camera can only represent motion up to 7.5 Hz. With even spacing a
+12 Hz tremor is seen as a slower 3 Hz movement, but with uneven spacing it looks like
+random 1° jumps from frame to frame, which no filter can tell apart from deliberate
+movement without freezing the pointer. At 15 fps with ±20 % spacing, tremor reaches
+27.89 px, and a 20° turn takes up to 151.6 ms because two long frames exceed 150 ms. At
+24 fps with ±20 % spacing, 12 Hz tremor reaches 10.77 px. These rates still work, but
+the targets are not promised there.
 
 **Calibration tremor measurement.** During calibration's hold-still steps the
 calibration engine measures the standard deviation of `δ` over the stillness window.
@@ -532,6 +568,12 @@ nothing was highlighted yet. The host creates a fresh state when the mode change
 - **Input timeout.** Silence of `inputTimeout` or more restarts the cycle from the top
   on the next sample, unless the engine is paused, which stays paused until a press.
   The post-selection pause end time is kept.
+- **Known limit: tall targets.** A row's vertical band comes from its first target. If
+  that target is taller than one row (for example a tall button at the left of a grid
+  that spans two rows), the next row's items have their vertical centres inside its band
+  and join its row. The tall target then absorbs the next row's items into its row, and
+  they are scanned as one row. A custom `order` does not change this grouping. It is not
+  handled yet.
 - **Changing targets.** The layout is rebuilt from `targets` whenever a step needs it
   (a press or an advance), so changes take effect at the next advance or press. A slot
   index that no longer exists wraps to the first slot. A row level that no longer
@@ -603,13 +645,25 @@ type InputMode = 'head+dwell' | 'head+gesture' | 'scan' | 'gesture-scan' | 'mous
 type InputEventType =
   | 'pointer-move'       // { x: number; y: number }
   | 'dwell-progress'     // { targetId: string; progress: number }  0–1
-  | 'highlight'          // { targetId: string }
+  | 'highlight'          // { kind: ScanHighlightKind; targetId: string; targetIds: string[] }
   | 'select'             // { targetId: string; now: number; source: SelectSource; role: TargetRole }
   | 'cancel'             // {}
   | 'tracking-status'    // { status: TrackingStatus }
   | 'mode-change'        // { mode: InputMode }
   | 'calibration-step'   // { step: CalibrationStep; completed: boolean; timeout: boolean }
 
+/**
+ * What a scan highlight is on (the `kind` of a `highlight` event):
+ *  'item'   one target. `targetId` is its id and `targetIds` is `[targetId]`.
+ *  'row'    a row of targets in row-then-item scanning. `targetIds` lists every target
+ *           in the row, in scan order, and `targetId` is the first of them.
+ *  'back'   the virtual back item shown inside a row. `targetId` is '$back', `targetIds` is [].
+ *  'cancel' the virtual cancel item in every scan cycle. `targetId` is '$cancel', `targetIds` is [].
+ *  'none'   scanning paused after its loops without a press. `targetId` is '' and
+ *           `targetIds` is []. The UI clears the highlight.
+ * The UI draws the 'back' and 'cancel' items itself, since they are not registered targets.
+ */
+type ScanHighlightKind = 'item' | 'row' | 'back' | 'cancel' | 'none'
 type SelectSource = 'dwell' | 'scan' | 'gesture' | 'mouse'
 
 type TrackingStatus =

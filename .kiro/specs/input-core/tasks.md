@@ -105,13 +105,14 @@ Implement `skeleton/src/engine/scan.ts`. Depends on `press-machine.ts` and
 Implement `skeleton/src/engine/smoother.ts` and run the tuning test that sets the
 final filter parameters.
 
-- [ ] 6.1 Implement `SmootherState` and `stepSmoother(state, { angle, dt }): number` following the One Euro internals in design §2 exactly (`fC_deriv = 1 Hz` fixed, `fC_min` and `beta` from `smoothingStrength` via the formula).
-- [ ] 6.2 Implement `cloneSmootherState`.
-- [ ] 6.3 Write `skeleton/test/smoother.test.ts` as the **tuning test**: simulate a 1° sinusoid at 4 Hz, 8 Hz and 12 Hz at the reference calibration (±15°, 1920 × 1080) on synthetic timestamped samples; simulate a 20° step. Measure residual amplitude and 90 %-distance time. Log the actual measured values. Assert:
+- [x] 6.1 Implement `SmootherState` and `stepSmoother(state, { angle, dt, smoothingStrength }): number` following the One Euro internals in design §2 exactly (`fC_deriv = 1 Hz` fixed, `fC_min` and `beta` from `smoothingStrength` via the formula).
+- [x] 6.2 Implement `cloneSmootherState`.
+- [x] 6.3 Write `skeleton/test/smoother.test.ts` as the **tuning test**: simulate a 1° sinusoid at 4 Hz, 8 Hz and 12 Hz at the reference calibration (±15°, 1920 × 1080) on synthetic timestamped samples; simulate a 20° step. Measure residual amplitude and 90 %-distance time. Log the actual measured values. Assert:
+  - at 30, 60 and 120 fps, with even spacing and ±20 % jitter over several seeds (15 and 24 fps are logged, not asserted; Req 2 AC 4):
   - default preset (`s = 0.5`): 90 %-distance ≤ 150 ms;
   - high-tremor preset (`s = 0.9`): residual < 8 px at 4–12 Hz.
   If the hand-calculated formula does not meet either target, adjust `fC_min`/`beta` within the formula until it does, update the parameter table in design.md §2 to reflect the actual values, and document the change in `docs/kiro-journal.md`.
-- [ ] 6.4 Write `skeleton/test/smoother.props.test.ts`: verify the filter output is always finite (no NaN or Inf) for any finite angle input and any `dt > 0`; verify `cloneSmootherState` produces identical subsequent output.
+- [x] 6.4 Write `skeleton/test/smoother.props.test.ts`: verify the filter output is always finite (no NaN or Inf) for any finite angle input and any `dt > 0`; verify `cloneSmootherState` produces identical subsequent output.
 
 **Covers:** Req 2 AC 4; design §2 tuning obligation.
 

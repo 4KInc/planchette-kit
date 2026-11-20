@@ -276,3 +276,4 @@ Implemented `skeleton/src/engine/profile.ts` with all 30 fields from the Profile
 19 Nov 2026: Task 4 review fixes: dwell caps one sample gap at 100 ms, no dwell time counts during the post-selection pause, stay end and pointer loss emit progress 0; shared target types moved to targets.ts; design.md and tasks.md updated; Tasks 2 to 4 ticked.
 
 20 Nov 2026: Task 5: scan engine with example and property tests (P6, P8, P9); scan design written into design.md §5; Task 5 ticked.
+20 Nov 2026: Task 6: the smoother tuning test caught that the design's starting values missed the tremor target (fC_min at s = 1 lowered from 0.3 to 0.2 Hz); the preset targets are now promised at 30 fps or more with up to ±20 % frame spacing, and 15 and 24 fps are measured and reported only, because below 30 fps the camera cannot capture fast tremor reliably.

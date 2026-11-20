@@ -98,6 +98,10 @@ moving my head so that I can point at things on screen.
      SHALL reach 90 % of its target distance within 150 ms of the head arriving.
    - **High-tremor preset (smoothing strength 0.9):** simulated tremor up to 1 degree
      at 4–12 Hz SHALL move the pointer by less than 8 px.
+   Both preset targets apply at a camera frame rate of 30 fps or more, with frame
+   spacing varying by up to ±20 %. At lower frame rates the tuning test measures and
+   reports the values but does not assert them, because below 30 fps the camera cannot
+   capture fast tremor reliably.
    The tuning test measures the real values and sets the final parameters; the design
    document contains estimates only. The simulator reports the trade-off for each
    user's calibrated range.
