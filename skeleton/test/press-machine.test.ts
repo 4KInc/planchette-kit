@@ -17,7 +17,7 @@ function run(
   s: PressMachineState,
   steps: Array<[number, boolean]>,
   p: Profile,
-  acceptance?: number,
+  acceptance: number,
 ): PressEvent[] {
   const out: PressEvent[] = [];
   for (const [now, signal] of steps) {
@@ -36,7 +36,7 @@ function dense(t0: number, t1: number, signal: boolean, dt = 16): Array<[number,
 describe('transition table', () => {
   it('IDLE, signal inactive: stays IDLE', () => {
     const s = createPressMachineState();
-    expect(stepPress(s, false, 0, holdOn)).toEqual([]);
+    expect(stepPress(s, false, 0, holdOn, 0)).toEqual([]);
     expect(s.state).toBe(PressState.IDLE);
   });
 
@@ -136,11 +136,14 @@ describe('acceptance time', () => {
     expect(s.state).toBe(PressState.ARMED_HOLD_WAIT);
   });
 
-  it('defaults to profile.switchAcceptanceTime when no acceptance time is passed', () => {
-    const p: Profile = { ...holdOff, switchAcceptanceTime: 200 };
+  it('uses exactly the acceptance time passed in, not a profile field', () => {
+    const p: Profile = { ...holdOff, switchAcceptanceTime: 200, gestureAcceptanceTime: 700 };
     const s = createPressMachineState();
-    expect(run(s, [[0, true], [199, true]], p)).toEqual([]);
-    expect(stepPress(s, true, 200, p)).toEqual([{ type: 'press' }]);
+    expect(run(s, [[0, true], [199, true]], p, p.switchAcceptanceTime)).toEqual([]);
+    expect(stepPress(s, true, 200, p, p.switchAcceptanceTime)).toEqual([{ type: 'press' }]);
+    const g = createPressMachineState();
+    expect(run(g, [[0, true], [699, true]], p, p.gestureAcceptanceTime)).toEqual([]);
+    expect(stepPress(g, true, 700, p, p.gestureAcceptanceTime)).toEqual([{ type: 'press' }]);
   });
 });
 

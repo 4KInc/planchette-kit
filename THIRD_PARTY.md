@@ -8,3 +8,4 @@ Every dependency used in this project, its version, licence and source.
 | `vitest` | 5.1.1 | MIT | https://github.com/vitest-dev/vitest |
 | `fast-check` | 4.10.3 | MIT | https://github.com/dubzzz/fast-check |
 | `typescript` | 7.0.2 | Apache-2.0 | https://github.com/microsoft/TypeScript |
+| `@types/node` | 24.19.2 | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |

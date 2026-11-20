@@ -42,8 +42,9 @@ export function clonePressMachineState(s: PressMachineState): PressMachineState 
  * Advance the machine by one sample. Mutates `state` in place.
  *
  * `signal` is the current level (held or not), sent on every frame.
- * `acceptanceTime` defaults to the switch acceptance time; the gesture engine
- * passes `profile.gestureAcceptanceTime`.
+ * `acceptanceTime` is required so a caller cannot silently use the wrong one:
+ * the switch engine passes `profile.switchAcceptanceTime`, the gesture engine
+ * `profile.gestureAcceptanceTime`.
  *
  * The returned array is shared and frozen when empty. Do not mutate it.
  */
@@ -52,7 +53,7 @@ export function stepPress(
   signal: boolean,
   now: number,
   profile: Profile,
-  acceptanceTime: number = profile.switchAcceptanceTime,
+  acceptanceTime: number,
 ): PressEvent[] {
   // Req 9 AC 4: duplicate, backwards or non-finite timestamps change nothing.
   if (!Number.isFinite(now) || !(now > state.t_last)) {

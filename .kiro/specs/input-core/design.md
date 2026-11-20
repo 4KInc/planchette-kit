@@ -273,10 +273,29 @@ COOLDOWN
 | ARMED | signal inactive | — | IDLE |
 | ARMED_HOLD_WAIT | signal active, `now − t_down < cancelHoldTime` | — | ARMED_HOLD_WAIT |
 | ARMED_HOLD_WAIT | signal active, `now − t_down ≥ cancelHoldTime` | emit cancel | COOLDOWN |
-| ARMED_HOLD_WAIT | signal inactive | emit press | IDLE |
+| ARMED_HOLD_WAIT | signal inactive, `now − t_down < cancelHoldTime` | emit press | IDLE |
+| ARMED_HOLD_WAIT | signal inactive, `now − t_down ≥ cancelHoldTime` | emit cancel | IDLE |
 | COOLDOWN | signal active | — | COOLDOWN |
 | COOLDOWN | signal inactive | — | IDLE |
-| any | no sample for `inputTimeout` ms | reset silently | IDLE |
+| any | next sample arrives with `now − t_last ≥ inputTimeout` | reset silently, then handle the sample as in IDLE | IDLE |
+
+### Decisions on edge cases
+- **Release at or after the cancel hold time gives `cancel`, not `press`.** The
+  `now − t_down ≥ cancelHoldTime` check comes before the release check, so a release
+  sample that itself reaches the cancel hold time cancels. Without this, a gap in the
+  samples could turn a hold that reached the cancel hold time into a press, which
+  Property 18 forbids. With a sample every frame the result is the same as the
+  simple reading of the table.
+- **The input timeout is applied when the next sample arrives.** The machine has no
+  clock, so it cannot notice silence by itself. On each sample, if
+  `now − t_last ≥ inputTimeout`, the state is reset silently to IDLE (no `cancel`, no
+  `press`) and that sample is then handled as a fresh one. A stuck machine is
+  therefore cleared by the next sample, not at the moment the timeout expires.
+- **The acceptance time is a required argument of `stepPress`.** The switch engine
+  passes `switchAcceptanceTime` and the gesture engine passes `gestureAcceptanceTime`.
+  There is no default, so neither can silently use the other's value.
+- Samples with a non-finite `now`, or a `now` not greater than the previous one, are
+  ignored (Requirement 9 AC 4).
 
 ### Signal definitions
 
@@ -422,6 +441,29 @@ skeleton/src/engine/
 ```
 
 Each file exports one `step` function and its state type. `profile.ts` has no `step`.
+### Dwell engine details (`dwell.ts`)
+- **Samples are levels.** Time between two consecutive samples that are both on the
+  same target counts as dwell time, even if the samples are far apart (below the
+  input timeout). A gap off the target needs at least one off-target sample.
+- **Gap rule.** After an off-target sample, the stay survives only while
+  `now − lastOnTime ≤ graceTime`. The gap adds nothing to the dwell time. A longer gap
+  ends the stay and resets the timer. Moving straight onto another target always
+  starts a new stay for that target.
+- **Post-selection pause.** Dwell time keeps accumulating during the pause. A select
+  that became ready during the pause fires at the first sample at or after the end of
+  the pause. If the stay ends first, nothing fires.
+- **Auto-repeat.** After the first select, a target with auto-repeat selects again each
+  time `now − selectedAt ≥ max(autoRepeatInterval, postSelectionPause)`. Its
+  `dwell-progress` then runs 0 to 1 across that interval. Without auto-repeat,
+  progress stays at 1 for the rest of the stay.
+- **Hit test.** Targets with role `rest-area` are skipped. If rectangles overlap, the
+  first one in the list wins. Rectangles include their left and top edges and exclude
+  right and bottom. A null or non-finite pointer is off every target.
+- **Events.** On a select sample, `dwell-progress` (value 1) is emitted before
+  `select`. No event is emitted while off a target, and leaving a target emits no
+  clearing event.
+- **Input timeout.** Silence of `inputTimeout` or more ends the stay silently. The
+  post-selection pause end time is kept.
 
 ---
 

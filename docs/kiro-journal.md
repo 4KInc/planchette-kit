@@ -271,3 +271,5 @@ Implemented `skeleton/src/engine/profile.ts` with all 30 fields from the Profile
 19 Nov 2026: Task 2 review fixes: clampProfile falls back (and clamps the fallback) on NaN, Infinity and wrong types; import reports missing fields; scanLoopsBeforePause rounded; unused variable removed; __proto__ test uses a raw JSON string.
 
 19 Nov 2026: Task 3: press machine with example and property tests (P7, P18, P5 partial); build-output test now deletes only its own temp folder.
+
+19 Nov 2026: Task 4: dwell engine with example and property tests (P1, P2, P8, P14, P19); added @types/node and a typecheck step to npm test; stepPress acceptanceTime now required.

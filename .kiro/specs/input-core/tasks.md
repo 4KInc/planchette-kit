@@ -51,7 +51,7 @@ Implement `skeleton/src/engine/press-machine.ts` — the shared state machine fo
 switch and gesture activation — before any engine that depends on it.
 
 - [ ] 3.1 Define `PressMachineState = { state: PressState; t_down: number; t_last: number }` and `PressState` enum (`IDLE | PENDING_ACCEPT | ARMED | ARMED_HOLD_WAIT | COOLDOWN`).
-- [ ] 3.2 Implement `stepPress(state: PressMachineState, signal: boolean, now: number, profile: Profile): PressEvent[]` following the transition table in design §3 exactly.
+- [ ] 3.2 Implement `stepPress(state: PressMachineState, signal: boolean, now: number, profile: Profile, acceptanceTime: number): PressEvent[]` following the transition table in design §3 exactly. `acceptanceTime` is required, with no default: the switch engine passes `profile.switchAcceptanceTime` and the gesture engine passes `profile.gestureAcceptanceTime`.
 - [ ] 3.3 Implement `clonePressMachineState`.
 - [ ] 3.4 Write `skeleton/test/press-machine.test.ts` with example tests covering every row of the transition table: acceptance time gating, cancel-by-hold on/off paths, cooldown, input timeout reset, the 2000 ms hold / 2000 ms timeout example from the design.
 - [ ] 3.5 Write `skeleton/test/press-machine.props.test.ts` implementing:

@@ -2,14 +2,18 @@
   "name": "planchette-kit",
   "private": true,
   "type": "module",
-  "workspaces": ["skeleton"],
+  "workspaces": [
+    "skeleton"
+  ],
   "scripts": {
-    "test": "npm run test --workspace=skeleton",
+    "typecheck": "tsc --noEmit -p skeleton/tsconfig.json",
+    "test": "npm run typecheck && npm run test --workspace=skeleton",
     "test:e2e": "playwright test",
     "build": "vite build",
     "dev": "vite"
   },
   "devDependencies": {
+    "@types/node": "24.19.2",
     "vite": "8.3.8"
   }
 }
