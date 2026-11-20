@@ -151,9 +151,21 @@ describe('package.json and build files (npm-package-plan.md, Phase 1)', () => {
     expect(scripts.prepublishOnly).toBe('npm test && npm run build');
   });
 
-  it('does not depend on @mediapipe yet (Task 14)', () => {
-    const all = { ...(pkg.dependencies as object), ...(pkg.devDependencies as object) };
-    expect(Object.keys(all).filter((k) => k.startsWith('@mediapipe'))).toEqual([]);
+  it('depends on @mediapipe/tasks-vision, pinned to an exact version (Task 14)', () => {
+    expect(pkg.dependencies).toEqual({ '@mediapipe/tasks-vision': '0.10.35' });
+  });
+
+  it('loads MediaPipe only when the camera starts: no static import of it in the build', () => {
+    for (const f of files.filter((x) => x.endsWith('.js'))) {
+      const text = readFileSync(join(outDir, f), 'utf8');
+      expect(text, f).not.toMatch(/^\s*import[^(]*['"]@mediapipe\/tasks-vision['"]/m);
+    }
+    const env = readFileSync(join(outDir, 'adapters/browser-env.js'), 'utf8');
+    expect(env).toMatch(/import\(['"]@mediapipe\/tasks-vision['"]\)/);
+  });
+
+  it('ships the face model in assets/, the file listed in THIRD_PARTY.md', () => {
+    expect(existsSync(resolve(pkgDir, 'assets/face_landmarker.task'))).toBe(true);
   });
 
   it('the build config compiles only src/ with declarations and maps', () => {

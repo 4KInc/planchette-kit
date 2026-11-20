@@ -232,15 +232,15 @@ Write the 15-line integration example and the test that verifies the line count.
 Implement the camera adapter and all three tracking-failure paths. First task to touch
 the DOM or the camera.
 
-- [ ] 14.1 Implement `skeleton/src/adapters/camera-adapter.ts`: initialise MediaPipe `FaceLandmarker` (numFaces = 2, WASM served locally), start/stop `getUserMedia`, emit `{ now, source: 'camera', faces, gestureScores }` samples on each processed frame.
-- [ ] 14.2 Handle permission-denied: catch the `getUserMedia` rejection, emit `tracking-status: permission-denied`, show the plain-language message, offer switch/mouse mode.
-- [ ] 14.3 Handle load-failed: catch MediaPipe initialisation failure, emit `tracking-status: load-failed`.
-- [ ] 14.4 No-face timeout is handled by the head-pointer engine (task 7), not the camera adapter. The adapter passes frames; the engine tracks `t_face_lost` using `now` and emits `tracking-status: no-face-timeout` once when `now − t_face_lost ≥ profile.noFaceTimeout`. Verify this path with a synthetic stream of frameless camera samples in `camera-failure.test.ts`.
-- [ ] 14.4a `startCamera()` (including a retry) starts the start-up centre step from Task 11.6a.
-- [ ] 14.5 Implement retry: `startCamera()` can be called again after any failure without reloading the page; re-initialise MediaPipe and restart the timeout.
-- [ ] 14.6 Implement `skeleton/src/adapters/keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts` following the design §7 spec (one sample per rAF, granular `source` field: `'keyboard'`, `'mouse'`, `'gamepad'`; per-adapter `lastNow`). Keyboard adapter sets `cancel: true` on Escape keydown samples. Every keyboard and gamepad adapter sample carries the current `signal` (true or false), because a sample without `signal` counts as released for that source.
-- [ ] 14.7 Write `skeleton/test/camera-failure.test.ts` using synthetic landmark streams (no real camera): simulate each failure case and assert the correct `tracking-status` value and that scanning and mouse modes produce selections during and after the failure.
-- [ ] 14.8 Write `skeleton/test/camera-failure.props.test.ts` implementing **P21**: with camera state set to each failure reason before any input sequence, scanning and mouse modes still produce selections; `tracking-status` carries the correct reason.
+- [x] 14.1 Implement `skeleton/src/adapters/camera-adapter.ts`: initialise MediaPipe `FaceLandmarker` (numFaces = 2, WASM served locally), start/stop `getUserMedia`, emit `{ now, source: 'camera', faces, gestureScores }` samples on each processed frame.
+- [x] 14.2 Handle permission-denied: catch the `getUserMedia` rejection, emit `tracking-status: permission-denied`, show the plain-language message, offer switch/mouse mode.
+- [x] 14.3 Handle load-failed: catch MediaPipe initialisation failure, emit `tracking-status: load-failed`.
+- [x] 14.4 No-face timeout is handled by the head-pointer engine (task 7), not the camera adapter. The adapter passes frames; the engine tracks `t_face_lost` using `now` and emits `tracking-status: no-face-timeout` once when `now − t_face_lost ≥ profile.noFaceTimeout`. Verify this path with a synthetic stream of frameless camera samples in `camera-failure.test.ts`.
+- [x] 14.4a `startCamera()` (including a retry) starts the start-up centre step from Task 11.6a.
+- [x] 14.5 Implement retry: `startCamera()` can be called again after any failure without reloading the page; re-initialise MediaPipe and restart the timeout.
+- [x] 14.6 Implement `skeleton/src/adapters/keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts` following the design §7 spec (one sample per rAF, granular `source` field: `'keyboard'`, `'mouse'`, `'gamepad'`; per-adapter `lastNow`). Keyboard adapter sets `cancel: true` on Escape keydown samples. Every keyboard and gamepad adapter sample carries the current `signal` (true or false), because a sample without `signal` counts as released for that source.
+- [x] 14.7 Write `skeleton/test/camera-failure.test.ts` using synthetic landmark streams (no real camera): simulate each failure case and assert the correct `tracking-status` value and that scanning and mouse modes produce selections during and after the failure.
+- [x] 14.8 Write `skeleton/test/camera-failure.props.test.ts` implementing **P21**: with camera state set to each failure reason before any input sequence, scanning and mouse modes still produce selections; `tracking-status` carries the correct reason.
 - [ ] 14.9 Write `skeleton/test/camera-real.e2e.ts` (Playwright, runs under `npm run test:e2e`): launch Chromium with `--use-fake-ui-for-media-stream`, `--use-fake-device-for-media-stream`, and `--use-file-for-fake-video-capture=<.cache path>` pointing at a clip from `test-media/` converted by `pretest:e2e`. Assert the page emits `tracking-status: found` within 5 s of `startCamera()` being called.
 
 **Covers:** Req 2 AC 1–2, AC 11–12; Req 8 AC 1–4; P3 (full, with real lost periods from failure), P21.
@@ -265,7 +265,7 @@ have no logic; they consume public API events only.
 
 - [ ] 16.1 Implement `skeleton/src/ui/dwell-ring.ts`: listens for `dwell-progress` and `select`; renders a filling ring (SVG or Canvas, `prefers-reduced-motion` respected — static indicator at any progress level when motion is reduced).
 - [ ] 16.2 Implement `skeleton/src/ui/scan-highlight.ts`: listens for `highlight`; applies a thick outline plus fill change to the highlighted element. Colour-independent (not colour alone).
-- [ ] 16.3 Implement `skeleton/src/ui/tracking-indicator.ts`: listens for `tracking-status`; shows the camera-on indicator while running and the plain-language failure messages from Req 8.
+- [ ] 16.3 Implement `skeleton/src/ui/tracking-indicator.ts`: listens for `tracking-status`; shows the camera-on indicator while running and the plain-language failure messages from Req 8. The messages come in the event (`message`, `alternatives`); the camera adapter's plain status box (design §7 "Adapter details") is the fallback this helper replaces (`cameraStatus: false`).
 - [ ] 16.4 Write Playwright end-to-end tests in `skeleton/test/ui.e2e.ts` using synthetic landmark streams fed via `feedSamples` (no real camera): confirm dwell ring reaches full at select, scan highlight moves with `highlight` events, tracking indicator shows correct message for each `tracking-status`. Use Playwright's `page.on('request')` to record all network requests and assert that none go to an origin other than `localhost` (Req 2 AC 11: nothing leaves the device).
 
 **Covers:** Req 2 AC 2; Req 8 AC 2a; accessibility.md Feedback and Control sections.

@@ -32,7 +32,31 @@ export interface PlanchetteOptions {
   screen: ScreenSize;
   /** Profile fields to start with; the rest are the defaults. Values are clamped. */
   profile?: Partial<Profile>;
+  /**
+   * Where the app serves the head-tracking files: `vision_wasm_internal.js`,
+   * `vision_wasm_internal.wasm` (from @mediapipe/tasks-vision's `wasm/` folder) and
+   * `face_landmarker.task` (from this package's `assets/`). Same origin, never a CDN.
+   * Default '/mediapipe/'. With a Vite `base`, pass `import.meta.env.BASE_URL + 'mediapipe/'`.
+   */
+  assetsUrl?: string;
+  /**
+   * Which input devices to listen to in a browser. Default: keyboard, mouse and gamepad.
+   * `false` listens to none (feed samples yourself with `feedSamples`).
+   */
+  inputs?: false | { keyboard?: boolean; mouse?: boolean; gamepad?: boolean };
+  /**
+   * The "camera on" indicator and the camera failure messages. Default: a small status
+   * box added to the page while the camera is in use. An element: render into it instead.
+   * `false`: none; the app shows `tracking-status` events itself.
+   */
+  cameraStatus?: false | HTMLElement;
 }
+
+/**
+ * Why the camera could not be started, for `tracking-status: permission-denied`
+ * (the browser rejected getUserMedia; Req 8 AC 1).
+ */
+export type CameraFailureCause = 'denied' | 'no-camera' | 'in-use' | 'other';
 
 export interface TargetOptions {
   autoRepeat?: boolean;
@@ -69,7 +93,15 @@ export interface PlanchetteEventMap {
   highlight: { kind: ScanHighlightKind; targetId: string; targetIds: string[] };
   select: { targetId: string; now: number; source: SelectSource; role: TargetRole };
   cancel: Record<string, never>;
-  'tracking-status': { status: TrackingStatus };
+  'tracking-status': {
+    status: TrackingStatus;
+    /** For the failures (permission-denied, load-failed, no-face-timeout): what to tell the person, in plain language. */
+    message?: string;
+    /** For the failures: the input modes to offer instead (switch scanning and mouse). */
+    alternatives?: InputMode[];
+    /** For permission-denied: which kind of camera problem it was. */
+    cause?: CameraFailureCause;
+  };
   'mode-change': { mode: InputMode };
   'calibration-step': {
     run: CalibrationRun;
@@ -135,4 +167,7 @@ export interface Planchette extends EventTarget {
 
   // Synthetic input (simulator and tests)
   feedSamples(samples: ReadonlyArray<TimestampedSample>): void;
+
+  /** Stop the camera, stop listening to input devices and remove the status box. */
+  destroy(): void;
 }

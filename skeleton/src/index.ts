@@ -9,6 +9,7 @@ import { createPlanchetteInternal } from './planchette.js';
 
 export type {
   CalibrationResult,
+  CameraFailureCause,
   CalibrationStep,
   DetectedFace,
   GestureScores,

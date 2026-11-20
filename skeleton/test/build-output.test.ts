@@ -15,7 +15,9 @@
  *
  * Covers: Task 1.3 / tech.md build requirement.
  */
-import { existsSync, rmSync } from "fs";
+import { existsSync, readFileSync, readdirSync, rmSync } from "fs";
+import { createHash } from "crypto";
+import { mediapipeAssetSources } from "../scripts/mediapipe-assets";
 import { resolve } from "path";
 import { randomBytes } from "crypto";
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
@@ -68,3 +70,31 @@ describe("Vite build output paths", () => {
     expect(out("apps/board/index.html")).toBe(false);
   });
 });
+
+describe("head-tracking files are served from the app's own origin (Task 14.1)", () => {
+  const out = (p: string) => resolve(root, relOutDir, p);
+  it("copies both MediaPipe WASM pairs (SIMD and nosimd) and the face model into mediapipe/", () => {
+    for (const f of ["vision_wasm_internal.js", "vision_wasm_internal.wasm", "vision_wasm_nosimd_internal.js", "vision_wasm_nosimd_internal.wasm", "face_landmarker.task"]) {
+      expect(existsSync(out(`mediapipe/${f}`)), f).toBe(true);
+    }
+  });
+  it("copies the WASM from the pinned @mediapipe/tasks-vision, byte for byte", () => {
+    const src = mediapipeAssetSources()["vision_wasm_internal.wasm"];
+    expect(readFileSync(out("mediapipe/vision_wasm_internal.wasm")).equals(readFileSync(src))).toBe(true);
+  });
+  it("the face model is the published float16 v1 file (SHA-256 as in THIRD_PARTY.md)", () => {
+    const hash = createHash("sha256").update(readFileSync(out("mediapipe/face_landmarker.task"))).digest("hex");
+    expect(hash).toBe("64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff");
+  });
+  it("does not copy the module WASM pair, which the adapter does not use", () => {
+    expect(existsSync(out("mediapipe/vision_wasm_module_internal.wasm"))).toBe(false);
+  });
+  it("loads MediaPipe from no CDN: no jsdelivr, unpkg or googleapis URL in the built JavaScript", () => {
+    const assets = readdirSync(out("assets")).filter((f: string) => f.endsWith(".js"));
+    for (const f of assets) {
+      const text = readFileSync(out(`assets/${f}`), "utf8");
+      expect(text, f).not.toMatch(/cdn\.jsdelivr\.net|unpkg\.com|storage\.googleapis\.com/);
+    }
+  });
+});
+

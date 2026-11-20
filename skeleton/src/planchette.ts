@@ -48,6 +48,13 @@ import {
 } from './engine/profile.js';
 import { SCAN_BACK_ID, SCAN_CANCEL_ID, createScanState, stepScan, type ScanEvent } from './engine/scan.js';
 import { createSwitchState, stepSwitch, type SwitchState } from './engine/switch.js';
+import { createCameraAdapter, type CameraAdapter, type CameraEnvironment } from './adapters/camera-adapter.js';
+import { createCameraStatusView, failureMessage, type CameraStatusView, type DomLike } from './adapters/camera-status.js';
+import { browserCameraEnvironment, browserDom, browserInputEnvironment, hasBrowser } from './adapters/browser-env.js';
+import type { InputAdapter, InputEnvironment, InputSink } from './adapters/input-env.js';
+import { createKeyboardAdapter } from './adapters/keyboard-adapter.js';
+import { createMouseAdapter } from './adapters/mouse-adapter.js';
+import { createGamepadAdapter } from './adapters/gamepad-adapter.js';
 import type { DwellTarget, Rect, TargetRole } from './engine/targets.js';
 
 const SOURCES: ReadonlySet<string> = new Set<SampleSource>(['camera', 'keyboard', 'mouse', 'gamepad', 'synthetic']);
@@ -72,6 +79,20 @@ export interface PlanchetteSnapshot {
   centre: FaceRotation;
   calibration: { run: CalibrationRun; step: string } | null;
 }
+
+/**
+ * What the instance uses from the browser. Tests pass fakes; `null` means "not available"
+ * (for example Node). Without this argument the real browser is used when there is one.
+ */
+export interface PlanchetteEnvironment {
+  camera?: CameraEnvironment | null;
+  input?: InputEnvironment | null;
+  dom?: DomLike | null;
+}
+
+/** The modes offered when the camera cannot be used (Req 8 AC 2c). */
+const CAMERA_ALTERNATIVES: InputMode[] = ['scan', 'mouse'];
+const DEFAULT_ASSETS_URL = '/mediapipe/';
 
 export interface PlanchetteInternals {
   planchette: Planchette;
@@ -122,8 +143,14 @@ function sanitizeFaces(v: unknown): DetectedFace[] {
   return out;
 }
 
-export function createPlanchetteInternal(options: PlanchetteOptions): PlanchetteInternals {
+export function createPlanchetteInternal(options: PlanchetteOptions, environment?: PlanchetteEnvironment): PlanchetteInternals {
   const opts: Partial<PlanchetteOptions> = isObject(options) ? options : {};
+  const browser = environment === undefined && hasBrowser();
+  const env: Required<PlanchetteEnvironment> = {
+    camera: environment === undefined ? (browser ? browserCameraEnvironment() : null) : (environment.camera ?? null),
+    input: environment === undefined ? (browser ? browserInputEnvironment() : null) : (environment.input ?? null),
+    dom: environment === undefined ? (browser ? browserDom() : null) : (environment.dom ?? null),
+  };
   let profile: Profile = clampProfile(isObject(opts.profile) ? opts.profile : {});
   let screen: ScreenSize = sanitizeScreen(opts.screen);
 
@@ -280,6 +307,55 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
     emitScan(stepScan(scan, { press, targets: targetList }, t, profile));
   }
 
+  // ---- camera, status box and input adapters ------------------------------
+  let camera: CameraAdapter | null = null;
+  let statusView: CameraStatusView | null = null;
+  let inputs: InputAdapter[] = [];
+
+  function status(): CameraStatusView | null {
+    if (statusView !== null || env.dom === null || opts.cameraStatus === false) return statusView;
+    const parent = opts.cameraStatus === undefined ? null : (opts.cameraStatus as unknown as { appendChild(c: unknown): unknown });
+    statusView = createCameraStatusView(env.dom, parent, {
+      // "Try the camera again": a full restart, also after a no-face timeout while the
+      // camera runs (startCamera alone does nothing then).
+      retry: () => {
+        api.stopCamera();
+        void api.startCamera();
+      },
+      setMode: (mode) => api.setMode(mode),
+    });
+    return statusView;
+  }
+
+  /** A `tracking-status` event; the failures carry their plain-language message and the alternatives. */
+  function trackingStatus(value: PlanchetteEventMap['tracking-status']['status'], cause?: PlanchetteEventMap['tracking-status']['cause']): void {
+    if (value === 'permission-denied' || value === 'load-failed' || value === 'no-face-timeout') {
+      const detail: PlanchetteEventMap['tracking-status'] = {
+        status: value,
+        message: failureMessage(value, cause),
+        alternatives: [...CAMERA_ALTERNATIVES],
+      };
+      if (cause !== undefined) detail.cause = cause;
+      // The no-face timeout comes from the engine; the box shows it while the camera is in use.
+      if (value !== 'no-face-timeout' || (camera !== null && camera.state !== 'off')) status()?.show({ kind: 'failed', status: value, cause });
+      emit('tracking-status', detail);
+      return;
+    }
+    if (value === 'found' && camera !== null && camera.state === 'running') status()?.show({ kind: 'on' });
+    emit('tracking-status', { status: value });
+  }
+
+  if (env.camera !== null) {
+    const assetsUrl = typeof opts.assetsUrl === 'string' && opts.assetsUrl !== '' ? opts.assetsUrl : DEFAULT_ASSETS_URL;
+    camera = createCameraAdapter(env.camera, assetsUrl, {
+      sample: (sample) => feedOne(sample),
+      started: () => status()?.show({ kind: 'starting' }),
+      running: () => status()?.show({ kind: 'on' }),
+      failed: (value, cause) => trackingStatus(value, cause),
+      stopped: () => status()?.show({ kind: 'hidden' }),
+    });
+  }
+
   // ---- camera samples ----------------------------------------------------
   function cameraSample(raw: Record<string, unknown>, now: number): void {
     if (!startupCentreStarted && calibration === null) startRun('centre');
@@ -296,7 +372,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
       profile,
     );
     for (const e of headEvents) {
-      if (e.type === 'tracking-status') emit('tracking-status', { status: e.status });
+      if (e.type === 'tracking-status') trackingStatus(e.status);
       else if (isHeadMode()) emit('pointer-move', { x: e.x, y: e.y });
     }
 
@@ -446,12 +522,19 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
     },
 
     startCamera(): Promise<void> {
-      // The camera adapter (Task 14) opens the device. Here: a new camera session, so the
-      // start-up centre step runs on its first sample (including after a retry).
+      // Already on or starting: nothing new.
+      if (camera !== null && (camera.state === 'running' || camera.state === 'starting')) return camera.start();
+      // A new camera session (also a retry after a failure): the start-up centre step runs
+      // on its first sample, and the no-face timeout starts again (Task 14.4a, 14.5).
       startupCentreStarted = false;
-      return Promise.resolve();
+      head = createHeadPointerState();
+      lastNow.delete('camera');
+      if (camera === null) return Promise.resolve();
+      return camera.start(); // the status box appears when the camera is on
     },
     stopCamera(): void {
+      camera?.stop(); // every track is stopped: the browser's camera light goes off
+      status()?.show({ kind: 'hidden' });
       startupCentreStarted = false;
       head = createHeadPointerState();
       lastNow.delete('camera');
@@ -460,7 +543,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
     },
     relockFace(faceIndex: number): void {
       for (const e of relockHeadFace(head, faceIndex)) {
-        if (e.type === 'tracking-status') emit('tracking-status', { status: e.status });
+        if (e.type === 'tracking-status') trackingStatus(e.status);
       }
     },
 
@@ -506,7 +589,23 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
       if (!Array.isArray(samples)) return;
       for (const s of samples) feedOne(s);
     },
+    destroy(): void {
+      api.stopCamera();
+      for (const a of inputs) a.stop();
+      inputs = [];
+      statusView?.destroy();
+      statusView = null;
+    },
   };
+
+  // Input devices (design §7): one adapter per device, each with its own frame loop.
+  if (env.input !== null && opts.inputs !== false) {
+    const want = isObject(opts.inputs) ? (opts.inputs as Record<string, unknown>) : {};
+    const sink: InputSink = { profile: () => profile, feed: (sample) => feedOne(sample) };
+    if (want.keyboard !== false) inputs.push(createKeyboardAdapter(env.input, sink));
+    if (want.mouse !== false) inputs.push(createMouseAdapter(env.input, sink));
+    if (want.gamepad !== false) inputs.push(createGamepadAdapter(env.input, sink));
+  }
 
   const planchette = Object.assign(target, api) as unknown as Planchette;
 

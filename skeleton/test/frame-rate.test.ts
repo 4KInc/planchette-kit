@@ -14,7 +14,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createPlanchette } from '../src/index';
-import { createDwellState, stepDwell } from '../src/engine/dwell';
+import { TIME_EPSILON_MS, createDwellState, stepDwell } from '../src/engine/dwell';
 import { defaultProfile } from '../src/engine/profile';
 import { CENTRE, SCREEN, cameraSamples, type PointerPath } from './pointer-path';
 
@@ -76,11 +76,10 @@ describe('a stay within 67 ms of the dwell time (dwell 1000 ms)', () => {
     expect(selectsAt(path, 60, 6500, 1174)).toBe('a@3200.0,b@4883.3');
   });
 
-  it('known quirk: 15 frame intervals of 66.7 ms add up to 999.9999999999995 ms, one frame short of 1000', () => {
-    // The dwell timer adds each sample interval, and the float sum of 15 intervals of
-    // 1000/15 ms is just below 1000, so a stay that is exactly the dwell time long, counted
-    // in 15 fps frames, selects one frame late. Real camera timestamps rarely land on exact
-    // multiples, and the effect is one frame at most. Recorded, not changed here.
+  it('a stay of exactly the dwell time selects on the frame where it is reached (float sums are tolerated)', () => {
+    // Fifteen intervals of 1000/15 ms add up to 999.9999999999995 ms in floating point.
+    // The dwell comparisons allow TIME_EPSILON_MS (1e-6 ms), so the select comes on the
+    // 15th interval, not one frame late.
     const s = createDwellState();
     const targets = [{ id: 'a', rect: { x: 0, y: 0, width: 10, height: 10 }, autoRepeat: false, role: 'default' as const }];
     const fired: number[] = [];
@@ -91,7 +90,42 @@ describe('a stay within 67 ms of the dwell time (dwell 1000 ms)', () => {
       }
       if (k === 71) expect(s.accumulated).toBe(999.9999999999995);
     }
-    expect(fired).toEqual([16]); // after 16 intervals, not 15
+    expect(fired).toEqual([15]);
+    expect(TIME_EPSILON_MS).toBe(1e-6);
+  });
+
+  it('auto-repeat lands on its frame too', () => {
+    // 15 fps from frame 1: the select is 15 frames into the stay, at 1066.7 ms. The repeat
+    // is due at 1066.7 + 1000 ms, which in floating point is a little above the frame time
+    // 2066.7 ms; with the tolerance the repeat comes on that frame, 15 frames later.
+    const s = createDwellState();
+    const targets = [{ id: 'a', rect: { x: 0, y: 0, width: 10, height: 10 }, autoRepeat: true, role: 'default' as const }];
+    const selects: number[] = [];
+    for (let k = 1; k <= 60; k++) {
+      for (const e of stepDwell(s, { pointer: { x: 5, y: 5 }, targets }, (k * 1000) / 15, defaultProfile)) {
+        if (e.type === 'select') selects.push(k);
+      }
+    }
+    expect((16 * 1000) / 15 + 1000).toBeGreaterThan((31 * 1000) / 15); // the float effect being tolerated
+    expect(selects.slice(0, 3)).toEqual([16, 31, 46]);
+  });
+
+  it('the post-selection pause ends on its frame (no tolerance needed: counting resumes from the exact pause end)', () => {
+    // 60 fps from frame 0, dwell 1000, pause 500: select at frame 60; the pause ends on
+    // frame 90, and from then on the time counts toward the next select on another target.
+    const s = createDwellState();
+    const a = { id: 'a', rect: { x: 0, y: 0, width: 10, height: 10 }, autoRepeat: false, role: 'default' as const };
+    const b = { id: 'b', rect: { x: 20, y: 0, width: 10, height: 10 }, autoRepeat: false, role: 'default' as const };
+    const selects: Array<[string, number]> = [];
+    for (let k = 0; k <= 200; k++) {
+      const pointer = k <= 70 ? { x: 5, y: 5 } : { x: 25, y: 5 };
+      for (const e of stepDwell(s, { pointer, targets: [a, b] }, (k * 1000) / 60, defaultProfile)) {
+        if (e.type === 'select') selects.push([e.targetId, k]);
+      }
+    }
+    // b is entered at frame 71, during the pause; it counts from the pause end (frame 90)
+    // and selects 1000 ms (60 frames) later.
+    expect(selects).toEqual([['a', 60], ['b', 150]]);
   });
 });
 
@@ -122,7 +156,7 @@ describe('the pointer within 20 px of a target edge', () => {
     // ones, so they see the pointer outside at different moments, and the grace time and
     // stay rules give a different result.
     expect(selectsAt(tremorNearEdge(0, 0.6), 15, 6500)).toBe('-');
-    expect(selectsAt(tremorNearEdge(0, 0.6), 60, 6500)).toBe('a@4116.7');
+    expect(selectsAt(tremorNearEdge(0, 0.6), 60, 6500)).toBe('a@4100.0');
     // 2 px outside the edge: the same.
     expect(selectsAt(tremorNearEdge(-2, 0.6), 15, 6500)).toBe('-');
     expect(selectsAt(tremorNearEdge(-2, 0.6), 60, 6500)).toBe('a@5416.7');

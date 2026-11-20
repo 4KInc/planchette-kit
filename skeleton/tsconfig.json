@@ -23,7 +23,8 @@
     "src",
     "test",
     "demo",
-    "examples"
+    "examples",
+    "scripts"
   ],
   "exclude": [
     "node_modules",

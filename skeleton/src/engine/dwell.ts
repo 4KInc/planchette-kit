@@ -30,6 +30,15 @@ import type { DwellTarget, Rect, TargetRole } from './targets.js';
  */
 export const MAX_SAMPLE_GAP_MS = 100;
 
+/**
+ * Tolerance for time comparisons (ms). Sample times are floats: fifteen intervals of
+ * 1000 / 15 ms add up to 999.9999999999995, and `t + 1000` can be one rounding step above
+ * the frame time it should equal. Without a tolerance a stay of exactly the dwell time, an
+ * or an auto-repeat would land one frame late. 1e-6 ms is far below any
+ * frame interval.
+ */
+export const TIME_EPSILON_MS = 1e-6;
+
 export interface DwellState {
   /** Target of the current stay, or null when there is no stay. */
   targetId: string | null;
@@ -168,6 +177,8 @@ export function stepDwell(
   state.lastOnTime = now;
   state.prevOn = true;
 
+  // No tolerance needed here: counting resumes from exactly `pauseEnd` (below), so a
+  // sample a rounding step before it loses no time.
   const inPause = now < state.pauseEnd;
 
   if (counts && !state.selected && !inPause) {
@@ -183,7 +194,7 @@ export function stepDwell(
     progress = 0;
   } else if (!state.selected) {
     progress = Math.min(1, state.accumulated / profile.dwellTime);
-    fire = state.accumulated >= profile.dwellTime;
+    fire = state.accumulated >= profile.dwellTime - TIME_EPSILON_MS;
   } else if (hit.autoRepeat && hit.role !== 'cancel') {
     const repeatAt = Math.max(
       state.selectedAt + Math.max(profile.autoRepeatInterval, profile.postSelectionPause),
@@ -191,7 +202,7 @@ export function stepDwell(
     );
     const span = repeatAt - state.pauseEnd;
     progress = span > 0 ? Math.min(1, (now - state.pauseEnd) / span) : 1;
-    fire = now >= repeatAt;
+    fire = now >= repeatAt - TIME_EPSILON_MS;
   }
   // else: a completed stay without auto-repeat shows 0 until it ends.
 

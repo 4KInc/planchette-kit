@@ -1,9 +1,12 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
+import { mediapipeAssets } from "./skeleton/scripts/mediapipe-assets";
 
 export default defineConfig({
   // root is the repo root; Vite serves index.html at /, board/index.html at /board/, etc.
   root: ".",
+  // The head-tracking WASM and model files, served and built at <base>mediapipe/ (Task 14).
+  plugins: [mediapipeAssets()],
   resolve: {
     // The apps import the kit as '@planchette/skeleton' only. Here that name points at the
     // source, so `npm run dev` and `npm run build` work without building the package first.

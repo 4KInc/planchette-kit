@@ -76,7 +76,8 @@ inclusion: always
 - Ask before adding any dependency. Only MIT, Apache-2.0, BSD or ISC licences. Record
   each one and its licence in `THIRD_PARTY.md`.
 - Pin exact versions.
-- Already approved: `@mediapipe/tasks-vision` (Apache-2.0), `fast-check` (MIT),
+- Already approved: `@mediapipe/tasks-vision` (Apache-2.0; pinned to 0.10.35, because 1.0.0
+  and later send usage statistics to a Google endpoint), `fast-check` (MIT),
   `vitest` (MIT), `@playwright/test` (Apache-2.0), `@modelcontextprotocol/sdk` (MIT)
   for the dwell simulator.
 - CI runs that use the Kiro CLI spend credits: run them on demand, not on every push.

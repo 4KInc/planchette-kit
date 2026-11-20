@@ -610,11 +610,13 @@ Each file exports one `step` function and its state type. `profile.ts` has no `s
   a select, and the post-selection pause applies. A `select` event never carries the role
   `cancel`. The same rule holds for a cancel-role target selected by scan (as an ordinary
   item, in a row or at the top level), by a head + gesture press and by a mouse click.
-- **Known quirk: float sums.** The timer adds the sample intervals. Fifteen intervals of
-  `1000 / 15` ms add up to 999.9999999999995 ms, so a stay counted in exact 15 fps frame
-  times reaches a 1000 ms dwell time one frame late. Real camera timestamps rarely fall on
-  exact multiples, and the effect is at most one frame. Recorded in `frame-rate.test.ts`;
-  not changed.
+- **Float tolerance.** The timer adds the sample intervals, and fifteen intervals of
+  `1000 / 15` ms add up to 999.9999999999995 ms; `selectedAt + interval` can likewise be one
+  rounding step above the frame time it should equal. The dwell and auto-repeat
+  comparisons therefore allow `TIME_EPSILON_MS` = 1e-6 ms, so a stay of exactly the dwell
+  time selects on the frame where it is reached. The pause-end comparison needs none:
+  counting resumes from exactly `pauseEnd`. (The scan engine's interval and pause
+  comparisons have the same float effect and can be one frame late; not changed.)
 - **Stay end.** When a stay ends, one `dwell-progress` with `progress: 0` is emitted for
   the old target, before any event for a new stay. A stay ends when the pointer moves
   onto a different target, when the grace time is exceeded, when the input timeout
@@ -802,6 +804,9 @@ export function createPlanchette(options: PlanchetteOptions): Planchette
 interface PlanchetteOptions {
   screen: { width: number; height: number }  // CSS px
   profile?: Partial<Profile>
+  assetsUrl?: string          // where the app serves the MediaPipe files; default '/mediapipe/' (§7)
+  inputs?: false | { keyboard?: boolean; mouse?: boolean; gamepad?: boolean }  // default: all, in a browser
+  cameraStatus?: false | HTMLElement  // the camera status box; default: added to the page while in use
 }
 
 interface Rect {
@@ -847,6 +852,9 @@ interface Planchette extends EventTarget {
 
   // Synthetic input (simulator and tests)
   feedSamples(samples: TimestampedSample[]): void
+
+  // Stop the camera and the input adapters, remove the status box
+  destroy(): void
 }
 ```
 
@@ -860,7 +868,7 @@ type InputEventType =
   | 'highlight'          // { kind: ScanHighlightKind; targetId: string; targetIds: string[] }
   | 'select'             // { targetId: string; now: number; source: SelectSource; role: TargetRole }
   | 'cancel'             // {}
-  | 'tracking-status'    // { status: TrackingStatus }
+  | 'tracking-status'    // { status: TrackingStatus; message?; alternatives?; cause? } (failures: §7 "Adapter details")
   | 'mode-change'        // { mode: InputMode }
   | 'calibration-step'   // { run: 'full' | 'centre'; step: CalibrationStep; completed: boolean; timeout: boolean; result?: CalibrationResult }  // result on 'done' only (§5 "Calibration engine details")
 
@@ -1071,6 +1079,81 @@ compares its timestamp against another adapter's clock. This ensures the press
 machine always receives a continuous stream and the input timeout never fires while a
 switch is held.
 
+### Adapter details (Task 14)
+
+Choices made where the sections above leave something open:
+
+- **Files.** `src/adapters/`: `camera-adapter.ts` (camera and model), `face-result.ts`
+  (MediaPipe result to engine faces, pure), `camera-status.ts` (the status box),
+  `keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts`, `input-env.ts` (their
+  shared frame loop), and `browser-env.ts`, the only file that reads browser globals or
+  imports MediaPipe. Every adapter takes an environment object, so the tests pass fakes
+  and run in Node: no real camera, no MediaPipe, no DOM. `createPlanchetteInternal` takes
+  the environment as a second argument; `createPlanchette` uses the browser when there
+  is one and nothing otherwise.
+- **MediaPipe version.** `@mediapipe/tasks-vision` is pinned to 0.10.35. Versions 1.0.0 and
+  later post usage and latency statistics to `odml.pa.googleapis.com` every minute, which
+  breaks "nothing leaves the device"; `mediapipe-privacy.test.ts` guards this. MediaPipe
+  is imported dynamically, so its code loads only when the camera starts.
+- **Files served.** At `assetsUrl` (default `/mediapipe/`, same origin): the SIMD and
+  nosimd WASM pairs from the package's `wasm/` folder (MediaPipe picks one) and
+  `face_landmarker.task` from `skeleton/assets/` (float16 v1, SHA-256 in THIRD_PARTY.md).
+  The repo's Vite plugin (`skeleton/scripts/mediapipe-assets.ts`) serves them in dev and
+  copies them into the build. The model is committed (3.76 MB) so a build needs no network.
+- **Model options.** `runningMode: 'VIDEO'`, `numFaces: 2`, blendshapes and facial
+  transformation matrices on, GPU delegate with a CPU fallback.
+- **Start order.** `startCamera()` asks for the camera and loads the model at the same
+  time. A getUserMedia rejection wins: `permission-denied`, and a model that loads later
+  is closed. A model that fails is `load-failed`, and the camera tracks are stopped so the
+  camera light goes off. `startCamera()` always resolves; failures are events.
+  While the camera runs or is starting, `startCamera()` does nothing new.
+- **Permission denied.** Req 8 defines it as "the browser rejects getUserMedia", so every
+  rejection is `permission-denied`, with `cause`: `denied` (NotAllowedError,
+  SecurityError), `no-camera` (NotFoundError, OverconstrainedError), `in-use`
+  (NotReadableError, AbortError) or `other`, each with its own message. A video that
+  will not play is `permission-denied` with cause `other`.
+- **Frames.** On each animation frame, if the video has a new frame
+  (`readyState ≥ 2` and `currentTime` changed), the adapter calls `detectForVideo` with
+  `performance.now()` and sends one sample with that time as `now`. This is the time the
+  frame reaches the model, a frame or less after capture; MediaPipe needs it increasing,
+  and the adapter skips a time that is not. If `detectForVideo` throws (for example a lost
+  GPU context), that is `load-failed` and the camera stops.
+- **Result to faces.** Box: the bounding box of the face's landmarks. Rotation: from the
+  4 × 4 transformation matrix, read column-major; the forward axis is its third column
+  `f`, `yaw = atan2(−f.x, f.z)`, `pitch = atan2(f.y, √(f.x² + f.z²))`, so turning to the
+  person's right and looking up are positive (§4). The image is not mirrored. The signs
+  are derived, not yet measured: Task 14.9's real clip must confirm them. Scores: `jawOpen`
+  and `browInnerUp` (as `browRaise`).
+- **Stop.** `stopCamera()` stops every track of the stream (the browser's camera light goes
+  off), cancels the frame loop, detaches the video and closes the model. A stop while the
+  browser is still asking stops the stream as soon as it arrives.
+- **Retry (Req 8 AC 4).** Every start loads and initialises a fresh FaceLandmarker (the old
+  one is closed), resets the head pointer (so the no-face timeout counts from the retry)
+  and runs the start-up centre step again.
+- **Messages.** `tracking-status` for `permission-denied`, `load-failed` and
+  `no-face-timeout` carries `message` (plain language, from `src/messages.ts`, no error
+  codes) and `alternatives: ['scan', 'mouse']`; `permission-denied` also carries `cause`.
+- **Status box.** By default a small `role="status"` box appears while the camera is in
+  use: "Camera on" (Req 2 AC 2), and after a failure the message with three buttons: "Try
+  the camera again" (stops and restarts the camera, also after a no-face timeout),
+  "Use switch scanning" and "Use the mouse" (Req 8 AC 2). It is removed when the camera
+  stops (Req 2 AC 12). `cameraStatus: element` renders into the app's element instead;
+  `cameraStatus: false` shows nothing. Nothing is added to the page on import. Task 16.3's
+  styled indicator can replace it.
+- **Keyboard.** The bound key is `KeyboardEvent.key` equal to `switchBinding` (unless the
+  binding names a mouse or gamepad button). Keys typed into a text field are ignored. The
+  bound key's default action (Space scrolling) is prevented. Escape (not a key repeat)
+  puts `cancel: true` on the next sample. Losing window focus releases held keys.
+- **Mouse.** `pointermove`, `pointerdown`, `pointerup` on the window, in viewport CSS px.
+  The button counts as the signal in mouse mode (left button) or when `switchBinding` is
+  `MouseLeft`, `MouseMiddle` or `MouseRight`; otherwise the signal is false, so a carer's
+  mouse is not the person's switch. `pointercancel` and losing focus release it.
+- **Gamepad.** Read with `navigator.getGamepads()` on every frame; the signal is the bound
+  button (`GamepadButton<N>`) pressed on any connected pad, else false.
+- **Which adapters run.** In a browser `createPlanchette` starts all three;
+  `inputs: false` or `{ keyboard, mouse, gamepad }` choose. `destroy()` stops the camera,
+  removes every listener and frame callback, and removes the status box.
+
 ---
 
 ## 8. Profile import security
@@ -1173,6 +1256,7 @@ between 30 and 60 fps. The excluded cases are examples in `frame-rate.test.ts`, 
 record the measured behaviour: a stay 10 ms longer than the dwell time that starts between
 15 fps frames selects at 60 fps only; tremor across a target edge can select at one frame
 rate and not the other.
+The B3 boundary and the 133 ms figure are also in requirements.md, Correctness property 15.
 
 **P20** generates two identical runs — same pointer path, same profile, head + dwell
 mode — differing only in whether gesture scores are present. The check is that

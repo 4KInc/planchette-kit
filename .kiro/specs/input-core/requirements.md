@@ -410,11 +410,24 @@ valid profile.
     the pointer at the gesture's start, whatever the head does during the gesture.
 14. **Moving targets keep progress**: `updateTarget` with a rectangle that still
     contains the pointer never resets dwell progress.
-15. **Frame-rate independence**: for generated paths where every stay is more than
-    67 ms (one 15 fps frame) away from the dwell time, every stay is longer than 67 ms,
-    and the pointer stays more than 20 px from target edges, sampling at 15 fps and at
-    60 fps produces the same selections, each within 67 ms of the other. Paths near
-    these boundaries are covered by separate example tests, not this property.
+15. **Frame-rate independence**: dwell timing does not depend on the frame rate. The
+    same pointer path sampled at 15 fps and at 60 fps produces the same selections, each
+    within 67 ms (one 15 fps frame) of the other, for generated paths where:
+    - B1: every stay on a target is more than 67 ms away from the dwell time (shorter
+      than the dwell time minus 67 ms, or longer than the dwell time plus the
+      post-selection pause plus 134 ms);
+    - B2: a resting pointer is more than 20 px from every target edge;
+    - B3: the pointer path is the same at both frame rates (each move between targets
+      passes through one 15 fps frame with no face detected, which restarts the
+      smoother at the new position);
+    - B4: no stay begins inside a post-selection pause;
+    - B5: no target uses auto-repeat.
+    The pointer itself can reach a target up to about 133 ms later at 15 fps than at
+    60 fps, because of the smoother's lag (design §2), so B3 is needed for the 67 ms
+    bound. A second property keeps the smoother in the path (the head moves between
+    targets with no face loss): the same targets are selected in the same order, and the
+    time from the pointer reaching a target to its selection differs by at most 67 ms.
+    Paths near these boundaries are covered by separate example tests, not this property.
 16. **Bad timestamps ignored**: duplicate or backwards timestamps change nothing.
 17. **Profile round-trip and clamping**: export then import returns the same valid
     profile; any imported value ends up inside its declared range, whatever order the
