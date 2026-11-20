@@ -338,6 +338,30 @@ export function exportProfile(p: Profile): string {
   return JSON.stringify(p);
 }
 
+/** Longest description of a rejected value kept in an import message. */
+const MAX_DESCRIPTION_LENGTH = 40;
+
+/**
+ * A short, safe description of any parsed JSON value, for import messages.
+ * Never throws: it uses JSON.stringify inside try/catch (an object such as
+ * {"toString":null} cannot be turned into a string with a template literal),
+ * falls back to the type name, and truncates long text.
+ */
+export function describeValue(v: unknown): string {
+  let text: string | undefined;
+  try {
+    text = JSON.stringify(v);
+  } catch {
+    text = undefined;
+  }
+  if (typeof text !== 'string') {
+    return v === null ? 'null' : typeof v;
+  }
+  return text.length > MAX_DESCRIPTION_LENGTH
+    ? `${text.slice(0, MAX_DESCRIPTION_LENGTH)}…`
+    : text;
+}
+
 // ---------------------------------------------------------------------------
 // importProfile
 // ---------------------------------------------------------------------------
@@ -376,7 +400,7 @@ export function importProfile(json: string): ImportResult {
     }
     const v = raw[key];
     if (typeof v === 'number' && isFinite(v)) return v;
-    changes.push(`${key}: invalid value "${v}" — using default`);
+    changes.push(`${key}: invalid value ${describeValue(v)} — using default`);
     return def;
   }
 
@@ -387,7 +411,7 @@ export function importProfile(json: string): ImportResult {
     }
     const v = raw[key];
     if (typeof v === 'boolean') return v;
-    changes.push(`${key}: invalid value "${v}" — using default`);
+    changes.push(`${key}: invalid value ${describeValue(v)} — using default`);
     return def;
   }
 
@@ -398,7 +422,7 @@ export function importProfile(json: string): ImportResult {
     }
     const v = raw[key];
     if (typeof v === 'string' && v !== '') return v;
-    changes.push(`${key}: invalid value "${v}" — using default`);
+    changes.push(`${key}: invalid value ${describeValue(v)} — using default`);
     return def;
   }
 
@@ -446,7 +470,7 @@ export function importProfile(json: string): ImportResult {
     const pre = (beforeClamp as unknown as Record<string, unknown>)[key];
     const post = (profile as unknown as Record<string, unknown>)[key];
     if (pre !== post && !changes.some((c) => c.startsWith(`${key}:`))) {
-      changes.push(`${key}: clamped from ${pre} to ${post}`);
+      changes.push(`${key}: clamped from ${describeValue(pre)} to ${describeValue(post)}`);
     }
   }
 

@@ -4,7 +4,10 @@
  *
  * A full run measures the centre and the four head ranges, then the gesture rest and
  * deliberate scores. A centre-only run measures the centre alone. Every step advances
- * when the head has been still for the stillness time, or at the step timeout.
+ * when the head has been still for the stillness time, or at the step timeout. In the
+ * four direction steps and the deliberate-gesture phase the stillness window only counts
+ * while the person is doing what the step asks (head at least MIN_RANGE_DEG from the
+ * centre in the step's direction; score at least GESTURE_MIN_RANGE above rest).
  *
  * Pure logic: time is an input (`now`, ms); no clocks, DOM or devices. The engine never
  * changes the profile: the done event carries the fields to apply.
@@ -166,6 +169,23 @@ function measure(samples: Sample[]): Measurement | null {
   };
 }
 
+/**
+ * Whether a sample counts toward the stillness window: the person is doing what the
+ * step asks. The centre and rest steps ask nothing. A direction step with no centre, or
+ * the gesture phase with no rest score, cannot be satisfied and waits for the timeout.
+ */
+function qualifies(s: CalibrationState, x: Sample): boolean {
+  const c = s.centre;
+  switch (s.step) {
+    case 'left': return c !== null && c.yaw - x.yaw >= MIN_RANGE_DEG;
+    case 'right': return c !== null && x.yaw - c.yaw >= MIN_RANGE_DEG;
+    case 'up': return c !== null && x.pitch - c.pitch >= MIN_RANGE_DEG;
+    case 'down': return c !== null && c.pitch - x.pitch >= MIN_RANGE_DEG;
+    case 'gesture': return s.rest !== null && x.score - s.rest >= GESTURE_MIN_RANGE;
+    default: return true;
+  }
+}
+
 function startStep(s: CalibrationState, now: number): void {
   s.stepStart = now;
   s.samples = [];
@@ -286,13 +306,18 @@ export function stepCalibration(
       score: input.gestureScores ? switchGestureScore(input.gestureScores, profile) : 0,
     };
     const thr = profile.calibrationStillnessThreshold;
+    const doing = qualifies(state, sample);
     let still = false;
-    if (state.samples.length > state.windowFrom) {
+    if (doing && state.samples.length > state.windowFrom) {
       const spreadYaw = Math.max(state.maxYaw, sample.yaw) - Math.min(state.minYaw, sample.yaw);
       const spreadPitch = Math.max(state.maxPitch, sample.pitch) - Math.min(state.minPitch, sample.pitch);
       still = spreadYaw <= thr && spreadPitch <= thr;
     }
-    if (still) {
+    if (!doing) {
+      // Not doing what the step asks: the window empties. The sample is still kept,
+      // because a timeout measures every sample of the step.
+      state.windowFrom = state.samples.length + 1;
+    } else if (still) {
       state.minYaw = Math.min(state.minYaw, sample.yaw);
       state.maxYaw = Math.max(state.maxYaw, sample.yaw);
       state.minPitch = Math.min(state.minPitch, sample.pitch);

@@ -4,6 +4,7 @@ import {
   clampProfile,
   exportProfile,
   importProfile,
+  describeValue,
   type Profile,
 } from '../src/engine/profile';
 
@@ -190,6 +191,50 @@ describe('importProfile', () => {
   });
 });
 
+describe('importProfile never throws on a value that cannot become a string', () => {
+  // Found by P17(b) on a random seed: "${v}" threw "Cannot convert object to primitive value".
+  it('{"mode":{"toString":null}} gives the default mode and a message', () => {
+    const { profile, changes } = importProfile('{"mode":{"toString":null}}');
+    expect(profile.mode).toBe(defaultProfile.mode);
+    expect(changes.some((c) => c.startsWith('mode: invalid value'))).toBe(true);
+  });
+  it.each(['mode', 'switchBinding', 'headGain', 'cancelByHold', 'startCameraOnLoad', 'switchGesture'])(
+    'an object with toString and valueOf set to null in %s does not throw',
+    (key) => {
+      const json = `{"${key}":{"toString":null,"valueOf":null}}`;
+      expect(() => importProfile(json)).not.toThrow();
+      expect(importProfile(json).profile).toEqual(defaultProfile);
+    },
+  );
+  it('arrays, nested objects, null and huge strings do not throw', () => {
+    const big = JSON.stringify('x'.repeat(100000));
+    for (const v of ['[1,[2,{"a":null}]]', '{"a":{"b":{"c":{}}}}', 'null', big, '[]', '{}']) {
+      expect(() => importProfile(`{"mode":${v},"headGain":${v},"cancelByHold":${v}}`)).not.toThrow();
+    }
+  });
+  it('keeps each message short', () => {
+    const { changes } = importProfile(`{"mode":${JSON.stringify('x'.repeat(100000))}}`);
+    for (const c of changes) expect(c.length).toBeLessThan(200);
+  });
+});
+describe('describeValue', () => {
+  it('quotes strings, prints numbers and truncates', () => {
+    expect(describeValue('abc')).toBe('"abc"');
+    expect(describeValue(5)).toBe('5');
+    expect(describeValue('x'.repeat(500)).length).toBeLessThanOrEqual(41 + 1);
+  });
+  it('falls back to the type name when JSON.stringify cannot describe it', () => {
+    expect(describeValue(undefined)).toBe('undefined');
+    expect(describeValue(() => 1)).toBe('function');
+    expect(describeValue(Symbol('s'))).toBe('symbol');
+    expect(describeValue(10n)).toBe('bigint');
+    const cyclic: Record<string, unknown> = {};
+    cyclic.self = cyclic;
+    expect(describeValue(cyclic)).toBe('object');
+    expect(describeValue({ toJSON() { throw new Error('boom'); } })).toBe('object');
+    expect(describeValue(null)).toBe('null');
+  });
+});
 describe('exportProfile', () => {
   it('produces valid JSON', () => {
     const json = exportProfile(defaultProfile);

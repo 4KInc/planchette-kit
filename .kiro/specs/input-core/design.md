@@ -695,6 +695,19 @@ finite; such a sample carries no measurement. A sample with a non-finite `now` i
   while, over the window, the spread (max − min) of yaw and of pitch are both at most
   `calibrationStillnessThreshold`. A sample that would break this restarts the window
   at that sample. A sample with no face empties the window.
+- **The person must be doing what the step asks.** People who are slow to react stay
+  still before they move, so stillness alone must not end a direction step or the
+  deliberate-gesture phase. A sample counts toward the window only if it is
+  "doing the step":
+  - `left`, `right`, `up`, `down`: the head is at least `MIN_RANGE` (3°) from the
+    run's centre in the step's direction (`centre.yaw − yaw ≥ 3` for left, and so on,
+    with the signs below).
+  - `gesture`: the score is at least `GESTURE_MIN_RANGE` (0.15) above the `rest` score.
+  - `centre` and `rest`: every sample counts (unchanged).
+  A sample that is not doing the step empties the window, exactly as a lost face does,
+  but it stays among the step's samples. Until the window is complete the step waits,
+  up to the step timeout. A step whose condition can never hold (no centre measured, so
+  no direction is defined; no `rest` score) also waits for the timeout.
 - The step ends when the window has lasted `calibrationStillnessTime` (`timeout: false`),
   or when `calibrationStepTimeout` has passed since the step started (`timeout: true`),
   whichever comes first. If both hold on the same sample, stillness wins.
@@ -702,7 +715,11 @@ finite; such a sample carries no measurement. A sample with a non-finite `now` i
   the `now` of the sample that ended the previous step. That ending sample is not
   measured in the next step.
 - The measurement is over the window on stillness, and over every sample of the step on
-  timeout. With no face sample at all, the measurement is missing.
+  timeout (the samples before the person started count too). With no face sample at
+  all, the measurement is missing. A window that ends a direction step by stillness has
+  every sample at least `MIN_RANGE` from the centre, so its range is never below
+  `MIN_RANGE`. A window that ends the gesture phase has every score at least 0.15 above
+  `rest`, so its `deliberate` is at least that far above `rest`.
 
 **Head steps.** The centre is the mean `(yaw, pitch)`. Ranges are relative to the run's
 centre: `left = c.yaw − mean.yaw`, `right = mean.yaw − c.yaw`, `down = c.pitch − mean.pitch`,
@@ -725,9 +742,9 @@ timeout rules above, so the person never needs a hand:
    as 0). `rest` is the mean score over the measured samples.
 2. `gesture`: the person makes the gesture and holds it. `deliberate` is the 90th
    percentile of the measured scores (nearest rank: the value at index `ceil(0.9 n) − 1`
-   of the sorted scores). A percentile rather than the mean, because the gesture starts
-   part-way into the window. A percentile rather than the maximum, so one noisy frame
-   does not set the threshold.
+   of the sorted scores). A percentile rather than the mean, because after a timeout
+   the samples include the time before the gesture was made. A percentile rather than
+   the maximum, so one noisy frame does not set the threshold.
 
 `range = deliberate − rest`. Constants: `GESTURE_MIN_RANGE = 0.15`,
 `GESTURE_THRESHOLD_FRACTION = 0.6`, `GESTURE_RELEASE_FRACTION = 0.3`.
@@ -759,10 +776,6 @@ step's start event comes on the first sample. When a step ends, its end event an
 next step's start event are emitted from the same call. After `done`, further samples
 produce nothing.
 
-**Known limit.** A person who is already still when a step starts finishes that step
-after `calibrationStillnessTime` without having moved. For a head step this measures a
-range near 0, which is rejected. For the gesture phase it gives a range near 0, so the
-thresholds are kept. The UI should give a short cue before each step.
 
 ---
 

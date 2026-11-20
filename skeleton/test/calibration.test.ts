@@ -545,3 +545,213 @@ describe('cloneCalibrationState', () => {
     expect(endOf(ev, 'centre')).toBeDefined();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Stillness only ends a step once the person has done what the step asks
+// ---------------------------------------------------------------------------
+const POSES: Record<'left' | 'right' | 'up' | 'down', FaceRotation> = {
+  left: { yaw: -10, pitch: 0 },
+  right: { yaw: 12, pitch: 0 },
+  up: { yaw: 0, pitch: 8 },
+  down: { yaw: 0, pitch: -6 },
+};
+const CENTRE: FaceRotation = { yaw: 0, pitch: 0 };
+const LEAD = Math.ceil(2000 / DT); // 2 s of samples
+
+/** A driver at the start of `target`, with the centre measured at (0, 0). */
+function toStep(target: 'left' | 'right' | 'up' | 'down' | 'rest' | 'gesture'): Driver {
+  const d = driver();
+  untilStepEnds(d, CENTRE);
+  for (const st of ['left', 'right', 'up', 'down'] as const) {
+    if (st === target) break;
+    untilStepEnds(d, POSES[st]);
+  }
+  if (target === 'gesture') untilStepEnds(d, CENTRE, jaw(0.1));
+  expect(d.s.step).toBe(target);
+  return d;
+}
+
+describe('a person who is slow to start', () => {
+  it.each(['left', 'right', 'up', 'down'] as const)(
+    '%s: still at the centre for 2 s, then turning, still gets the right range',
+    (dir) => {
+      const d = toStep(dir);
+      const first = feedN(d, LEAD, CENTRE);
+      expect(endOf(first, dir)).toBeUndefined();
+      expect(d.s.step).toBe(dir);
+      const ev = untilStepEnds(d, POSES[dir]);
+      expect(endOf(ev, dir)).toMatchObject({ completed: true, timeout: false });
+    },
+  );
+
+  it('a full run with 2 s of stillness before every turn measures all four ranges', () => {
+    const d = driver();
+    untilStepEnds(d, CENTRE);
+    for (const st of ['left', 'right', 'up', 'down'] as const) {
+      feedN(d, LEAD, CENTRE);
+      untilStepEnds(d, POSES[st]);
+    }
+    untilStepEnds(d, CENTRE, jaw(0.1));
+    feedN(d, LEAD, CENTRE, jaw(0.1));
+    untilStepEnds(d, CENTRE, jaw(0.8));
+    const r = doneOf(d);
+    expect(r.rejected).toBeNull();
+    expect(r.ranges).toEqual({ left: 10, right: 12, up: 8, down: 6 });
+  });
+
+  it('a slow turn is measured where the head settles', () => {
+    const d = toStep('left');
+    feedN(d, LEAD, CENTRE);
+    feedN(d, 94, (i) => ({ yaw: -10 * Math.min(1, i / 94), pitch: 0 })); // ramp over 1.5 s
+    untilStepEnds(d, POSES.left);
+    const range = -d.s.means.left!.yaw;
+    expect(range).toBeGreaterThan(10 - 2); // within the stillness threshold of the target
+    expect(range).toBeLessThanOrEqual(10);
+  });
+
+  it('the stillness time counts from when the head reaches the edge, not from the step start', () => {
+    const d = toStep('left');
+    feedN(d, LEAD, CENTRE);
+    expect(endOf(feedN(d, 93, POSES.left), 'left')).toBeUndefined(); // 1488 ms at the edge
+    expect(endOf(feedN(d, 2, POSES.left), 'left')).toMatchObject({ timeout: false });
+  });
+
+  it('going back toward the centre empties the window', () => {
+    const d = toStep('left');
+    feedN(d, 60, POSES.left); // 960 ms at the edge
+    feedN(d, 10, { yaw: -1, pitch: 0 }); // back inside the minimum range
+    expect(endOf(feedN(d, 93, POSES.left), 'left')).toBeUndefined();
+    expect(endOf(feedN(d, 2, POSES.left), 'left')).toBeDefined();
+  });
+
+  it('a head that stays still at the centre waits for the step timeout, with timeout true', () => {
+    const d = toStep('right');
+    const ev = feedN(d, 380, CENTRE); // 6080 ms
+    expect(endOf(ev, 'right')).toMatchObject({ completed: true, timeout: true });
+    expect(d.s.step).toBe('up');
+  });
+
+  it('a turn smaller than the minimum range waits for the timeout and is then rejected', () => {
+    const d = toStep('left');
+    expect(endOf(feedN(d, 300, { yaw: -2.5, pitch: 0 }), 'left')).toBeUndefined(); // 4.8 s
+    expect(endOf(feedN(d, 100, { yaw: -2.5, pitch: 0 }), 'left')).toMatchObject({ timeout: true });
+    // on timeout every sample is measured, so the 2.5 deg is what was seen
+    expect(d.s.means.left!.yaw).toBeCloseTo(-2.5, 5);
+  });
+
+  it.each([
+    ['left', { yaw: -2.5, pitch: 0 }],
+    ['right', { yaw: 2.5, pitch: 0 }],
+    ['up', { yaw: 0, pitch: 2.5 }],
+    ['down', { yaw: 0, pitch: -2.5 }],
+  ] as const)('%s: a 2.5 deg turn, held still, does not end the step before the timeout', (dir, pose) => {
+    const d = toStep(dir);
+    expect(endOf(feedN(d, 300, pose), dir)).toBeUndefined();
+    expect(endOf(feedN(d, 100, pose), dir)).toMatchObject({ timeout: true });
+  });
+
+  it('a turn in the wrong direction does not end the step', () => {
+    const d = toStep('left');
+    const ev = feedN(d, 200, POSES.right); // 3.2 s, still, but to the right
+    expect(endOf(ev, 'left')).toBeUndefined();
+    expect(d.s.step).toBe('left');
+  });
+
+  it('on timeout it measures every sample of the step, including the wait at the centre', () => {
+    const d = toStep('left');
+    feedN(d, 200, CENTRE);
+    feedN(d, 200, { yaw: -2.5, pitch: 0 }); // still below the minimum range
+    expect(d.s.step).toBe('right');
+    // 200 samples at 0 and about 175 at -2.5: the mean is in between
+    expect(d.s.means.left!.yaw).toBeLessThan(-0.5);
+    expect(d.s.means.left!.yaw).toBeGreaterThan(-2.5);
+  });
+
+  it('waits for the timeout when the centre step saw no face', () => {
+    const d = driver();
+    untilStepEnds(d, null);
+    expect(d.s.step).toBe('left');
+    expect(endOf(feedN(d, 200, POSES.left), 'left')).toBeUndefined();
+    expect(endOf(feedN(d, 200, POSES.left), 'left')).toMatchObject({ timeout: true });
+  });
+
+  it('the centre step and the rest phase are unchanged: they end on stillness alone', () => {
+    const c = driver();
+    expect(endOf(feedN(c, 95, { yaw: 25, pitch: -30 }), 'centre')).toMatchObject({ timeout: false });
+    const d = toStep('rest');
+    expect(endOf(feedN(d, 95, CENTRE, jaw(0.02)), 'rest')).toMatchObject({ timeout: false });
+    expect(d.s.rest).toBeCloseTo(0.02, 5);
+  });
+
+  describe('the deliberate gesture', () => {
+    it('a person who is still for 2 s before making the gesture still gets thresholds', () => {
+      const d = toStep('gesture');
+      expect(endOf(feedN(d, LEAD, CENTRE, jaw(0.1)), 'gesture')).toBeUndefined();
+      const ev = untilStepEnds(d, CENTRE, jaw(0.8));
+      expect(endOf(ev, 'gesture')).toMatchObject({ completed: true, timeout: false });
+      const r = doneOf(d);
+      expect(r.gesture).toMatchObject({ applied: true, kept: null });
+      expect(r.gesture!.deliberate).toBeCloseTo(0.8, 5);
+      expect(r.profile.gestureThreshold).toBeCloseTo(0.52, 5);
+    });
+
+    it('a slow gesture (the score rising over 1.5 s) is measured where it is held', () => {
+      const d = toStep('gesture');
+      feedN(d, LEAD, CENTRE, jaw(0.1));
+      feedN(d, 90, CENTRE, (i) => jaw(0.1 + 0.7 * (i / 90)));
+      untilStepEnds(d, CENTRE, jaw(0.8));
+      const r = doneOf(d);
+      expect(r.gesture!.applied).toBe(true);
+      expect(r.gesture!.deliberate!).toBeGreaterThan(0.6);
+    });
+
+    it('the stillness time counts from when the score reaches rest + 0.15', () => {
+      const d = toStep('gesture');
+      feedN(d, LEAD, CENTRE, jaw(0.1));
+      expect(endOf(feedN(d, 93, CENTRE, jaw(0.8)), 'gesture')).toBeUndefined();
+      expect(endOf(feedN(d, 2, CENTRE, jaw(0.8)), 'gesture')).toMatchObject({ timeout: false });
+    });
+
+    it('a score that drops back to rest empties the window', () => {
+      const d = toStep('gesture');
+      feedN(d, 60, CENTRE, jaw(0.8));
+      feedN(d, 5, CENTRE, jaw(0.1));
+      expect(endOf(feedN(d, 93, CENTRE, jaw(0.8)), 'gesture')).toBeUndefined();
+      expect(endOf(feedN(d, 2, CENTRE, jaw(0.8)), 'gesture')).toBeDefined();
+    });
+
+    it('a score less than 0.15 above rest waits for the timeout and keeps the old thresholds', () => {
+      const d = toStep('gesture');
+      expect(endOf(feedN(d, 300, CENTRE, jaw(0.2)), 'gesture')).toBeUndefined();
+      expect(endOf(feedN(d, 100, CENTRE, jaw(0.2)), 'gesture')).toMatchObject({ timeout: true });
+      const r = doneOf(d);
+      expect(r.gesture).toMatchObject({ applied: false, kept: 'range-too-small' });
+      expect(r.profile.gestureThreshold).toBeUndefined();
+    });
+
+    it('a person who never makes the gesture waits for the timeout', () => {
+      const d = toStep('gesture');
+      const ev = feedN(d, 380, CENTRE, jaw(0.1));
+      expect(endOf(ev, 'gesture')).toMatchObject({ timeout: true });
+      expect(doneOf(d).gesture!.applied).toBe(false);
+    });
+
+    it('on timeout it measures every sample, so a gesture made late still counts', () => {
+      const d = toStep('gesture');
+      // moving head keeps the window from ever completing; the gesture is made after 3 s
+      const wobble = (i: number) => ({ yaw: i % 2 ? 4 : -4, pitch: 0 });
+      feedN(d, 400, wobble, (i) => jaw(i < 190 ? 0.1 : 0.8));
+      expect(doneOf(d).gesture!.deliberate).toBeCloseTo(0.8, 5);
+    });
+
+    it('with no rest score (no face in the rest phase) it waits for the timeout', () => {
+      const d = driver();
+      for (const st of ['centre', 'left', 'right', 'up', 'down'] as const) {
+        untilStepEnds(d, st === 'centre' ? CENTRE : POSES[st]);
+      }
+      untilStepEnds(d, null);
+      expect(endOf(feedN(d, 200, CENTRE, jaw(0.8)), 'gesture')).toBeUndefined();
+      expect(endOf(feedN(d, 200, CENTRE, jaw(0.8)), 'gesture')).toMatchObject({ timeout: true });
+    });
+  });
+});
