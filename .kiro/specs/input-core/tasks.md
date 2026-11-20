@@ -87,11 +87,11 @@ Implement `skeleton/src/engine/dwell.ts`. Depends on `profile.ts` and `targets.t
 Implement `skeleton/src/engine/scan.ts`. Depends on `press-machine.ts` and
 `profile.ts`.
 
-- [ ] 5.1 Define `ScanState` (current index, loop count, row-scan sub-state, paused flag, post-selection pause end time).
-- [ ] 5.2 Implement `stepScan(state, { press, targets }, now, profile): ScanEvent[]` covering: advance-on-interval, row-then-item mode, back item, cancel item in every cycle, post-selection pause, ignore-press-during-pause, loops-without-press → pause, resume-without-select, custom target order.
-- [ ] 5.3 Implement `cloneScanState`.
-- [ ] 5.4 Write `skeleton/test/scan.test.ts` with example tests: advance order, row entry and back-item, cancel item present, press during pause ignored, loops-to-pause, resume press highlights not selects.
-- [ ] 5.5 Write `skeleton/test/scan.props.test.ts` implementing:
+- [x] 5.1 Define `ScanState` (current index, loop count, row-scan sub-state, paused flag, post-selection pause end time).
+- [x] 5.2 Implement `stepScan(state, { press, targets, order? }, now, profile): ScanEvent[]` covering: advance-on-interval, row-then-item mode, back item, cancel item in every cycle, post-selection pause, ignore-press-during-pause, loops-without-press → pause, resume-without-select, custom target order.
+- [x] 5.3 Implement `cloneScanState`.
+- [x] 5.4 Write `skeleton/test/scan.test.ts` with example tests: advance order, row entry and back-item, cancel item present, press during pause ignored, loops-to-pause, resume press highlights not selects.
+- [x] 5.5 Write `skeleton/test/scan.props.test.ts` implementing:
   - **P6** scan coverage (every item highlighted once per loop, in order, with no presses);
   - **P9** resume does not select;
   - **P8** pause respected (no two selects closer than postSelectionPause).

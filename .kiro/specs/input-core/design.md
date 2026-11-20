@@ -479,6 +479,64 @@ Each file exports one `step` function and its state type. `profile.ts` has no `s
 - **Shared types.** `Rect`, `TargetRole` and `DwellTarget` live in `targets.ts`
   (types only, no dependencies) so dwell and scan share them.
 
+### Scan engine details (`scan.ts`)
+`stepScan(state, { press, targets, order? }, now, profile)`. `press` is true on the step
+where the press machine counted a press. The engine is started by its first step (and
+by the first step after an input timeout); a press on that step is ignored because
+nothing was highlighted yet. The host creates a fresh state when the mode changes.
+- **Slots.** Each level is a cycle of slots, and the highlight moves one slot per
+  `scanInterval`:
+  - list (linear): the items, then the cancel item;
+  - grid, top level: the rows, then the cancel item;
+  - inside a row: the row's items, then the back item, then the cancel item.
+- **Scan order.** Reading order unless the app passes `order` (target ids). With
+  `order`, the listed ids come first in that order (unknown ids are ignored) and any
+  unlisted targets follow in reading order, so no target becomes unreachable.
+  Reading order groups targets into visual rows and sorts rows top to bottom and items
+  left to right. A target joins the current row when its vertical centre lies within
+  the vertical extent of the row's first (topmost) target. Targets with role
+  `rest-area` are not scanned. Targets with role `cancel` and `undo` are ordinary items.
+- **Row-then-item mode.** It is used when there are two or more rows and at least one
+  row has two or more items. Otherwise the list is scanned item by item (a vertical
+  list, or a single row). In row mode a row with a single item is highlighted as that
+  item and a press selects it directly. There is no profile field for the mode.
+- **Virtual items.** The back and cancel items are not registered targets. Their
+  highlight events use the ids `$back` and `$cancel` (`SCAN_BACK_ID`, `SCAN_CANCEL_ID`),
+  with `kind` `'back'` or `'cancel'`. The UI must draw them. Selecting the cancel item
+  emits `cancel` (not `select`) and returns to the top of the cycle.
+- **Highlight event.** `{ kind: 'item' | 'row' | 'back' | 'cancel' | 'none', targetId,
+  targetIds }`. For a row, `targetIds` lists every item in it and `targetId` is the
+  first. `'none'` (empty ids) clears the highlight when scanning pauses.
+- **Timing.** The next advance is scheduled from the previous due time, not from the
+  sample that triggered it, so highlights do not drift with the frame rate. One step
+  advances at most one slot. After a stall of a whole interval or more, the schedule
+  resynchronises to `now + scanInterval` instead of catching up.
+- **Press.** A press acts on the item highlighted before the step, and no advance
+  happens in the same step. Acting presses are: selecting an item (`select`, source
+  `scan`), entering a row, the back item, and the cancel item. After each of them the
+  engine applies the post-selection pause, resets the loop count, and highlights the
+  new position at once. Selecting an item or cancel restarts at the top of the cycle.
+  Entering a row highlights its first item. The back item highlights the row just left.
+  The first highlight after an acting press lasts until the pause end plus a full
+  `scanInterval`.
+- **Post-selection pause.** A press with `now < pauseEnd` is ignored and changes
+  nothing, including a press that would end a scan pause.
+- **Loops without a press.** A loop is one pass through a level's slots. When
+  `scanLoopsBeforePause` loops complete without a press: at the top level the engine
+  pauses, emits a `'none'` highlight and stops advancing; inside a row it returns to row
+  scanning on that row, with the loop count reset (it does not pause). A press resets
+  the loop count.
+- **Resume.** While paused, the next counted press (outside the post-selection pause)
+  restarts scanning at the first slot of the top level, emits its highlight, and
+  selects nothing. It does not start a post-selection pause.
+- **Input timeout.** Silence of `inputTimeout` or more restarts the cycle from the top
+  on the next sample, unless the engine is paused, which stays paused until a press.
+  The post-selection pause end time is kept.
+- **Changing targets.** The layout is rebuilt from `targets` whenever a step needs it
+  (a press or an advance), so changes take effect at the next advance or press. A slot
+  index that no longer exists wraps to the first slot. A row level that no longer
+  exists, or a layout that stopped being a grid, returns to the top level.
+
 ---
 
 ## 6. Public API (skeleton/src/index.ts)
@@ -687,7 +745,7 @@ the real engine, not stubs.
 | 3 | **Face lost means no selection** | Landmark streams that interleave detected and lost periods (random lengths); random gesture scores throughout | No `select` or press emitted during any lost period |
 | 4 | **Cancel always works** | Random sequences driving the engine to any reachable state; then inject a cancel input appropriate to the mode | Exactly one `cancel` emitted; engine reaches idle |
 | 5 | **No stuck states** | Random input sequences followed by silence for `inputTimeout + 1 ms` | Engine is idle after the silence |
-| 6 | **Scan coverage** | Random target lists (1–20 items); random scan interval | Every item highlighted exactly once per loop, in registration order |
+| 6 | **Scan coverage** | Random target lists (1–20 items, registered in random order); grids; random scan interval and custom orders | Every item (or row) highlighted exactly once per loop, in reading order (or the custom order), followed by the cancel item |
 | 7 | **Short presses ignored** | Hold durations in [1, acceptanceTime − 1 ms]; random acceptance times from valid range | No press or `select` emitted |
 | 8 | **Pause respected** | Random sequences of valid selections | Gap between consecutive `select` events ≥ `postSelectionPause` |
 | 9 | **Resume does not select** | Scan sequences reaching pause; then one press | First event is `highlight`, not `select` |
