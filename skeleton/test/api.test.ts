@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { messages } from '../src/messages';
 import { createPlanchette } from '../src/index';
 import { PressState } from '../src/engine/press-machine';
 import { FULL, harness } from './harness';
@@ -160,7 +161,7 @@ describe('head + dwell', () => {
     expect(h.of('tracking-status')).toEqual([{ status: 'found' }]);
     expect(h.of('pointer-move').length).toBeGreaterThan(0);
     h.noFace(2);
-    expect(h.of('tracking-status')).toEqual([{ status: 'found' }, { status: 'lost' }]);
+    expect(h.of('tracking-status')).toEqual([{ status: 'found' }, { status: 'lost', message: messages.lost }]);
   });
 
   it('a lost face ends the stay', () => {

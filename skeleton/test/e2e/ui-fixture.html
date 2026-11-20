@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Planchette UI helpers: end-to-end test page</title>
+    <style>
+      body { margin: 0; font: 20px/1.4 system-ui, sans-serif; color: #111; background: #fafafa; }
+      main { padding: 24px; }
+      .grid { display: grid; grid-template-columns: repeat(3, 160px); gap: 24px; margin-top: 24px; }
+      .grid button { width: 160px; height: 120px; font: inherit; color: #111; background: #fff; border: 2px solid #555; border-radius: 8px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>UI helpers test page</h1>
+      <p>Synthetic input only. No camera is used.</p>
+      <div class="grid" id="grid">
+        <button type="button" data-planchette-target="yes">Yes</button>
+        <button type="button" data-planchette-target="no">No</button>
+        <button type="button" data-planchette-target="maybe">Maybe</button>
+        <button type="button" data-planchette-target="help">Help</button>
+        <button type="button" data-planchette-target="more">More</button>
+        <button type="button" data-planchette-target="stop">Stop</button>
+      </div>
+    </main>
+    <script type="module" src="./ui-fixture.ts"></script>
+  </body>
+</html>

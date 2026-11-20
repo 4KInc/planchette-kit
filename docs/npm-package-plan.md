@@ -108,7 +108,7 @@ site, not a third-party CDN. A package cannot serve files, so:
    import that name, so renaming is one change in `package.json` and the imports.
 2. **Licence.** Confirm the repo licence suits a published library.
 3. ~~UI helpers.~~ Decided: same package, under a `./ui` subpath export
-   (`@planchette/input/ui`), added to `exports` when Task 16 creates `src/ui/`.
+   (`@planchette/input/ui`). Added to `exports` in Task 16.
 4. **Who maintains it.** Publishing creates a duty to fix bugs and answer issues.
    Who owns that after the hackathon?
 

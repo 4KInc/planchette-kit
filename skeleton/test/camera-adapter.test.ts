@@ -10,7 +10,7 @@ import { messages } from '../src/messages';
 import { createPlanchetteInternal } from '../src/planchette';
 import { FakeCameraEnv, FakeDom, FakeTrack, faceResult, flush } from './fakes';
 
-function setup(profile: Record<string, unknown> = {}, extra: { cameraStatus?: false; assetsUrl?: string } = {}) {
+function setup(profile: Record<string, unknown> = {}, extra: { trackingIndicator?: false; assetsUrl?: string } = {}) {
   const cam = new FakeCameraEnv();
   const dom = new FakeDom();
   const { planchette: p, inspect } = createPlanchetteInternal(
@@ -170,8 +170,8 @@ describe('the camera on indicator (Req 2 AC 2, AC 12)', () => {
     expect(t.dom.box!.textContent).toBe(messages.cameraOn);
   });
 
-  it('cameraStatus: false shows nothing (the app renders the events itself)', async () => {
-    const t = setup({}, { cameraStatus: false });
+  it('trackingIndicator: false shows nothing (the app renders the events itself)', async () => {
+    const t = setup({}, { trackingIndicator: false });
     await t.p.startCamera();
     expect(t.dom.body.children).toHaveLength(0);
   });

@@ -15,6 +15,25 @@ export interface FaceResultLike {
 const DEG = 180 / Math.PI;
 
 /**
+ * A face narrower than this (fraction of the image width) is far from the camera, where
+ * the landmarks get noisy; its confidence scales down with its width.
+ */
+export const CONFIDENT_FACE_WIDTH = 0.08;
+
+/**
+ * How well a face is tracked, 0–1, from what MediaPipe 0.10.35 gives in the browser (its
+ * result has no confidence score): the share of the face's landmarks inside the picture,
+ * times its width relative to CONFIDENT_FACE_WIDTH (at most 1). A face half out of the
+ * picture, or far away, scores low. A heuristic, to be checked against real clips.
+ */
+export function confidenceOf(points: ReadonlyArray<{ x: number; y: number }>, width: number): number {
+  if (points.length === 0) return 0;
+  let inside = 0;
+  for (const p of points) if (p.x >= 0 && p.x <= 1 && p.y >= 0 && p.y <= 1) inside++;
+  return (inside / points.length) * Math.min(1, Math.max(0, width) / CONFIDENT_FACE_WIDTH);
+}
+
+/**
  * Head rotation from a 4 x 4 facial transformation matrix, stored column-major (as
  * MediaPipe's MatrixData and three.js `Matrix4.fromArray`). The face's forward axis is the
  * third column (m[8], m[9], m[10]). The camera image is not mirrored, so a person turning
@@ -65,8 +84,10 @@ export function facesFromResult(result: FaceResultLike): DetectedFace[] {
   result.faceLandmarks.forEach((points, i) => {
     if (points.length === 0) return;
     const shapes = result.faceBlendshapes?.[i]?.categories;
+    const bbox = boxOf(points);
     out.push({
-      bbox: boxOf(points),
+      bbox,
+      confidence: confidenceOf(points, bbox.w),
       rotation: rotationFromMatrix(result.facialTransformationMatrixes?.[i]),
       gestureScores: { jawOpen: score(shapes, 'jawOpen'), browRaise: score(shapes, 'browInnerUp') },
     });

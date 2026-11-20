@@ -3,3 +3,5 @@ dist/
 .cache/
 .build-test-tmp/
 skeleton/LICENSE
+test-results/
+playwright-report/

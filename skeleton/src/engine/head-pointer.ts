@@ -52,6 +52,12 @@ export interface DetectedFace {
   rotation: FaceRotation;
   /** This face's blendshape scores, 0–1. Used in preference to the sample-level scores. */
   gestureScores?: GestureScores;
+  /**
+   * How well the face is tracked, 0–1 (design §4 "Low confidence"). Missing or not finite
+   * counts as 1. The camera adapter derives it from how much of the face is in the picture
+   * and how large it is.
+   */
+  confidence?: number;
 }
 
 export interface HeadPointerInput {
@@ -63,7 +69,14 @@ export interface HeadPointerInput {
   centre: FaceRotation;
 }
 
-export type TrackingStatusValue = 'found' | 'lost' | 'no-face-timeout';
+export type TrackingStatusValue = 'found' | 'lost' | 'low-confidence' | 'no-face-timeout';
+
+/** Low confidence starts when the locked face's confidence falls below this. */
+export const LOW_CONFIDENCE_ENTER = 0.5;
+/** ... and ends once it has stayed at or above this ... */
+export const LOW_CONFIDENCE_LEAVE = 0.7;
+/** ... for this long (ms), so a confidence that wavers gives one episode, not one per frame. */
+export const LOW_CONFIDENCE_RECOVER_MS = 1000;
 
 export type HeadPointerEvent =
   | { type: 'pointer-move'; x: number; y: number }
@@ -122,6 +135,10 @@ export interface HeadPointerState {
    * or its rotation is not finite. The host passes it to the calibration engine.
    */
   rotation: FaceRotation | null;
+  /** True during a low-confidence episode. */
+  lowConfidence: boolean;
+  /** When the confidence last came back to LOW_CONFIDENCE_LEAVE or above in this episode (NaN if not). */
+  recoverSince: number;
 }
 
 export function createHeadPointerState(): HeadPointerState {
@@ -152,6 +169,8 @@ export function createHeadPointerState(): HeadPointerState {
     score: 0,
     scores: null,
     rotation: null,
+    lowConfidence: false,
+    recoverSince: NaN,
   };
 }
 
@@ -327,6 +346,9 @@ export function stepHeadPointer(
     if (state.tracking === 'found') {
       state.tracking = 'lost';
       events.push({ type: 'tracking-status', status: 'lost' });
+      // A loss ends any low-confidence episode: lost says more.
+      state.lowConfidence = false;
+      state.recoverSince = NaN;
       resetSmoother(state.smootherX);
       resetSmoother(state.smootherY);
       clearFreeze(state);
@@ -359,6 +381,7 @@ export function stepHeadPointer(
     state.tracking = 'found';
     events.push({ type: 'tracking-status', status: 'found' });
   }
+  stepConfidence(state, face.confidence, now, events);
 
   // Smooth the locked face's centred angles, then map.
   const prevShownX = state.x;
@@ -410,6 +433,33 @@ export function stepHeadPointer(
   const ny = state.frozen ? state.freezeY : state.liveY;
   setShown(state, nx, ny, W, H, events, hadPointer);
   return events;
+}
+
+/**
+ * Low confidence (design §4): tracking goes on as usual, and `low-confidence` is emitted
+ * once when an episode starts. The episode ends, with `found`, when the confidence has
+ * been at or above LOW_CONFIDENCE_LEAVE for LOW_CONFIDENCE_RECOVER_MS.
+ */
+function stepConfidence(s: HeadPointerState, confidence: number | undefined, now: number, events: HeadPointerEvent[]): void {
+  const c = typeof confidence === 'number' && Number.isFinite(confidence) ? confidence : 1;
+  if (!s.lowConfidence) {
+    if (c < LOW_CONFIDENCE_ENTER) {
+      s.lowConfidence = true;
+      s.recoverSince = NaN;
+      events.push({ type: 'tracking-status', status: 'low-confidence' });
+    }
+    return;
+  }
+  if (c < LOW_CONFIDENCE_LEAVE) {
+    s.recoverSince = NaN;
+    return;
+  }
+  if (Number.isNaN(s.recoverSince)) s.recoverSince = now;
+  if (now - s.recoverSince >= LOW_CONFIDENCE_RECOVER_MS) {
+    s.lowConfidence = false;
+    s.recoverSince = NaN;
+    events.push({ type: 'tracking-status', status: 'found' });
+  }
 }
 
 function stepFreeze(
@@ -496,6 +546,8 @@ export function relockFace(state: HeadPointerState, faceIndex: number): HeadPoin
   state.faceLostAt = NaN;
   state.timeoutEmitted = false;
   state.lockWarning = false;
+  state.lowConfidence = false;
+  state.recoverSince = NaN;
   resetSmoother(state.smootherX);
   resetSmoother(state.smootherY);
   clearFreeze(state);

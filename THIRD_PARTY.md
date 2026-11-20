@@ -9,6 +9,9 @@ Every dependency used in this project, its version, licence and source.
 | `fast-check` | 4.10.3 | MIT | https://github.com/dubzzz/fast-check |
 | `typescript` | 7.0.2 | Apache-2.0 | https://github.com/microsoft/TypeScript |
 | `@types/node` | 24.19.2 | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
+| `@playwright/test` | 1.65.1 | Apache-2.0 | https://github.com/microsoft/playwright (dev only: end-to-end tests) |
+| `@axe-core/playwright` | 4.14.0 | MPL-2.0 | https://github.com/dequelabs/axe-core-npm (dev only: accessibility tests; licence exception, see below) |
+| `axe-core` | 4.14.1 (dependency of `@axe-core/playwright`) | MPL-2.0 | https://github.com/dequelabs/axe-core (dev only) |
 | `@mediapipe/tasks-vision` | 0.10.35 | Apache-2.0 | https://github.com/google-ai-edge/mediapipe (npm: https://www.npmjs.com/package/@mediapipe/tasks-vision) |
 
 ## Model files
@@ -24,3 +27,8 @@ are copied unchanged from `@mediapipe/tasks-vision` 0.10.35 at build time.
 usage and latency statistics to `https://odml.pa.googleapis.com/v1/log` every minute, and
 this project sends nothing off the device. `skeleton/test/mediapipe-privacy.test.ts` fails
 if the pinned version contains that logger.
+
+`@axe-core/playwright` and `axe-core` are MPL-2.0, outside the MIT / Apache-2.0 / BSD / ISC
+rule in `tech.md`. They were added on request for the automated accessibility check, as
+development-only test tools: they are never bundled into the build or the package, and no
+file of theirs is changed.

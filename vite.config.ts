@@ -1,6 +1,6 @@
 import { defineConfig } from "vite";
 import { resolve } from "path";
-import { mediapipeAssets } from "./skeleton/scripts/mediapipe-assets";
+import { mediapipeAssets } from "./skeleton/scripts/mediapipe-assets.ts";
 
 export default defineConfig({
   // root is the repo root; Vite serves index.html at /, board/index.html at /board/, etc.
@@ -11,6 +11,7 @@ export default defineConfig({
     // The apps import the kit as '@planchette/skeleton' only. Here that name points at the
     // source, so `npm run dev` and `npm run build` work without building the package first.
     alias: {
+      "@planchette/skeleton/ui": resolve(import.meta.dirname, "skeleton/src/ui/index.ts"),
       "@planchette/skeleton": resolve(import.meta.dirname, "skeleton/src/index.ts"),
     },
   },

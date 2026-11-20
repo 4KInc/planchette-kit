@@ -6,10 +6,19 @@ import type { CameraFailureCause } from './api-types.js';
 
 export const messages = {
   cameraOn: 'Camera on',
+  /** The scan's virtual items (drawn by the scan highlight). */
+  scanBack: 'Back',
+  scanCancel: 'Cancel',
+  /** Accessible name of the bar that shows them. */
+  scanItemLabel: 'Scan item',
   cameraStarting: 'Camera on. Starting head tracking…',
   tryAgain: 'Try the camera again',
   useScanning: 'Use switch scanning',
   useMouse: 'Use the mouse',
+  /** The locked face is not detected (Req 2 AC 10). */
+  lost: 'The camera has lost your face. Pointing is paused until it sees you again.',
+  /** Tracking goes on, but the face is only just visible (accessibility.md Feedback). */
+  lowConfidence: 'The camera can only just see your face. Move into the middle of the picture, a little closer, or into better light.',
   /** Said after every failure message: the person is never left without a way to go on. */
   alternatives: 'You can keep going now with switch scanning or the mouse.',
   failure: {

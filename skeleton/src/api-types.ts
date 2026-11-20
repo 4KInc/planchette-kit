@@ -45,11 +45,12 @@ export interface PlanchetteOptions {
    */
   inputs?: false | { keyboard?: boolean; mouse?: boolean; gamepad?: boolean };
   /**
-   * The "camera on" indicator and the camera failure messages. Default: a small status
-   * box added to the page while the camera is in use. An element: render into it instead.
-   * `false`: none; the app shows `tracking-status` events itself.
+   * The tracking indicator (design §7, Task 16.3): "camera on", face lost, low confidence
+   * and the camera failure messages. Default: a small status box added to the page while
+   * there is something to show. An element: render into it instead. `false`: none; the app
+   * shows the `tracking-status` events itself.
    */
-  cameraStatus?: false | HTMLElement;
+  trackingIndicator?: false | HTMLElement;
 }
 
 /**
@@ -95,7 +96,7 @@ export interface PlanchetteEventMap {
   cancel: Record<string, never>;
   'tracking-status': {
     status: TrackingStatus;
-    /** For the failures (permission-denied, load-failed, no-face-timeout): what to tell the person, in plain language. */
+    /** For lost, low-confidence and the failures: what to tell the person, in plain language. */
     message?: string;
     /** For the failures: the input modes to offer instead (switch scanning and mouse). */
     alternatives?: InputMode[];

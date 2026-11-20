@@ -4,7 +4,7 @@
  */
 import type { CameraEnvironment, LandmarkerLike, StreamLike, TrackLike, VideoLike } from '../src/adapters/camera-adapter';
 import type { FaceResultLike } from '../src/adapters/face-result';
-import type { DomLike, ElementLike } from '../src/adapters/camera-status';
+import type { DomLike, ElementLike } from '../src/ui/tracking-indicator';
 import type { GamepadLike, InputEnvironment } from '../src/adapters/input-env';
 
 // ---------------------------------------------------------------------------
@@ -271,7 +271,7 @@ export class FakeDom implements DomLike {
   }
   /** The status box, if shown. */
   get box(): FakeElement | undefined {
-    return this.body.children.find((c) => c.attributes['data-planchette'] === 'camera-status');
+    return this.body.children.find((c) => c.attributes['data-planchette'] === 'tracking-indicator');
   }
 }
 

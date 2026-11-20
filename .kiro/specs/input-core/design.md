@@ -485,6 +485,24 @@ step-timeout rules as in full calibration, so it is hands-free.
 - **Head pointer.** The host passes the session centre to `stepHeadPointer` on every
   sample as `centre`.
 
+### Low confidence (Task 15.2)
+
+The spec asks for `tracking-status: low-confidence` but does not say what it is. Decided:
+- **Input.** A detected face may carry `confidence` (0–1). Missing or not finite counts as 1.
+  MediaPipe 0.10.35's browser result has no confidence score, so the camera adapter
+  derives one: the share of the face's landmarks inside the picture, times
+  `min(1, face width / 0.08)`. A face half out of the picture, or far away (narrower than
+  8 % of the picture), scores low. This is a heuristic to check against real clips (14.9).
+- **Episode.** It starts when the locked face's confidence falls below
+  `LOW_CONFIDENCE_ENTER` = 0.5: `low-confidence` is emitted once. It ends when the confidence
+  has stayed at or above `LOW_CONFIDENCE_LEAVE` = 0.7 for `LOW_CONFIDENCE_RECOVER_MS` =
+  1000 ms: `found` is emitted. A value between the two neither starts nor ends one, so a
+  confidence that wavers every frame is one episode. Losing the face ends the episode
+  (`lost` says more); a face found again starts fresh. A carer re-lock ends it too.
+- **Tracking continues.** The pointer moves, and dwell and gestures select as usual; the
+  status is a warning. These three values are engine constants, like
+  `MAX_SAMPLE_GAP_MS` and `LOCK_THRESHOLD`, not profile fields (the profile stays at 30).
+
 ### Head-pointer engine details (`head-pointer.ts`)
 Choices made where the sections above leave something open:
 - **Rotation input.** Each detected face carries `rotation: { yaw, pitch }` in degrees.
@@ -806,7 +824,7 @@ interface PlanchetteOptions {
   profile?: Partial<Profile>
   assetsUrl?: string          // where the app serves the MediaPipe files; default '/mediapipe/' (§7)
   inputs?: false | { keyboard?: boolean; mouse?: boolean; gamepad?: boolean }  // default: all, in a browser
-  cameraStatus?: false | HTMLElement  // the camera status box; default: added to the page while in use
+  trackingIndicator?: false | HTMLElement  // the tracking indicator (§7); default: added to the page when there is something to show
 }
 
 interface Rect {
@@ -853,7 +871,7 @@ interface Planchette extends EventTarget {
   // Synthetic input (simulator and tests)
   feedSamples(samples: TimestampedSample[]): void
 
-  // Stop the camera and the input adapters, remove the status box
+  // Stop the camera and the input adapters, remove the tracking indicator
   destroy(): void
 }
 ```
@@ -1084,7 +1102,7 @@ switch is held.
 Choices made where the sections above leave something open:
 
 - **Files.** `src/adapters/`: `camera-adapter.ts` (camera and model), `face-result.ts`
-  (MediaPipe result to engine faces, pure), `camera-status.ts` (the status box),
+  (MediaPipe result to engine faces, pure), `../ui/tracking-indicator.ts` (the status box),
   `keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts`, `input-env.ts` (their
   shared frame loop), and `browser-env.ts`, the only file that reads browser globals or
   imports MediaPipe. Every adapter takes an environment object, so the tests pass fakes
@@ -1133,13 +1151,22 @@ Choices made where the sections above leave something open:
 - **Messages.** `tracking-status` for `permission-denied`, `load-failed` and
   `no-face-timeout` carries `message` (plain language, from `src/messages.ts`, no error
   codes) and `alternatives: ['scan', 'mouse']`; `permission-denied` also carries `cause`.
-- **Status box.** By default a small `role="status"` box appears while the camera is in
-  use: "Camera on" (Req 2 AC 2), and after a failure the message with three buttons: "Try
-  the camera again" (stops and restarts the camera, also after a no-face timeout),
-  "Use switch scanning" and "Use the mouse" (Req 8 AC 2). It is removed when the camera
-  stops (Req 2 AC 12). `cameraStatus: element` renders into the app's element instead;
-  `cameraStatus: false` shows nothing. Nothing is added to the page on import. Task 16.3's
-  styled indicator can replace it.
+- **Tracking indicator** (`src/ui/tracking-indicator.ts`, Task 16.3; the only one). A
+  small `role="status"` box, driven by the instance from its camera state and its
+  `tracking-status` events, real or from synthetic camera samples:
+  | Shown | When | Text |
+  |---|---|---|
+  | "Camera on" | the camera runs and nothing is wrong (Req 2 AC 2) | `messages.cameraOn` |
+  | face lost | `lost` | `messages.lost` |
+  | low confidence | `low-confidence` | `messages.lowConfidence` |
+  | failure + three buttons | `permission-denied`, `load-failed`, `no-face-timeout` | the failure message, then `messages.alternatives` |
+  `found` goes back to "Camera on", or removes the box when no camera runs. The box is
+  removed when the camera stops (Req 2 AC 12). The buttons are "Try the camera again"
+  (stops and restarts the camera, also after a no-face timeout), "Use switch scanning" and
+  "Use the mouse" (Req 8 AC 2). The same message twice in a row leaves the box alone, so a
+  screen reader does not repeat it. `trackingIndicator: element` renders into the app's
+  element (unstyled); `false` shows nothing. Nothing is added to the page on import.
+  The `lost` and `low-confidence` events carry their `message` too.
 - **Keyboard.** The bound key is `KeyboardEvent.key` equal to `switchBinding` (unless the
   binding names a mouse or gamepad button). Keys typed into a text field are ignored. The
   bound key's default action (Space scrolling) is prevented. Escape (not a key repeat)
@@ -1215,6 +1242,32 @@ the real engine, not stubs.
 | 20 | **Talking does not freeze the pointer** | Random gesture score traces (including values above gestureThreshold); head + dwell mode; same trace with and without gesture scores | `pointer-move` events are identical in both runs |
 | 21 | **Camera unavailable, other modes still work** | Scan or mouse input sequences; camera state set to each failure reason before the sequence | `select` events produced; no error; `tracking-status` carries the correct failure reason |
 
+### UI helpers (Task 16, `src/ui/`, entry point `@planchette/skeleton/ui`)
+
+Purely visual: each listens to public events and decides nothing. Nothing happens on
+import (`sideEffects: false`); the factory adds its elements.
+- **Dwell ring** (`createDwellRing(planchette, { container?, size?, reducedMotion? })`):
+  an SVG ring at the pointer (`pointer-move`), `aria-hidden`. Progress is the length of a
+  light arc on a dark track with a white edge, so it is a shape, not colour alone, and
+  shows on any page. A select (not from scanning, which has no pointer) shows the full ring
+  with a tick for 600 ms. Hidden at progress 0. With `prefers-reduced-motion: reduce`
+  (followed live) the arc shows progress in quarter steps, with no transition and no
+  pulse; otherwise every progress event is drawn with an 80 ms transition and a select
+  gives one 250 ms pulse. It exposes `data-state` and `data-progress` for tests.
+- **Scan highlight** (`createScanHighlight(planchette, { elementFor?, container? })`): the
+  highlighted target (`data-planchette-target="<id>"`, else `id`) gets a 6 px dark outline
+  outside a 4 px white ring (a shape change that shows on any page) and an inset tint (the
+  fill change); a row highlights all its items. Its own inline styles come back when the
+  highlight leaves. The virtual Back and Cancel items are drawn as a bar at the top
+  (`role="region"`, labelled "Scan item"), highlighted the same way. No transitions.
+- **Tracking indicator**: built in, see §7 "Adapter details".
+- **End-to-end tests** (`skeleton/test/ui.e2e.ts`, `npm run test:e2e`): Playwright on a test
+  page (`skeleton/test/e2e/ui-fixture.html`, served by the dev server, not built), with
+  synthetic samples only. Permission denied is made by replacing `getUserMedia` with one
+  that rejects, and load failure by an empty `MediaStream` and an `assetsUrl` with no
+  files. axe-core checks the page with the ring, the scan highlight (row and virtual item)
+  and each indicator state showing. Every request is checked to stay on localhost.
+
 ### Notes on revised properties
 
 **P3** generates streams with alternating found/lost periods of random duration.
@@ -1234,6 +1287,12 @@ stream's timestamps offset behind the switch stream by a realistic processing de
 (20–80 ms). The property checks that neither stream drops valid samples due to the
 other's clock, and that injected bad timestamps within each stream are ignored without
 affecting the other.
+
+**P3 in full** (`face-lost.props.test.ts`) runs head + dwell and head + gesture through
+`createPlanchette` + `feedSamples`, with random gesture scores. Lost periods are frameless
+samples, a no-face timeout, and real camera failures (permission denied, load failure, from
+the fake camera environment) followed by camera silence; keyboard samples arrive
+throughout. No `select` and no `cancel` may come during a lost period.
 
 **P15 boundary conditions** (`frame-rate.props.test.ts`, decided in Task 12):
 - B1: every stay on a target lasts less than `dwellTime − 67 ms` or more than

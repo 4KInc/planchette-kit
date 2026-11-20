@@ -8,7 +8,7 @@
  */
 import type { CameraEnvironment, LandmarkerLike, StreamLike, VideoLike } from './camera-adapter.js';
 import type { InputEnvironment } from './input-env.js';
-import type { DomLike } from './camera-status.js';
+import type { DomLike } from '../ui/tracking-indicator.js';
 
 /** The file names the app must serve at `assetsUrl` (see THIRD_PARTY.md and README). */
 export const ASSET_FILES = [

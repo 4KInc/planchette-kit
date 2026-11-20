@@ -23,6 +23,8 @@ const outDir = resolve(runDir, 'dist');
 
 /** The runtime names exported from the package entry point. Types do not appear here. */
 const EXPECTED_EXPORTS = ['createPlanchette'];
+/** The runtime names of the `./ui` entry point (Task 16). */
+const EXPECTED_UI_EXPORTS = ['createDwellRing', 'createScanHighlight'];
 
 function walk(dir: string): string[] {
   const out: string[] = [];
@@ -108,6 +110,22 @@ describe('the package build', () => {
     expect(out.added).toEqual([]);
   });
 
+  it('the ./ui entry exports exactly the UI helpers and does nothing when imported (no DOM needed)', () => {
+    const entry = pathToFileURL(join(outDir, 'ui/index.js')).href;
+    const script = `
+      const before = new Set(Object.getOwnPropertyNames(globalThis));
+      const m = await import(${JSON.stringify(entry)});
+      const added = Object.getOwnPropertyNames(globalThis).filter((k) => !before.has(k));
+      console.log(JSON.stringify({ names: Object.keys(m).sort(), added }));
+    `;
+    const r = spawnSync(process.execPath, ['--input-type=module', '-e', script], { encoding: 'utf8' });
+    expect(r.stderr).toBe('');
+    expect(r.status).toBe(0);
+    const out = JSON.parse(r.stdout) as { names: string[]; added: string[] };
+    expect(out.names).toEqual([...EXPECTED_UI_EXPORTS].sort());
+    expect(out.added).toEqual([]);
+  });
+
   it('the exported factory works from the compiled output', async () => {
     const mod = (await import(/* @vite-ignore */ pathToFileURL(join(outDir, 'index.js')).href)) as {
       createPlanchette: (o: { screen: { width: number; height: number } }) => {
@@ -140,7 +158,10 @@ describe('package.json and build files (npm-package-plan.md, Phase 1)', () => {
   });
 
   it('has the exports, files and sideEffects fields', () => {
-    expect(pkg.exports).toEqual({ '.': { types: './dist/index.d.ts', import: './dist/index.js' } });
+    expect(pkg.exports).toEqual({
+      '.': { types: './dist/index.d.ts', import: './dist/index.js' },
+      './ui': { types: './dist/ui/index.d.ts', import: './dist/ui/index.js' },
+    });
     expect(pkg.files).toEqual(['dist', 'assets', 'README.md', 'LICENSE']);
     expect(pkg.sideEffects).toBe(false);
   });

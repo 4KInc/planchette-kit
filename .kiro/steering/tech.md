@@ -75,6 +75,8 @@ inclusion: always
 ## Dependencies
 - Ask before adding any dependency. Only MIT, Apache-2.0, BSD or ISC licences. Record
   each one and its licence in `THIRD_PARTY.md`.
+  Exception: `@axe-core/playwright` and `axe-core` (MPL-2.0), dev only, for the
+  accessibility tests; never bundled.
 - Pin exact versions.
 - Already approved: `@mediapipe/tasks-vision` (Apache-2.0; pinned to 0.10.35, because 1.0.0
   and later send usage statistics to a Google endpoint), `fast-check` (MIT),

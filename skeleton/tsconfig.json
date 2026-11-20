@@ -16,6 +16,9 @@
     "paths": {
       "@planchette/skeleton": [
         "./src/index.ts"
+      ],
+      "@planchette/skeleton/ui": [
+        "./src/ui/index.ts"
       ]
     }
   },

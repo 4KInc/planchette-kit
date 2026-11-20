@@ -48,8 +48,9 @@ import {
 } from './engine/profile.js';
 import { SCAN_BACK_ID, SCAN_CANCEL_ID, createScanState, stepScan, type ScanEvent } from './engine/scan.js';
 import { createSwitchState, stepSwitch, type SwitchState } from './engine/switch.js';
+import { messages } from './messages.js';
 import { createCameraAdapter, type CameraAdapter, type CameraEnvironment } from './adapters/camera-adapter.js';
-import { createCameraStatusView, failureMessage, type CameraStatusView, type DomLike } from './adapters/camera-status.js';
+import { createTrackingIndicator, failureMessage, type DomLike, type TrackingIndicator } from './ui/tracking-indicator.js';
 import { browserCameraEnvironment, browserDom, browserInputEnvironment, hasBrowser } from './adapters/browser-env.js';
 import type { InputAdapter, InputEnvironment, InputSink } from './adapters/input-env.js';
 import { createKeyboardAdapter } from './adapters/keyboard-adapter.js';
@@ -138,6 +139,7 @@ function sanitizeFaces(v: unknown): DetectedFace[] {
       bbox: f.bbox as unknown as DetectedFace['bbox'],
       rotation: rot as FaceRotation,
       gestureScores: sanitizeScores(f.gestureScores),
+      ...(finite(f.confidence) ? { confidence: f.confidence } : {}),
     });
   }
   return out;
@@ -309,13 +311,13 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
 
   // ---- camera, status box and input adapters ------------------------------
   let camera: CameraAdapter | null = null;
-  let statusView: CameraStatusView | null = null;
+  let statusView: TrackingIndicator | null = null;
   let inputs: InputAdapter[] = [];
 
-  function status(): CameraStatusView | null {
-    if (statusView !== null || env.dom === null || opts.cameraStatus === false) return statusView;
-    const parent = opts.cameraStatus === undefined ? null : (opts.cameraStatus as unknown as { appendChild(c: unknown): unknown });
-    statusView = createCameraStatusView(env.dom, parent, {
+  function status(): TrackingIndicator | null {
+    if (statusView !== null || env.dom === null || opts.trackingIndicator === false) return statusView;
+    const parent = opts.trackingIndicator === undefined ? null : (opts.trackingIndicator as unknown as { appendChild(c: unknown): unknown });
+    statusView = createTrackingIndicator(env.dom, parent, {
       // "Try the camera again": a full restart, also after a no-face timeout while the
       // camera runs (startCamera alone does nothing then).
       retry: () => {
@@ -336,12 +338,16 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
         alternatives: [...CAMERA_ALTERNATIVES],
       };
       if (cause !== undefined) detail.cause = cause;
-      // The no-face timeout comes from the engine; the box shows it while the camera is in use.
-      if (value !== 'no-face-timeout' || (camera !== null && camera.state !== 'off')) status()?.show({ kind: 'failed', status: value, cause });
+      status()?.show({ kind: 'failed', status: value, cause });
       emit('tracking-status', detail);
       return;
     }
-    if (value === 'found' && camera !== null && camera.state === 'running') status()?.show({ kind: 'on' });
+    if (value === 'lost' || value === 'low-confidence') {
+      status()?.show({ kind: value });
+      emit('tracking-status', { status: value, message: value === 'lost' ? messages.lost : messages.lowConfidence });
+      return;
+    }
+    status()?.show({ kind: camera !== null && camera.state === 'running' ? 'on' : 'hidden' });
     emit('tracking-status', { status: value });
   }
 

@@ -251,8 +251,8 @@ the DOM or the camera.
 
 Complete the remaining cross-cutting properties that require the camera adapter.
 
-- [ ] 15.1 Write `skeleton/test/face-lost.props.test.ts` implementing **P3** in full: interleaved found/lost landmark streams (random period lengths, including failure-reason lost periods) produce no `select` or press events during any lost period.
-- [ ] 15.2 Write example tests for the low-confidence case: tracking continues but `tracking-status: low-confidence` is emitted.
+- [x] 15.1 Write `skeleton/test/face-lost.props.test.ts` implementing **P3** in full: interleaved found/lost landmark streams (random period lengths, including failure-reason lost periods) produce no `select` or press events during any lost period.
+- [x] 15.2 Write example tests for the low-confidence case: tracking continues but `tracking-status: low-confidence` is emitted.
 
 **Covers:** Req 2 AC 8–10; P3 (full).
 
@@ -263,10 +263,10 @@ Complete the remaining cross-cutting properties that require the camera adapter.
 Implement the optional UI helpers in `skeleton/src/ui/`. These are purely visual and
 have no logic; they consume public API events only.
 
-- [ ] 16.1 Implement `skeleton/src/ui/dwell-ring.ts`: listens for `dwell-progress` and `select`; renders a filling ring (SVG or Canvas, `prefers-reduced-motion` respected — static indicator at any progress level when motion is reduced).
-- [ ] 16.2 Implement `skeleton/src/ui/scan-highlight.ts`: listens for `highlight`; applies a thick outline plus fill change to the highlighted element. Colour-independent (not colour alone).
-- [ ] 16.3 Implement `skeleton/src/ui/tracking-indicator.ts`: listens for `tracking-status`; shows the camera-on indicator while running and the plain-language failure messages from Req 8. The messages come in the event (`message`, `alternatives`); the camera adapter's plain status box (design §7 "Adapter details") is the fallback this helper replaces (`cameraStatus: false`).
-- [ ] 16.4 Write Playwright end-to-end tests in `skeleton/test/ui.e2e.ts` using synthetic landmark streams fed via `feedSamples` (no real camera): confirm dwell ring reaches full at select, scan highlight moves with `highlight` events, tracking indicator shows correct message for each `tracking-status`. Use Playwright's `page.on('request')` to record all network requests and assert that none go to an origin other than `localhost` (Req 2 AC 11: nothing leaves the device).
+- [x] 16.1 Implement `skeleton/src/ui/dwell-ring.ts`: listens for `dwell-progress` and `select`; renders a filling ring (SVG or Canvas, `prefers-reduced-motion` respected — static indicator at any progress level when motion is reduced).
+- [x] 16.2 Implement `skeleton/src/ui/scan-highlight.ts`: listens for `highlight`; applies a thick outline plus fill change to the highlighted element. Colour-independent (not colour alone).
+- [x] 16.3 Implement `skeleton/src/ui/tracking-indicator.ts`: listens for `tracking-status`; shows the camera-on indicator while running and the plain-language failure messages from Req 8. This is the `role="status"` box from Task 14, moved here and extended (face lost, low confidence), with the messages from `src/messages.ts`; there is no second indicator (design §7 "Adapter details").
+- [x] 16.4 Write Playwright end-to-end tests in `skeleton/test/ui.e2e.ts` using synthetic landmark streams fed via `feedSamples` (no real camera): confirm dwell ring reaches full at select, scan highlight moves with `highlight` events, tracking indicator shows correct message for each `tracking-status`. Use Playwright's `page.on('request')` to record all network requests and assert that none go to an origin other than `localhost` (Req 2 AC 11: nothing leaves the device).
 
 **Covers:** Req 2 AC 2; Req 8 AC 2a; accessibility.md Feedback and Control sections.
 
