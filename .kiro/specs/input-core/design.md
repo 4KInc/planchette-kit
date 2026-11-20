@@ -34,7 +34,10 @@ it, so a profile change takes effect on the next frame without reinitialising st
 Calibration records one half-angle per direction: `R_left`, `R_right` (yaw) and
 `R_up`, `R_down` (pitch), all in degrees and all positive. The four values are stored
 separately because most people have an asymmetric range (e.g. more rotation toward
-their dominant side). The centre position `(θ_cx, θ_cy)` is also stored.
+their dominant side). The ranges are saved in the profile. The centre position
+`(θ_cx, θ_cy)` is session state, not a profile field (Requirement 7 AC 2): it is
+measured by a centre step each time the camera starts, and by `recentre()`. Until that
+step completes it is `(0, 0)`. See §4 "Centre step".
 
 The minimum supported range is the constant `MIN_RANGE = 3` degrees. If any of the
 four measured values is below `MIN_RANGE`, calibration rejects the result, shows the
@@ -461,6 +464,27 @@ so there is no position jump on resume.
 
 In head + dwell mode this freeze never occurs.
 
+### Centre step (session state)
+The centre `(θ_cx, θ_cy)` is not saved in the profile. It is measured by the
+calibration engine's centre step alone (Task 9), with the same stillness and
+step-timeout rules as in full calibration, so it is hands-free.
+- **When it runs.** Each time the camera starts, and when the app calls `recentre()`.
+  A full calibration also measures the centre, as its first step. `recentre()` while a
+  calibration or centre step is already running does nothing.
+- **Before it completes.** The centre is `(0, 0)` until the first centre step of the
+  session completes. A later `recentre()` keeps the previous centre until the new step
+  completes. While a centre step runs, the pointer moves as usual (using the current
+  centre) but nothing is selected: dwell and gesture selection begin when the step
+  completes. Scanning, keyboard and mouse input are not affected.
+- **Result.** The centre is the mean head rotation over the stillness window. If the
+  step ends by the step timeout instead, the centre is the mean of the samples seen
+  during the step. If no face was seen at all, the previous centre is kept.
+- **Events.** The centre step reports through the same `calibration-step` events, with
+  `run: 'centre'` (a full calibration uses `run: 'full'`): one event for the `centre`
+  step and one `done` event when it completes.
+- **Head pointer.** The host passes the session centre to `stepHeadPointer` on every
+  sample as `centre`.
+
 ### Head-pointer engine details (`head-pointer.ts`)
 Choices made where the sections above leave something open:
 - **Rotation input.** Each detected face carries `rotation: { yaw, pitch }` in degrees.
@@ -508,6 +532,32 @@ Choices made where the sections above leave something open:
   `LOCK_THRESHOLD`, and the host logs it.
 - **Re-lock.** `relockFace(state, i)` uses the faces from the most recent sample. An
   invalid index, or a most recent sample with no face, does nothing.
+- **Locked face scores.** `state.scores` holds the locked face's gesture scores from
+  the last sample (its own, else the sample-level ones), or `null` when no face is
+  tracked. The host passes these to the gesture engine, so both engines use the same face.
+
+### Gesture engine details (`gesture.ts`)
+`stepGesture(state, { gestureScores }, now, profile)`, where `gestureScores` is the
+locked face's scores, or `null` when no face is detected. It calls `stepPress` with
+`profile.gestureAcceptanceTime` and returns the press machine's `press` and `cancel`
+events. Choices made where the spec is open:
+- **Signal.** The score of `profile.switchGesture` (a missing or non-finite value counts
+  as 0). The signal turns on at `score ≥ gestureThreshold` and off at
+  `score < releaseThreshold`; in between it keeps its previous value (design §3).
+- **Face not detected.** No press and no cancel. A gesture in progress is dropped
+  silently: the press machine returns to IDLE without an event, so a cancel-by-hold
+  gesture cannot turn into a press when the face disappears. After such a loss the
+  score must fall below the release threshold before a new gesture can count, so a
+  face that returns with the jaw still open does not press.
+- **Expired freeze (head + gesture mode only).** The gesture begins when the score
+  goes above the release threshold, as for the freeze. If it has not reached the
+  gesture threshold within `gestureAcceptanceTime + 300 ms` of that, the gesture can no
+  longer press until the score falls below the release threshold. This matches the
+  freeze expiry, so a gesture whose freeze expired never selects. In gesture scan mode
+  there is no freeze and a slow gesture presses normally.
+- **Timing.** Its own clock: duplicate, backwards or non-finite timestamps are ignored.
+  Camera samples without a face still count as samples for the press machine's input
+  timeout, which therefore measures camera silence.
 
 ---
 
@@ -520,7 +570,7 @@ skeleton/src/engine/
   head-pointer.ts      face lock + smoothing + dead zone + mapping; step(state, { faces, gestureScores?, screen, centre }, now, profile) → events
   targets.ts           Rect, TargetRole, DwellTarget (types only, no dependencies)
   dwell.ts             dwell timer; step(state, { pointer, targets }, now, profile) → events
-  gesture.ts           blendshape → signal, calls press-machine; step(state, { score }, now, profile) → events + press
+  gesture.ts           blendshape → signal, calls press-machine; step(state, { gestureScores }, now, profile) → press/cancel events
   switch.ts            key/button → signal, calls press-machine; step(state, { signal }, now, profile) → events + press
   scan.ts              scan cycle + highlight; step(state, { press, targets }, now, profile) → events
   calibration.ts       stillness detector + range recorder; step(state, { rotation }, now, profile) → events
@@ -681,6 +731,7 @@ interface Planchette extends EventTarget {
   // Calibration
   startCalibration(): void
   cancelCalibration(): void
+  recentre(): void   // runs the centre step again (§4 "Centre step"); the centre is session state
   // calibration progress and completion are reported via 'calibration-step' events
 
   // Synthetic input (simulator and tests)
@@ -700,7 +751,7 @@ type InputEventType =
   | 'cancel'             // {}
   | 'tracking-status'    // { status: TrackingStatus }
   | 'mode-change'        // { mode: InputMode }
-  | 'calibration-step'   // { step: CalibrationStep; completed: boolean; timeout: boolean }
+  | 'calibration-step'   // { run: 'full' | 'centre'; step: CalibrationStep; completed: boolean; timeout: boolean }
 
 /**
  * What a scan highlight is on (the `kind` of a `highlight` event):

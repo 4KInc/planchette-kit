@@ -519,3 +519,19 @@ describe('timestamps and cloning', () => {
     expect(d.smootherX).not.toBe(c.smootherX);
   });
 });
+
+describe('locked face scores for the gesture engine', () => {
+  it('exposes the locked face\'s own scores, else the sample-level ones, else null', () => {
+    const user: FaceBox = { cx: 0.4, cy: 0.5, w: 0.2, h: 0.3 };
+    const other: FaceBox = { cx: 0.8, cy: 0.5, w: 0.4, h: 0.5 };
+    const s = createHeadPointerState();
+    step(s, 0, [face(0, 0, user)]);
+    expect(s.scores).toBeNull();
+    step(s, 16, [face(0, 0, other, { jawOpen: 0.9, browRaise: 0.9 }), face(0, 0, user, { jawOpen: 0.2, browRaise: 0.1 })]);
+    expect(s.scores).toEqual({ jawOpen: 0.2, browRaise: 0.1 });
+    step(s, 32, [face(0, 0, user)], P, { gestureScores: { jawOpen: 0.4, browRaise: 0 } });
+    expect(s.scores).toEqual({ jawOpen: 0.4, browRaise: 0 });
+    step(s, 48, []);
+    expect(s.scores).toBeNull();
+  });
+});

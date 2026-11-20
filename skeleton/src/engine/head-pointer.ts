@@ -111,6 +111,12 @@ export interface HeadPointerState {
   freezeY: number;
   /** Score of the switch gesture for the locked face on the last sample (0 if none). */
   score: number;
+  /**
+   * The locked face's gesture scores on the last sample (its own, else the sample-level
+   * ones), or null when no face is tracked or no scores came. The host passes these to
+   * the gesture engine, so both engines use the same face.
+   */
+  scores: GestureScores | null;
 }
 
 export function createHeadPointerState(): HeadPointerState {
@@ -139,6 +145,7 @@ export function createHeadPointerState(): HeadPointerState {
     freezeX: 0,
     freezeY: 0,
     score: 0,
+    scores: null,
   };
 }
 
@@ -146,6 +153,7 @@ export function cloneHeadPointerState(s: HeadPointerState): HeadPointerState {
   return {
     ...s,
     lock: { ...s.lock },
+    scores: s.scores === null ? null : { ...s.scores },
     lastFaces: s.lastFaces.map((b) => ({ ...b })),
     smootherX: cloneSmootherState(s.smootherX),
     smootherY: cloneSmootherState(s.smootherY),
@@ -317,6 +325,7 @@ export function stepHeadPointer(
       clearFreeze(state);
     }
     state.score = 0;
+    state.scores = null;
     if (Number.isNaN(state.faceLostAt)) state.faceLostAt = now;
     if (!state.timeoutEmitted && now - state.faceLostAt >= profile.noFaceTimeout) {
       // Once per loss: not again until a face is found and lost again.
@@ -370,6 +379,8 @@ export function stepHeadPointer(
 
   // Gesture freeze (design §4): head + gesture mode and the profile's switch gesture only.
   state.score = scoreFor(face, input.gestureScores, profile);
+  const src = face.gestureScores ?? input.gestureScores;
+  state.scores = src === undefined ? null : { jawOpen: src.jawOpen, browRaise: src.browRaise };
   if (profile.mode === 'head + gesture') {
     stepFreeze(state, now, profile, hadPointer ? prevShownX : state.liveX, hadPointer ? prevShownY : state.liveY);
   } else if (state.frozen || state.gestureAbove) {

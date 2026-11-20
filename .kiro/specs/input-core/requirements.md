@@ -261,7 +261,13 @@ and speed, and to keep those settings, so that it works for my body.
 2. THE calibration SHALL produce four half-angle ranges (`rangeLeft`, `rangeRight`,
    `rangeUp`, `rangeDown`), gain, head dead zone and centre values, mapping the
    person's measured range of movement, down to the minimum supported range, to the
-   whole screen.
+   whole screen. The ranges, gain and dead zone are saved in the profile. The centre is
+   session state, not a profile field, because it depends on where the person sits
+   relative to the camera:
+   - WHEN the camera starts, THE skeleton SHALL run only the centre step of the
+     calibration (same stillness and step-timeout rules, hands-free) and then begin
+     pointing. Until the centre step completes, the centre is 0°, 0°.
+   - THE skeleton SHALL offer a `recentre()` action that runs the centre step again.
 3. THE profile SHALL hold every field in the Profile fields table.
 4. THE skeleton SHALL save the profile on the device, and SHALL export and import it as
    a JSON file.

@@ -141,13 +141,13 @@ Implement `skeleton/src/engine/head-pointer.ts`. Depends on `smoother.ts` and
 
 ## Task 8: Gesture engine
 
-Implement `skeleton/src/engine/gesture.ts`. Depends on `press-machine.ts` and
-`profile.ts`.
+Implement `skeleton/src/engine/gesture.ts`. Depends on `press-machine.ts`,
+`profile.ts` and `head-pointer.ts` (the `GestureScores` type and the freeze expiry constant).
 
-- [ ] 8.1 Implement `stepGesture(state, { gestureScores }, now, profile): GestureEvent[]`. Select the score for `profile.switchGesture` by name; derive `signal` from gesture/release thresholds; delegate press/cancel logic to `press-machine.ts`.
-- [ ] 8.2 Implement `cloneGestureState`.
-- [ ] 8.3 Write `skeleton/test/gesture.test.ts`: jaw-open activates at threshold, brow-raise activates at threshold, score below release threshold = signal inactive, face-not-detected = no press.
-- [ ] 8.4 Write `skeleton/test/gesture.props.test.ts` implementing:
+- [x] 8.1 Implement `stepGesture(state, { gestureScores }, now, profile): GestureEvent[]`. Select the score for `profile.switchGesture` by name; derive `signal` from gesture/release thresholds; delegate press/cancel logic to `press-machine.ts`, calling `stepPress` with `profile.gestureAcceptanceTime`.
+- [x] 8.2 Implement `cloneGestureState`.
+- [x] 8.3 Write `skeleton/test/gesture.test.ts`: jaw-open activates at threshold, brow-raise activates at threshold, score below release threshold = signal inactive, face-not-detected = no press.
+- [x] 8.4 Write `skeleton/test/gesture.props.test.ts` implementing:
   - **P12** one gesture, one press (score crosses threshold once, stays up for any duration → one press);
   - **P3** (partial) face lost means no press: lost periods in an interleaved stream produce no presses.
 
@@ -163,6 +163,7 @@ Implement `skeleton/src/engine/calibration.ts`. Depends on `profile.ts`.
 - [ ] 9.2 Implement `stepCalibration(state, { rotation }, now, profile): CalibrationEvent[]` covering: five steps (centre, left, right, up, down), stillness-time advance, step-timeout advance, rejection when any measured range < MIN_RANGE, tremor std-dev measurement, `suggestHighTremor` flag in the done event.
 - [ ] 9.3 Implement `cloneCalibrationState`.
 - [ ] 9.4 Write `skeleton/test/calibration.test.ts`: stillness advance, timeout advance, range-too-small rejection, tremor std-dev above 0.5° sets flag, symmetric and asymmetric ranges stored correctly.
+- [ ] 9.5 Support a centre-only run (`run: 'centre'`, design §4 "Centre step"): only the centre step, same stillness and step-timeout rules; the result is the centre only (mean over the stillness window; on timeout the mean of the samples seen; with no face seen, no centre). Test it in `calibration.test.ts`.
 
 **Covers:** Req 7 AC 1–2; Req 2 AC 6.
 
@@ -193,6 +194,7 @@ Assemble all engines into the `Planchette` instance behind the factory function.
 - [ ] 11.4 Implement `setProfile` (clamps before applying), `getProfile`, `exportProfile`, `importProfile`.
 - [ ] 11.5 Implement `setScreen` and resize handling (re-clamp pointer on next sample).
 - [ ] 11.6 Implement `startCalibration`, `cancelCalibration`, `calibration-step` events.
+- [ ] 11.6a Keep the centre as session state (not in the profile; design §4 "Centre step"). Run a centre-only calibration when the camera starts (in tests: on the first camera sample after creation or after `stopCamera()`), and implement `recentre()`. The centre is (0, 0) until the first centre step completes. While a centre step runs, the pointer moves but dwell and gesture selection are held. Pass the centre to `stepHeadPointer`. Test in `api.test.ts`.
 - [ ] 11.7 Write `skeleton/test/api.test.ts`: register/update/unregister targets, mode switch without re-registration, profile round-trip via API, `setScreen` updates pointer bounds, calibration events.
 - [ ] 11.8 Write `skeleton/test/api.props.test.ts` implementing **P5** (full): after any input sequence followed by silence ≥ `inputTimeout + 1 ms` fed via `feedSamples`, the engine is idle (no pending dwell, no scan highlight, press machine IDLE).
 
@@ -233,6 +235,7 @@ the DOM or the camera.
 - [ ] 14.2 Handle permission-denied: catch the `getUserMedia` rejection, emit `tracking-status: permission-denied`, show the plain-language message, offer switch/mouse mode.
 - [ ] 14.3 Handle load-failed: catch MediaPipe initialisation failure, emit `tracking-status: load-failed`.
 - [ ] 14.4 No-face timeout is handled by the head-pointer engine (task 7), not the camera adapter. The adapter passes frames; the engine tracks `t_face_lost` using `now` and emits `tracking-status: no-face-timeout` once when `now − t_face_lost ≥ profile.noFaceTimeout`. Verify this path with a synthetic stream of frameless camera samples in `camera-failure.test.ts`.
+- [ ] 14.4a `startCamera()` (including a retry) starts the start-up centre step from Task 11.6a.
 - [ ] 14.5 Implement retry: `startCamera()` can be called again after any failure without reloading the page; re-initialise MediaPipe and restart the timeout.
 - [ ] 14.6 Implement `skeleton/src/adapters/keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts` following the design §7 spec (one sample per rAF, granular `source` field: `'keyboard'`, `'mouse'`, `'gamepad'`; per-adapter `lastNow`). Keyboard adapter sets `cancel: true` on Escape keydown samples.
 - [ ] 14.7 Write `skeleton/test/camera-failure.test.ts` using synthetic landmark streams (no real camera): simulate each failure case and assert the correct `tracking-status` value and that scanning and mouse modes produce selections during and after the failure.
