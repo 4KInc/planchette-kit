@@ -175,11 +175,11 @@ Implement `skeleton/src/engine/calibration.ts`. Depends on `profile.ts`, plus `h
 Wire cancel and undo across all engines and verify the full cancel path end-to-end
 using the public `feedSamples` API.
 
-- [ ] 10.1 Ensure `stepDwell` recognises the `cancel` role target and emits `cancel` on dwell-select of a cancel-role target.
-- [ ] 10.2 Ensure `stepScan` emits `cancel` when the cancel item is selected.
-- [ ] 10.3 Confirm the press machine's hold-to-cancel path emits `cancel` (covered by press machine, but verify end-to-end via `feedSamples`).
-- [ ] 10.4 Write `skeleton/test/cancel.test.ts` with example tests for each cancel path: dwell cancel target, scan cancel item, hold-to-cancel (switch and gesture), Escape key, input timeout reset.
-- [ ] 10.5 Write `skeleton/test/cancel.props.test.ts` implementing **P4** cancel always works: from any reachable engine state, a cancel input returns to idle in one step and emits exactly one `cancel`.
+- [x] 10.1 Ensure `stepDwell` recognises the `cancel` role target and emits `cancel` (not `select`) on dwell-select of a cancel-role target, once per stay (autoRepeat is ignored for it; design §5 "Cancel targets"). The same for a cancel-role target selected by scan, gesture or mouse click.
+- [x] 10.2 Ensure `stepScan` emits `cancel` when the cancel item is selected, and when a cancel-role target is selected as an ordinary scan item. Confirm both through the public API.
+- [x] 10.3 Confirm the press machine's hold-to-cancel path emits `cancel` (covered by press machine, but verify end-to-end via `feedSamples`).
+- [x] 10.4 Write `skeleton/test/cancel.test.ts` with example tests for each cancel path: dwell cancel target, scan cancel item, hold-to-cancel (switch and gesture), Escape key, input timeout reset.
+- [x] 10.5 Write `skeleton/test/cancel.props.test.ts` implementing **P4** cancel always works: from any reachable engine state, a cancel input returns to idle in one step and emits exactly one `cancel`.
 
 **Covers:** Req 6 AC 1–6; P4.
 
@@ -238,7 +238,7 @@ the DOM or the camera.
 - [ ] 14.4 No-face timeout is handled by the head-pointer engine (task 7), not the camera adapter. The adapter passes frames; the engine tracks `t_face_lost` using `now` and emits `tracking-status: no-face-timeout` once when `now − t_face_lost ≥ profile.noFaceTimeout`. Verify this path with a synthetic stream of frameless camera samples in `camera-failure.test.ts`.
 - [ ] 14.4a `startCamera()` (including a retry) starts the start-up centre step from Task 11.6a.
 - [ ] 14.5 Implement retry: `startCamera()` can be called again after any failure without reloading the page; re-initialise MediaPipe and restart the timeout.
-- [ ] 14.6 Implement `skeleton/src/adapters/keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts` following the design §7 spec (one sample per rAF, granular `source` field: `'keyboard'`, `'mouse'`, `'gamepad'`; per-adapter `lastNow`). Keyboard adapter sets `cancel: true` on Escape keydown samples.
+- [ ] 14.6 Implement `skeleton/src/adapters/keyboard-adapter.ts`, `mouse-adapter.ts`, `gamepad-adapter.ts` following the design §7 spec (one sample per rAF, granular `source` field: `'keyboard'`, `'mouse'`, `'gamepad'`; per-adapter `lastNow`). Keyboard adapter sets `cancel: true` on Escape keydown samples. Every keyboard and gamepad adapter sample carries the current `signal` (true or false), because a sample without `signal` counts as released for that source.
 - [ ] 14.7 Write `skeleton/test/camera-failure.test.ts` using synthetic landmark streams (no real camera): simulate each failure case and assert the correct `tracking-status` value and that scanning and mouse modes produce selections during and after the failure.
 - [ ] 14.8 Write `skeleton/test/camera-failure.props.test.ts` implementing **P21**: with camera state set to each failure reason before any input sequence, scanning and mouse modes still produce selections; `tracking-status` carries the correct reason.
 - [ ] 14.9 Write `skeleton/test/camera-real.e2e.ts` (Playwright, runs under `npm run test:e2e`): launch Chromium with `--use-fake-ui-for-media-stream`, `--use-fake-device-for-media-stream`, and `--use-file-for-fake-video-capture=<.cache path>` pointing at a clip from `test-media/` converted by `pretest:e2e`. Assert the page emits `tracking-status: found` within 5 s of `startCamera()` being called.

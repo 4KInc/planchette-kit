@@ -392,3 +392,23 @@ describe('virtual item ids', () => {
     expect(ev.at(-1)).toMatchObject({ kind: 'cancel', targetId: '$cancel', targetIds: [] });
   });
 });
+
+describe('cancel-role target as a scan item (Req 6 AC 1)', () => {
+  it('pressing it emits cancel, not select, and returns to the top of the cycle', () => {
+    const targets = [target('a', 0, 0), target('x', 0, 120, 'cancel'), target('c', 0, 240)];
+    const s = createScanState();
+    const ev = run(s, 0, 1600, { targets, presses: [1500] });
+    expect(types(ev.filter((e) => e.at === 1500))).toContain('cancel');
+    expect(ev.filter((e) => e.type === 'select')).toEqual([]);
+    expect(labels(ev.filter((e) => e.at === 1500))).toEqual(['a']);
+  });
+
+  it('inside a row it cancels too', () => {
+    const targets = [target('r0c0', 0, 0), target('r0c1', 120, 0), target('r1c0', 0, 120, 'cancel'), target('r1c1', 120, 120)];
+    const s = createScanState();
+    // row 1 is highlighted at 1000; a press at 1100 enters it and highlights r1c0, a cancel-role item
+    const ev = run(s, 0, 2000, { targets, presses: [1100, 1700] });
+    expect(ev.filter((e) => e.type === 'select')).toEqual([]);
+    expect(ev.filter((e) => e.type === 'cancel').map((e) => e.at)).toEqual([1700]);
+  });
+});

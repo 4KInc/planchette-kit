@@ -325,7 +325,9 @@ function act(state: ScanState, layout: Layout, now: number, profile: Profile): S
   return finish();
 }
 
+/** Selecting an item: a target with role 'cancel' cancels instead of selecting (Req 6 AC 1). */
 function selectEvent(t: DwellTarget, now: number): ScanEvent {
+  if (t.role === 'cancel') return { type: 'cancel' };
   return { type: 'select', targetId: t.id, now, source: 'scan', role: t.role };
 }
 

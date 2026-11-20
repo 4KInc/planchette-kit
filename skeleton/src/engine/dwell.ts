@@ -14,6 +14,8 @@
  *  - After any selection no dwell time counts for any target until the
  *    post-selection pause ends, and progress shows 0.
  *  - Rest-area targets and empty space never select.
+ *  - A target with role 'cancel' emits `cancel` instead of `select`, once per stay: auto-repeat
+ *    is ignored for it, so resting on a cancel target cancels once, not repeatedly.
  *  - When a stay ends, one `dwell-progress` with progress 0 is emitted for its target.
  *  - Silence of `inputTimeout` or more ends the current stay.
  */
@@ -49,7 +51,8 @@ export interface DwellState {
 
 export type DwellEvent =
   | { type: 'dwell-progress'; targetId: string; progress: number }
-  | { type: 'select'; targetId: string; now: number; source: 'dwell'; role: TargetRole };
+  | { type: 'select'; targetId: string; now: number; source: 'dwell'; role: TargetRole }
+  | { type: 'cancel' };
 
 export interface DwellInput {
   /** Pointer position in CSS px, or null when the pointer is lost. */
@@ -181,7 +184,7 @@ export function stepDwell(
   } else if (!state.selected) {
     progress = Math.min(1, state.accumulated / profile.dwellTime);
     fire = state.accumulated >= profile.dwellTime;
-  } else if (hit.autoRepeat) {
+  } else if (hit.autoRepeat && hit.role !== 'cancel') {
     const repeatAt = Math.max(
       state.selectedAt + Math.max(profile.autoRepeatInterval, profile.postSelectionPause),
       state.pauseEnd,
@@ -196,10 +199,10 @@ export function stepDwell(
     state.selected = true;
     state.selectedAt = now;
     state.pauseEnd = now + profile.postSelectionPause;
-    events.push(
-      { type: 'dwell-progress', targetId: hit.id, progress: 1 },
-      { type: 'select', targetId: hit.id, now, source: 'dwell', role: hit.role },
-    );
+    events.push({ type: 'dwell-progress', targetId: hit.id, progress: 1 });
+    // Req 6 AC 1: a cancel target cancels instead of selecting. It fires once per stay.
+    if (hit.role === 'cancel') events.push({ type: 'cancel' });
+    else events.push({ type: 'select', targetId: hit.id, now, source: 'dwell', role: hit.role });
     return events;
   }
   events.push({ type: 'dwell-progress', targetId: hit.id, progress });

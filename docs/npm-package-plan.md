@@ -94,6 +94,11 @@ site, not a third-party CDN. A package cannot serve files, so:
       Actions OIDC, with provenance). No `NPM_TOKEN` secret exists. Run on demand
       (`tech.md`: CI that uses credits runs on demand).
 - [ ] Turn on two-factor authentication for the npm account.
+- [ ] Decide, before the first publish, whether to ship `src/` in the package (add `src` to
+      `files`, so the declaration maps in `dist/*.d.ts.map` point at real files) or to turn
+      `declarationMap` off in `tsconfig.build.json`. Today the maps point at `src/`, which
+      is not in `files`. The build test checks that the maps are emitted, so changing it
+      means updating that test too.
 - [ ] Not before the 4 Dec 2026 submission.
 
 ## Open questions

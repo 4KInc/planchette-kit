@@ -164,14 +164,16 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
    * different source's timestamps are not compared with the old ones).
    * A switch or gesture that is still held must be released before it can press again.
    */
-  function toIdle(full: boolean, resetScan = true): void {
-    if (dwell.targetId !== null) emit('dwell-progress', { targetId: dwell.targetId, progress: 0 });
-    const dwellClock = dwell.t_last;
-    const dwellPause = dwell.pauseEnd;
-    Object.assign(dwell, createDwellState());
-    if (!full) {
-      dwell.t_last = dwellClock;
-      dwell.pauseEnd = dwellPause;
+  function toIdle(full: boolean, resetScan = true, resetDwell = true): void {
+    if (resetDwell) {
+      if (dwell.targetId !== null) emit('dwell-progress', { targetId: dwell.targetId, progress: 0 });
+      const dwellClock = dwell.t_last;
+      const dwellPause = dwell.pauseEnd;
+      Object.assign(dwell, createDwellState());
+      if (!full) {
+        dwell.t_last = dwellClock;
+        dwell.pauseEnd = dwellPause;
+      }
     }
     if (resetScan) {
       const scanClock = scan.t_last;
@@ -194,8 +196,8 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
   }
 
   /** A cancel: back to idle and exactly one `cancel` event. */
-  function cancelToIdle(resetScan = true): void {
-    toIdle(false, resetScan);
+  function cancelToIdle(resetScan = true, resetDwell = true): void {
+    toIdle(false, resetScan, resetDwell);
     emit('cancel', {});
   }
 
@@ -242,12 +244,18 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
   function selectAt(p: { x: number; y: number } | null, now: number, source: 'gesture' | 'mouse'): void {
     if (p === null) return;
     const hit = hitTest(p, targetList);
-    if (hit !== null) emit('select', { targetId: hit.id, now, source, role: hit.role });
+    if (hit === null) return;
+    // Req 6 AC 1: a target with role 'cancel' cancels instead of selecting.
+    if (hit.role === 'cancel') cancelToIdle();
+    else emit('select', { targetId: hit.id, now, source, role: hit.role });
   }
 
   function emitDwell(events: DwellEvent[]): void {
     for (const e of events) {
       if (e.type === 'dwell-progress') emit('dwell-progress', { targetId: e.targetId, progress: e.progress });
+      // The dwell stay stays as the engine left it (finished, so it does not fire again
+      // while the pointer rests on the cancel target); everything else returns to idle.
+      else if (e.type === 'cancel') cancelToIdle(true, false);
       else emit('select', { targetId: e.targetId, now: e.now, source: 'dwell', role: e.role });
     }
   }
@@ -404,7 +412,8 @@ export function createPlanchetteInternal(options: PlanchetteOptions): Planchette
       if (typeof id !== 'string' || id === '' || id === SCAN_BACK_ID || id === SCAN_CANCEL_ID || r === null) return;
       const rawRole = isObject(options) ? options.role : undefined;
       const role: TargetRole = typeof rawRole === 'string' && ROLES.has(rawRole) ? (rawRole as TargetRole) : 'default';
-      const autoRepeat = isObject(options) && options.autoRepeat === true;
+      // Auto-repeat makes no sense for a cancel target: it cancels once per stay.
+      const autoRepeat = isObject(options) && options.autoRepeat === true && role !== 'cancel';
       targets.set(id, { id, rect: r, autoRepeat, role });
       refreshTargets();
     },

@@ -602,6 +602,14 @@ Each file exports one `step` function and its state type. `profile.ts` has no `s
   during the pause, then runs 0 to 1 from the pause end to that time. Without
   auto-repeat, a completed stay shows progress 0 until it ends. The `select` sample
   itself reports progress 1 first, so a ring can fill before it clears.
+- **Cancel targets.** A target with role `cancel` emits `cancel` instead of `select` when
+  its dwell time is reached (progress 1 first, as for a select). It fires once per stay:
+  `autoRepeat` is ignored for it (the API also stores `autoRepeat: false` for a cancel
+  target, so `getTargets()` shows what the engine does). Resting on a cancel target
+  therefore cancels once, not every dwell time. The stay then counts as finished, as after
+  a select, and the post-selection pause applies. A `select` event never carries the role
+  `cancel`. The same rule holds for a cancel-role target selected by scan (as an ordinary
+  item, in a row or at the top level), by a head + gesture press and by a mouse click.
 - **Stay end.** When a stay ends, one `dwell-progress` with `progress: 0` is emitted for
   the old target, before any event for a new stay. A stay ends when the pointer moves
   onto a different target, when the grace time is exceeded, when the input timeout
@@ -970,6 +978,12 @@ switch sources share one scan, a press whose time is not later than the scan's c
 moved forward by 0.001 ms, so it is not lost.
 **Mouse mode.** `sample.pointer` is clamped to the screen and reported as `pointer-move`
 when it changes. The camera does not move it.
+**Cancel targets (Req 6 AC 1, Task 10).** A cancel from the dwell engine (cancel-role
+target) returns the other selection engines to idle but leaves the dwell stay as the
+engine left it (finished), because ending it would let the stay start again at once and
+cancel every dwell time while the pointer rests there. A cancel from the scan engine (the
+cancel item or a cancel-role item) has already returned the scan to the top, so only the
+rest is reset. A cancel-role target selected by gesture or mouse click resets everything.
 **Cancel (Req 6 AC 4).** A sample with `cancel: true` (after the per-source clock check)
 emits exactly one `cancel` and nothing else from that sample is used. A cancel, from that
 flag, from a press machine's hold-to-cancel, or from the scan engine's cancel item, returns

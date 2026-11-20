@@ -98,10 +98,51 @@ describe('basic dwell', () => {
   });
 
   it('carries the target role in the select event', () => {
-    const cancel: DwellTarget = { ...A, role: 'cancel' };
+    const undo: DwellTarget = { ...A, role: 'undo' };
     const s = createDwellState();
-    const sel = selects(feed(s, span(0, 1000, ON_A, 100), [cancel]));
-    expect(sel[0].role).toBe('cancel');
+    const sel = selects(feed(s, span(0, 1000, ON_A, 100), [undo]));
+    expect(sel[0].role).toBe('undo');
+  });
+});
+
+describe('cancel-role target (Req 6 AC 1)', () => {
+  const cancel: DwellTarget = { ...A, role: 'cancel' };
+
+  it('emits cancel instead of select when the dwell time is reached', () => {
+    const s = createDwellState();
+    const ev = feed(s, span(0, 1100, ON_A, 100), [cancel]);
+    expect(ev.filter((e) => e.type === 'cancel')).toHaveLength(1);
+    expect(selects(ev)).toEqual([]);
+  });
+
+  it('cancels once per stay: resting on it does not repeat', () => {
+    const s = createDwellState();
+    const ev = feed(s, span(0, 10000, ON_A, 100), [cancel]);
+    expect(ev.filter((e) => e.type === 'cancel')).toHaveLength(1);
+  });
+
+  it('ignores autoRepeat on a cancel target', () => {
+    const s = createDwellState();
+    const ev = feed(s, span(0, 10000, ON_A, 100), [{ ...cancel, autoRepeat: true }]);
+    expect(ev.filter((e) => e.type === 'cancel')).toHaveLength(1);
+  });
+
+  it('autoRepeat still repeats a selection on an ordinary target', () => {
+    const s = createDwellState();
+    const ev = feed(s, span(0, 10000, ON_A, 100), [{ ...A, autoRepeat: true }]);
+    expect(selects(ev).length).toBeGreaterThan(2);
+  });
+
+  it('cancels again after the pointer leaves and returns', () => {
+    const s = createDwellState();
+    const ev = feed(s, [...span(0, 1200, ON_A, 100), ...span(1300, 2500, OFF, 100), ...span(2600, 4000, ON_A, 100)], [cancel]);
+    expect(ev.filter((e) => e.type === 'cancel')).toHaveLength(2);
+  });
+
+  it('does not count the post-selection pause toward another target', () => {
+    const s = createDwellState();
+    const ev = feed(s, [...span(0, 1100, ON_A, 100), ...span(1200, 1500, ON_B, 100)], [cancel, B]);
+    expect(selects(ev)).toEqual([]);
   });
 });
 
