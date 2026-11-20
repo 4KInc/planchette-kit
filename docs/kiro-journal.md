@@ -274,3 +274,5 @@ Implemented `skeleton/src/engine/profile.ts` with all 30 fields from the Profile
 
 19 Nov 2026: Task 4: dwell engine with example and property tests (P1, P2, P8, P14, P19); added @types/node and a typecheck step to npm test; stepPress acceptanceTime now required.
 19 Nov 2026: Task 4 review fixes: dwell caps one sample gap at 100 ms, no dwell time counts during the post-selection pause, stay end and pointer loss emit progress 0; shared target types moved to targets.ts; design.md and tasks.md updated; Tasks 2 to 4 ticked.
+
+19 Nov 2026: Dwell engine revisions: MAX_SAMPLE_GAP_MS cap of 100 ms, no dwell time counted during the post-selection pause, clearing dwell-progress 0 when a stay ends, shared target types moved to targets.ts.
