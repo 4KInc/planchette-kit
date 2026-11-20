@@ -432,6 +432,7 @@ skeleton/src/engine/
   press-machine.ts     shared press/cancel state machine; used by gesture.ts and switch.ts
   smoother.ts          One Euro filter on angles; step(state, { angle, dt }) → { angle }
   head-pointer.ts      face lock + dead zone + mapping; step(state, { faces }, now, profile) → events
+  targets.ts           Rect, TargetRole, DwellTarget (types only, no dependencies)
   dwell.ts             dwell timer; step(state, { pointer, targets }, now, profile) → events
   gesture.ts           blendshape → signal, calls press-machine; step(state, { score }, now, profile) → events + press
   switch.ts            key/button → signal, calls press-machine; step(state, { signal }, now, profile) → events + press
@@ -443,27 +444,40 @@ skeleton/src/engine/
 Each file exports one `step` function and its state type. `profile.ts` has no `step`.
 ### Dwell engine details (`dwell.ts`)
 - **Samples are levels.** Time between two consecutive samples that are both on the
-  same target counts as dwell time, even if the samples are far apart (below the
-  input timeout). A gap off the target needs at least one off-target sample.
+  same target counts as dwell time. A gap off the target needs at least one off-target
+  sample.
+- **Sample gap cap.** One gap between two consecutive on-target samples adds at most
+  `MAX_SAMPLE_GAP_MS` = 100 ms to the dwell timer. Normal frame gaps of 16 to 100 ms
+  (down to a 10 fps camera) count in full. A longer gap, such as a 1.9 s stall below
+  the input timeout, adds only 100 ms, so a stall cannot select by itself. With
+  samples every 150 ms the timer therefore advances at 100 ms per sample.
 - **Gap rule.** After an off-target sample, the stay survives only while
   `now − lastOnTime ≤ graceTime`. The gap adds nothing to the dwell time. A longer gap
   ends the stay and resets the timer. Moving straight onto another target always
   starts a new stay for that target.
-- **Post-selection pause.** Dwell time keeps accumulating during the pause. A select
-  that became ready during the pause fires at the first sample at or after the end of
-  the pause. If the stay ends first, nothing fires.
-- **Auto-repeat.** After the first select, a target with auto-repeat selects again each
-  time `now − selectedAt ≥ max(autoRepeatInterval, postSelectionPause)`. Its
-  `dwell-progress` then runs 0 to 1 across that interval. Without auto-repeat,
-  progress stays at 1 for the rest of the stay.
+- **Post-selection pause.** The pause is a time when no new selection can start.
+  No dwell time counts toward any target before `pauseEnd`, and `dwell-progress` is 0
+  during the pause. Counting starts when the pause ends: if the pause end falls
+  between two samples, only the part of the interval after it counts (still capped).
+  A target entered during the pause therefore needs its full dwell time after the
+  pause ends.
+- **Auto-repeat.** After the first select, a target with auto-repeat selects again at
+  `selectedAt + max(autoRepeatInterval, postSelectionPause)`. Its `dwell-progress` is 0
+  during the pause, then runs 0 to 1 from the pause end to that time. Without
+  auto-repeat, a completed stay shows progress 0 until it ends. The `select` sample
+  itself reports progress 1 first, so a ring can fill before it clears.
+- **Stay end.** When a stay ends, one `dwell-progress` with `progress: 0` is emitted for
+  the old target, before any event for a new stay. A stay ends when the pointer moves
+  onto a different target, when the grace time is exceeded, when the input timeout
+  fires, and when the pointer is lost (`null` or non-finite), which ends it at once
+  with no grace time. No clearing event is emitted when there is no stay.
 - **Hit test.** Targets with role `rest-area` are skipped. If rectangles overlap, the
   first one in the list wins. Rectangles include their left and top edges and exclude
-  right and bottom. A null or non-finite pointer is off every target.
-- **Events.** On a select sample, `dwell-progress` (value 1) is emitted before
-  `select`. No event is emitted while off a target, and leaving a target emits no
-  clearing event.
-- **Input timeout.** Silence of `inputTimeout` or more ends the stay silently. The
+  right and bottom.
+- **Input timeout.** Silence of `inputTimeout` or more ends the stay. The
   post-selection pause end time is kept.
+- **Shared types.** `Rect`, `TargetRole` and `DwellTarget` live in `targets.ts`
+  (types only, no dependencies) so dwell and scan share them.
 
 ---
 

@@ -33,13 +33,13 @@ task has a working test runner from the start.
 Implement `skeleton/src/engine/profile.ts` — the single source of truth for every
 profile field — with no dependencies on other engine files.
 
-- [ ] 2.1 Define the `Profile` TypeScript interface with all 30 fields from the requirements' Profile fields table. No `any`; every field has an explicit type.
-- [ ] 2.2 Implement `defaultProfile: Profile` with all defaults from the table.
-- [ ] 2.3 Implement `clampProfile(partial: Partial<Profile>, base?: Profile): Profile` applying the clamping order: calibration ranges → dead zone (≤ 0.5 × min range) → cancel hold time → both acceptance times → gesture threshold → release threshold.
-- [ ] 2.4 Implement `exportProfile(p: Profile): string` (JSON serialisation).
-- [ ] 2.5 Implement `importProfile(json: string): ImportResult` reading each field by name explicitly, never spreading the parsed object. `ImportResult = { profile: Profile; changes: string[] }`.
-- [ ] 2.6 Write `skeleton/test/profile.test.ts` with example tests: defaults round-trip, clamping order enforced, `__proto__` key ignored, missing field gets default, dependent clamping (release threshold below gesture threshold). Include a test that enumerates the keys of `defaultProfile` and asserts the count equals 30, cross-checking against the requirements table.
-- [ ] 2.7 Write `skeleton/test/profile.props.test.ts` implementing **P17** in full: (a) `importProfile(exportProfile(p))` equals `p`; (b) every field of any import result is in range; (c) the result has exactly the known fields — no `__proto__`, no unknown keys — for arbitrary JSON input including injected `__proto__` and out-of-order fields.
+- [x] 2.1 Define the `Profile` TypeScript interface with all 30 fields from the requirements' Profile fields table. No `any`; every field has an explicit type.
+- [x] 2.2 Implement `defaultProfile: Profile` with all defaults from the table.
+- [x] 2.3 Implement `clampProfile(partial: Partial<Profile>, base?: Profile): Profile` applying the clamping order: calibration ranges → dead zone (≤ 0.5 × min range) → cancel hold time → both acceptance times → gesture threshold → release threshold.
+- [x] 2.4 Implement `exportProfile(p: Profile): string` (JSON serialisation).
+- [x] 2.5 Implement `importProfile(json: string): ImportResult` reading each field by name explicitly, never spreading the parsed object. `ImportResult = { profile: Profile; changes: string[] }`.
+- [x] 2.6 Write `skeleton/test/profile.test.ts` with example tests: defaults round-trip, clamping order enforced, `__proto__` key ignored, missing field gets default, dependent clamping (release threshold below gesture threshold). Include a test that enumerates the keys of `defaultProfile` and asserts the count equals 30, cross-checking against the requirements table.
+- [x] 2.7 Write `skeleton/test/profile.props.test.ts` implementing **P17** in full: (a) `importProfile(exportProfile(p))` equals `p`; (b) every field of any import result is in range; (c) the result has exactly the known fields — no `__proto__`, no unknown keys — for arbitrary JSON input including injected `__proto__` and out-of-order fields.
 
 **Covers:** Req 7 AC 3–7; P17.
 
@@ -50,11 +50,11 @@ profile field — with no dependencies on other engine files.
 Implement `skeleton/src/engine/press-machine.ts` — the shared state machine for
 switch and gesture activation — before any engine that depends on it.
 
-- [ ] 3.1 Define `PressMachineState = { state: PressState; t_down: number; t_last: number }` and `PressState` enum (`IDLE | PENDING_ACCEPT | ARMED | ARMED_HOLD_WAIT | COOLDOWN`).
-- [ ] 3.2 Implement `stepPress(state: PressMachineState, signal: boolean, now: number, profile: Profile, acceptanceTime: number): PressEvent[]` following the transition table in design §3 exactly. `acceptanceTime` is required, with no default: the switch engine passes `profile.switchAcceptanceTime` and the gesture engine passes `profile.gestureAcceptanceTime`.
-- [ ] 3.3 Implement `clonePressMachineState`.
-- [ ] 3.4 Write `skeleton/test/press-machine.test.ts` with example tests covering every row of the transition table: acceptance time gating, cancel-by-hold on/off paths, cooldown, input timeout reset, the 2000 ms hold / 2000 ms timeout example from the design.
-- [ ] 3.5 Write `skeleton/test/press-machine.props.test.ts` implementing:
+- [x] 3.1 Define `PressMachineState = { state: PressState; t_down: number; t_last: number }` and `PressState` enum (`IDLE | PENDING_ACCEPT | ARMED | ARMED_HOLD_WAIT | COOLDOWN`).
+- [x] 3.2 Implement `stepPress(state: PressMachineState, signal: boolean, now: number, profile: Profile, acceptanceTime: number): PressEvent[]` following the transition table in design §3 exactly. `acceptanceTime` is required, with no default: the switch engine passes `profile.switchAcceptanceTime` and the gesture engine passes `profile.gestureAcceptanceTime`.
+- [x] 3.3 Implement `clonePressMachineState`.
+- [x] 3.4 Write `skeleton/test/press-machine.test.ts` with example tests covering every row of the transition table: acceptance time gating, cancel-by-hold on/off paths, cooldown, input timeout reset, the 2000 ms hold / 2000 ms timeout example from the design.
+- [x] 3.5 Write `skeleton/test/press-machine.props.test.ts` implementing:
   - **P7** short presses ignored (hold < acceptanceTime → no press);
   - **P18** cancel hold never selects (hold ≥ cancelHoldTime, cancel-by-hold ON → one cancel, no press);
   - **P5** (partial) no stuck state: after silence ≥ inputTimeout the machine is IDLE.
@@ -65,13 +65,13 @@ switch and gesture activation — before any engine that depends on it.
 
 ## Task 4: Dwell engine with property tests
 
-Implement `skeleton/src/engine/dwell.ts`. Depends on `profile.ts` only.
+Implement `skeleton/src/engine/dwell.ts`. Depends on `profile.ts` and `targets.ts` (shared target types).
 
-- [ ] 4.1 Define `DwellState` (current target id, accumulated time, last-on-target timestamp, selected-this-stay flag, post-selection pause end time).
-- [ ] 4.2 Implement `stepDwell(state, { pointer, targets }, now, profile): DwellEvent[]` covering: accumulation only while on-target, grace-time pause without reset, reset after grace time expires, one select per stay (no auto-repeat), auto-repeat with effective interval, post-selection pause, no select in rest area.
-- [ ] 4.3 Implement `cloneDwellState`.
-- [ ] 4.4 Write `skeleton/test/dwell.test.ts` with example tests: basic dwell-to-select, grace time preserves progress, gap beyond grace resets, post-selection pause suppresses re-select, auto-repeat fires at correct interval, pointer in rest area emits nothing, `updateTarget` with pointer inside keeps progress.
-- [ ] 4.5 Write `skeleton/test/dwell.props.test.ts` implementing:
+- [x] 4.1 Define `DwellState` (current target id, accumulated time, last-on-target timestamp, selected-this-stay flag, post-selection pause end time).
+- [x] 4.2 Implement `stepDwell(state, { pointer, targets }, now, profile): DwellEvent[]` covering: accumulation only while on-target, grace-time pause without reset, reset after grace time expires, one select per stay (no auto-repeat), auto-repeat with effective interval, post-selection pause, no select in rest area.
+- [x] 4.3 Implement `cloneDwellState`.
+- [x] 4.4 Write `skeleton/test/dwell.test.ts` with example tests: basic dwell-to-select, grace time preserves progress, gap beyond grace resets, post-selection pause suppresses re-select, auto-repeat fires at correct interval, pointer in rest area emits nothing, `updateTarget` with pointer inside keeps progress.
+- [x] 4.5 Write `skeleton/test/dwell.props.test.ts` implementing:
   - **P1** no quick-pass selection;
   - **P2** one selection per stay (no auto-repeat);
   - **P8** pause respected between consecutive selects;
