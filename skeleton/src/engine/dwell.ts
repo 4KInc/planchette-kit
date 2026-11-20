@@ -18,8 +18,8 @@
  *  - Silence of `inputTimeout` or more ends the current stay.
  */
 
-import type { Profile } from './profile';
-import type { DwellTarget, Rect, TargetRole } from './targets';
+import type { Profile } from './profile.js';
+import type { DwellTarget, Rect, TargetRole } from './targets.js';
 
 /**
  * The most time one sample gap can add to the dwell timer (ms). Normal frame gaps
@@ -97,7 +97,7 @@ function contains(r: Rect, x: number, y: number): boolean {
  * The target under the pointer, or null. Rest areas are not selectable and are
  * skipped. If rectangles overlap, the first one in `targets` wins.
  */
-function hitTest(
+export function hitTest(
   p: { x: number; y: number },
   targets: ReadonlyArray<DwellTarget>,
 ): DwellTarget | null {

@@ -3,8 +3,23 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "assets",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
   "scripts": {
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "build": "tsc -p tsconfig.build.json && node scripts/copy-license.mjs",
+    "prepublishOnly": "npm test && npm run build"
   },
   "devDependencies": {
     "fast-check": "4.10.3",

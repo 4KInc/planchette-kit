@@ -42,6 +42,8 @@ to make their own app usable hands-free.
 ## What ships in this repo
 - `/skeleton`: the template (input modes, dwell and scanning engines, calibration
   profile, layout helpers). Framework-free so it can be added to any web app.
+  The skeleton is also published to npm later (see `docs/npm-package-plan.md`); until
+  then it is a template.
 - `/apps/board`: App A, a communication board (spell words, quick phrases, spoken output).
 - `/apps/game`: App B, a hands-free haunted target game (aim and time, no text).
   It is accessible gaming, a real need, not only the spooky half of the demo.

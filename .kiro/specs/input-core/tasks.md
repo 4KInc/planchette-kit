@@ -189,15 +189,15 @@ using the public `feedSamples` API.
 
 Assemble all engines into the `Planchette` instance behind the factory function.
 
-- [ ] 11.1 Implement `createPlanchette(options)` in `skeleton/src/index.ts`. Wire engines together: `feedSamples` fans samples to the correct engine by `source` (`'camera'`, `'keyboard'`, `'gamepad'`, `'mouse'`, `'synthetic'`); handles `cancel: true` on any sample by immediately emitting `cancel` and resetting to idle; events bubble out as DOM `CustomEvent`s via `EventTarget`.
-- [ ] 11.2 Implement `registerTarget`, `updateTarget`, `unregisterTarget`, `getTargets` with the `role` and `autoRepeat` fields.
-- [ ] 11.3 Implement `setMode` and `mode-change` emission.
-- [ ] 11.4 Implement `setProfile` (clamps before applying), `getProfile`, `exportProfile`, `importProfile`.
-- [ ] 11.5 Implement `setScreen` and resize handling (re-clamp pointer on next sample).
-- [ ] 11.6 Implement `startCalibration`, `cancelCalibration`, `calibration-step` events.
-- [ ] 11.6a Keep the centre as session state (not in the profile; design §4 "Centre step"). Run a centre-only calibration when the camera starts (in tests: on the first camera sample after creation or after `stopCamera()`), and implement `recentre()`. The centre is (0, 0) until the first centre step completes. While a centre step runs, the pointer moves but dwell and gesture selection are held. Pass the centre to `stepHeadPointer`. Test in `api.test.ts`.
-- [ ] 11.7 Write `skeleton/test/api.test.ts`: register/update/unregister targets, mode switch without re-registration, profile round-trip via API, `setScreen` updates pointer bounds, calibration events.
-- [ ] 11.8 Write `skeleton/test/api.props.test.ts` implementing **P5** (full): after any input sequence followed by silence ≥ `inputTimeout + 1 ms` fed via `feedSamples`, the engine is idle (no pending dwell, no scan highlight, press machine IDLE).
+- [x] 11.1 Implement `createPlanchette(options)` in `skeleton/src/index.ts`. Wire engines together: `feedSamples` fans samples to the correct engine by `source` (`'camera'`, `'keyboard'`, `'gamepad'`, `'mouse'`, `'synthetic'`); handles `cancel: true` on any sample by immediately emitting `cancel` and resetting to idle; events bubble out as DOM `CustomEvent`s via `EventTarget`.
+- [x] 11.2 Implement `registerTarget`, `updateTarget`, `unregisterTarget`, `getTargets` with the `role` and `autoRepeat` fields.
+- [x] 11.3 Implement `setMode` and `mode-change` emission.
+- [x] 11.4 Implement `setProfile` (clamps before applying), `getProfile`, `exportProfile`, `importProfile`.
+- [x] 11.5 Implement `setScreen` and resize handling (re-clamp pointer on next sample).
+- [x] 11.6 Implement `startCalibration`, `cancelCalibration`, `calibration-step` events.
+- [x] 11.6a Keep the centre as session state (not in the profile; design §4 "Centre step"). Run a centre-only calibration when the camera starts (in tests: on the first camera sample after creation or after `stopCamera()`), and implement `recentre()`. The centre is (0, 0) until the first centre step completes. While a centre step runs, the pointer moves but dwell and gesture selection are held. Pass the centre to `stepHeadPointer`. Test in `api.test.ts`.
+- [x] 11.7 Write `skeleton/test/api.test.ts`: register/update/unregister targets, mode switch without re-registration, profile round-trip via API, `setScreen` updates pointer bounds, calibration events.
+- [x] 11.8 Write `skeleton/test/api.props.test.ts` implementing **P5** (full): after any input sequence followed by silence ≥ `inputTimeout + 1 ms` fed via `feedSamples`, the engine is idle (no pending dwell, no scan highlight, press machine IDLE).
 
 **Covers:** Req 1 AC 1–5; Req 9 AC 2–3, AC 6; P5 (full).
 

@@ -17,10 +17,12 @@ inclusion: always
   `localService === true`.
 - Tests: Vitest for unit tests, **fast-check** for property-based tests, Playwright
   for end-to-end tests.
-- The skeleton is an npm workspace package consumed by the apps; it is not published to
-  npm during the hackathon. One Vite multi-page build serves the skeleton demo at `/`,
-  App A at `/board/` and App B at `/game/`, so `npm run dev` runs all three and judges
-  get one URL. Deploy as a static site.
+- The skeleton is an npm workspace package consumed by the apps. It is not published to
+  npm during the hackathon; the plan to publish it afterwards is in
+  `docs/npm-package-plan.md`. `skeleton/src/index.ts` is its only public entry point:
+  anything not exported there is private and may change.
+  One Vite multi-page build serves the skeleton demo at `/`, App A at `/board/` and
+  App B at `/game/`, so `npm run dev` runs all three and judges get one URL. Deploy as a static site.
 
 ## Architecture rules
 - **Engines never hard-code timings or thresholds.** Every value comes from the profile.

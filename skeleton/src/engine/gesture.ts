@@ -8,7 +8,7 @@
  * Depends on profile.ts and press-machine.ts.
  */
 
-import type { Profile } from './profile';
+import type { Profile } from './profile.js';
 import {
   PressState,
   createPressMachineState,
@@ -16,8 +16,8 @@ import {
   stepPress,
   type PressEvent,
   type PressMachineState,
-} from './press-machine';
-import { FREEZE_EXPIRY_EXTRA_MS, type GestureScores } from './head-pointer';
+} from './press-machine.js';
+import { FREEZE_EXPIRY_EXTRA_MS, type GestureScores } from './head-pointer.js';
 
 export type GestureEvent = PressEvent;
 
@@ -72,6 +72,18 @@ export function switchGestureScore(scores: GestureScores, profile: Profile): num
 /** Return the press machine to IDLE without any event, keeping its clock. */
 function resetPress(s: GestureState): void {
   s.press.state = PressState.IDLE;
+}
+
+/**
+ * Drop any gesture in progress without an event (a cancel from elsewhere). A gesture
+ * that is under way cannot press until the score has fallen below the release threshold.
+ */
+export function dropGesture(s: GestureState): void {
+  if (s.above || s.signal || s.press.state !== PressState.IDLE) s.blocked = true;
+  s.signal = false;
+  s.above = false;
+  s.reached = false;
+  resetPress(s);
 }
 
 /**

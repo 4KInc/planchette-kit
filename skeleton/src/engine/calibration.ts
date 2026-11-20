@@ -12,9 +12,9 @@
  * Pure logic: time is an input (`now`, ms); no clocks, DOM or devices. The engine never
  * changes the profile: the done event carries the fields to apply.
  */
-import { clampProfile, type Profile } from './profile';
-import { MIN_RANGE_DEG, type FaceRotation, type GestureScores } from './head-pointer';
-import { switchGestureScore } from './gesture';
+import { clampProfile, type Profile } from './profile.js';
+import { MIN_RANGE_DEG, type FaceRotation, type GestureScores } from './head-pointer.js';
+import { switchGestureScore } from './gesture.js';
 
 export type CalibrationRun = 'full' | 'centre';
 export type CalibrationStepName =

@@ -8,7 +8,7 @@
  * Post-selection pause is not handled here. Consumers (dwell, scan) apply it.
  */
 
-import type { Profile } from './profile';
+import type { Profile } from './profile.js';
 
 export enum PressState {
   IDLE = 'IDLE',

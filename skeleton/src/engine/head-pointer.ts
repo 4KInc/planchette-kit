@@ -11,14 +11,14 @@
  *  - Angles are in degrees. The camera adapter converts and un-mirrors them.
  */
 
-import type { Profile } from './profile';
+import type { Profile } from './profile.js';
 import {
   createSmootherState,
   cloneSmootherState,
   resetSmoother,
   stepSmoother,
   type SmootherState,
-} from './smoother';
+} from './smoother.js';
 
 /** The smallest range of head rotation the head pointer supports, per axis (degrees). */
 export const MIN_RANGE_DEG = 3;
@@ -117,6 +117,11 @@ export interface HeadPointerState {
    * the gesture engine, so both engines use the same face.
    */
   scores: GestureScores | null;
+  /**
+   * The locked face's head rotation on the last sample, or null when no face is tracked
+   * or its rotation is not finite. The host passes it to the calibration engine.
+   */
+  rotation: FaceRotation | null;
 }
 
 export function createHeadPointerState(): HeadPointerState {
@@ -146,6 +151,7 @@ export function createHeadPointerState(): HeadPointerState {
     freezeY: 0,
     score: 0,
     scores: null,
+    rotation: null,
   };
 }
 
@@ -154,6 +160,7 @@ export function cloneHeadPointerState(s: HeadPointerState): HeadPointerState {
     ...s,
     lock: { ...s.lock },
     scores: s.scores === null ? null : { ...s.scores },
+    rotation: s.rotation === null ? null : { ...s.rotation },
     lastFaces: s.lastFaces.map((b) => ({ ...b })),
     smootherX: cloneSmootherState(s.smootherX),
     smootherY: cloneSmootherState(s.smootherY),
@@ -326,6 +333,7 @@ export function stepHeadPointer(
     }
     state.score = 0;
     state.scores = null;
+    state.rotation = null;
     if (Number.isNaN(state.faceLostAt)) state.faceLostAt = now;
     if (!state.timeoutEmitted && now - state.faceLostAt >= profile.noFaceTimeout) {
       // Once per loss: not again until a face is found and lost again.
@@ -358,6 +366,8 @@ export function stepHeadPointer(
   const hadPointer = state.hasPointer;
   const yaw = face.rotation?.yaw;
   const pitch = face.rotation?.pitch;
+  state.rotation =
+    Number.isFinite(yaw) && Number.isFinite(pitch) ? { yaw: yaw as number, pitch: pitch as number } : null;
   const dxRaw = (yaw as number) - input.centre.yaw;
   const dyRaw = (pitch as number) - input.centre.pitch;
   if (Number.isFinite(dxRaw) && Number.isFinite(dyRaw)) {

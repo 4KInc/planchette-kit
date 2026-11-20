@@ -571,7 +571,7 @@ skeleton/src/engine/
   targets.ts           Rect, TargetRole, DwellTarget (types only, no dependencies)
   dwell.ts             dwell timer; step(state, { pointer, targets }, now, profile) → events
   gesture.ts           blendshape → signal, calls press-machine; step(state, { gestureScores }, now, profile) → press/cancel events
-  switch.ts            key/button → signal, calls press-machine; step(state, { signal }, now, profile) → events + press
+  switch.ts            key/button → signal, calls press-machine; stepSwitch(state, signal, now, profile) → events + press
   scan.ts              scan cycle + highlight; step(state, { press, targets }, now, profile) → events
   calibration.ts       stillness detector + range recorder + gesture thresholds; step(state, { rotation, gestureScores }, now, profile) → events
   profile.ts           Profile type, defaults, clampProfile, importProfile, exportProfile
@@ -840,7 +840,7 @@ interface Planchette extends EventTarget {
 ### Event payloads
 
 ```typescript
-type InputMode = 'head+dwell' | 'head+gesture' | 'scan' | 'gesture-scan' | 'mouse'
+type InputMode = 'head + dwell' | 'head + gesture' | 'scan' | 'gesture scan' | 'mouse'  // the profile's Mode type
 type InputEventType =
   | 'pointer-move'       // { x: number; y: number }
   | 'dwell-progress'     // { targetId: string; progress: number }  0–1
@@ -927,6 +927,94 @@ to the per-source clock check before processing.
 `setProfile` calls `clampProfile` on the incoming partial before merging, so callers
 cannot put the profile into an invalid state. It applies the same field ordering as
 `importProfile` (cancel hold time first, then acceptance times, then thresholds).
+
+### API assembly details (`index.ts`, `api-types.ts`, `planchette.ts`)
+Choices made where the sections above leave something open (Task 11).
+**Files.** `index.ts` is the only public entry point. Its one runtime export is
+`createPlanchette`; everything else it exports is a type, so importing it does nothing
+(`sideEffects: false`). `api-types.ts` holds the public types and has no runtime code.
+`planchette.ts` assembles the engines and also exports `createPlanchetteInternal`, which
+returns the instance and an `inspect()` snapshot for tests. `planchette.ts` is private.
+Compiled files import each other with `.js` extensions, so the package loads in Node and
+in a browser as well as in a bundler.
+**Mode names.** `InputMode` is the profile's `mode` type: `'head + dwell'`,
+`'head + gesture'`, `'scan'`, `'gesture scan'`, `'mouse'` (the strings in the Profile
+fields table). The spelling `'head+dwell'` above is replaced by these, so `setMode`,
+`mode-change` and the profile agree.
+**Routing a sample.**
+- A sample has *camera content* if `source` is `'camera'`, or it carries `faces` or
+  `gestureScores`. A sample from any other source is a *switch sample* when it carries
+  `signal`, or has no camera content (a bare sample is a "tick" with `signal: false`).
+  One sample can be both.
+- Clocks: per source (above). A sample with a non-finite `now`, a source that is not one of
+  the five, or that is not an object, is ignored. Each engine also keeps its own clock.
+- Faces and scores are cleaned before the engines see them: a face without a `bbox`
+  object is dropped, a score that is missing or not finite counts as 0.
+**Camera samples.** The head pointer always runs, in every mode, so `tracking-status`
+and the locked face's scores exist in gesture scan mode too. `pointer-move` from it is
+emitted in the two head modes only. Then, by mode:
+| Mode | What the camera sample drives |
+|---|---|
+| head + dwell | `stepDwell` with the selection pointer (`null` without a tracked face) |
+| head + gesture | `stepGesture` with the locked face's scores; a press selects the target at the position the pointer had **before** this sample's head step, so the sample on which the gesture ends still sees the freeze position (P13) |
+| gesture scan | `stepGesture`, then `stepScan` with `press` set by the gesture |
+| scan, mouse | nothing else |
+**Switch samples.** Each source has its own switch press machine (`switch.ts`, using
+`switchAcceptanceTime`), so a held key and a held gamepad button do not mix. The press
+machine runs in every mode, so hold-to-cancel works in every mode (Req 6 AC 1). A press
+is used in two modes: in `scan` it goes to `stepScan` (every switch sample also steps
+the scan, so the highlight advances); in `mouse` it selects the target under the mouse
+pointer, with `source: 'mouse'`, using the first selectable target that contains the
+point (rest areas are skipped). In the other modes a press is ignored. When several
+switch sources share one scan, a press whose time is not later than the scan's clock is
+moved forward by 0.001 ms, so it is not lost.
+**Mouse mode.** `sample.pointer` is clamped to the screen and reported as `pointer-move`
+when it changes. The camera does not move it.
+**Cancel (Req 6 AC 4).** A sample with `cancel: true` (after the per-source clock check)
+emits exactly one `cancel` and nothing else from that sample is used. A cancel, from that
+flag, from a press machine's hold-to-cancel, or from the scan engine's cancel item, returns
+the selection engines to idle: the dwell stay ends (a `dwell-progress` of 0 for its
+target), the scan returns to the top of its cycle (not after the scan's own cancel item,
+which has done that already), a gesture in progress is dropped, and a switch that is still
+held goes to the press machine's cooldown, so it must be released before it can press
+again. Engine clocks are kept. Calibration is not touched: `cancelCalibration` does that.
+**Calibration.** While any calibration run is going, camera-driven selection is held
+(dwell, head + gesture presses, gesture scan presses), for a full calibration as well as
+the centre step. The pointer keeps moving. `startCalibration()` and `recentre()` do
+nothing while a run is going. A run reports through `calibration-step` events (§5). When
+it finishes, the centre it measured (if any) replaces the session centre and its
+`result.profile` is applied with the same clamping as `setProfile`; the `done` event
+carries `result`. `cancelCalibration()` ends the run with a `done` event with
+`completed: false` and no `result`, changes nothing else, and does nothing when no run is
+going.
+**Camera session and the start-up centre step.** The start-up centre step starts on the
+first camera sample after creation, after `startCamera()` and after `stopCamera()`, unless
+a calibration run is already going. It starts once per camera session, so a step that saw
+no face is not retried by itself; `recentre()` runs it again. `startCamera()` only marks a
+new session here (the camera adapter, Task 14, opens the device). `stopCamera()` also
+resets the head pointer, returns the selection engines to idle, forgets the camera clock
+(so a new session may start its timestamps again), and cancels a running calibration. The
+centre is kept across sessions until a new step replaces it.
+**Mode change.** `setMode`, `setProfile` and `importProfile` all change the mode the same
+way: the selection engines return to idle (without a `cancel`), their clocks are
+forgotten, and `mode-change` is emitted once. Setting the mode it already has emits
+nothing, and a mode that does not exist is ignored.
+**Profile.** `getProfile()` returns a copy. `setProfile` clamps against the current
+profile. `importProfile(json)` applies the imported profile and returns the `ImportResult`
+(missing fields take the defaults, as in §8). A file that is not a JSON object leaves the
+profile unchanged and returns it with one message, because resetting a person's
+calibration to the defaults because of a bad file would be worse than doing nothing.
+**Targets.** A rectangle is copied. An id that is empty, `'$back'` or `'$cancel'`, or a
+rectangle with a non-finite number or a width or height that is not above 0, is ignored
+without an error, as is `updateTarget` for an unknown id: a layout bug in the app must
+not stop the page. An unknown `role` becomes `'default'`. Registering an id again replaces
+the target and keeps its place in the order. `getTargets()` returns copies in
+registration order.
+**Idle (P5).** After a silence of at least `inputTimeout + 1 ms` followed by one neutral
+sample, the dwell has no stay, the gesture and every switch press machine are IDLE, and
+the scan is at the top of its cycle (level top, slot 0, no loops) or paused (a paused scan
+stays paused until a press, §5). Silence never produces a `select` or `cancel`.
+**Errors.** `feedSamples` and the other methods never throw on malformed input.
 
 ---
 

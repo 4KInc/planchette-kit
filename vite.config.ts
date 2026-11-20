@@ -4,6 +4,13 @@ import { resolve } from "path";
 export default defineConfig({
   // root is the repo root; Vite serves index.html at /, board/index.html at /board/, etc.
   root: ".",
+  resolve: {
+    // The apps import the kit as '@planchette/skeleton' only. Here that name points at the
+    // source, so `npm run dev` and `npm run build` work without building the package first.
+    alias: {
+      "@planchette/skeleton": resolve(import.meta.dirname, "skeleton/src/index.ts"),
+    },
+  },
   build: {
     outDir: "dist",
     rollupOptions: {

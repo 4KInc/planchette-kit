@@ -1,12 +1,12 @@
 # Plan: publish the skeleton as an npm package
 
-Status: draft, 20 Nov 2026. Not yet a spec. Nothing here changes the input-core tasks.
+Status: Tasks 1–9 done (updated 20 Nov 2026). Phase 0 (decision) and the build setup of Phase 1 are done; nothing is published and `skeleton/package.json` keeps `"private": true`. Not a spec: nothing here changes the input-core tasks.
 
 ## Goal
 A web developer can add hands-free input to their app with:
 
 ```
-npm install @planchette/skeleton
+npm install @planchette/input
 ```
 
 and the 15-line example from Task 13, without cloning this repo or copying folders.
@@ -31,8 +31,8 @@ Publishing waits until the package can do its main job.
 
 | Release | After | What it contains |
 |---|---|---|
-| none | now (Tasks 1–6 done) | Keep building. Only record the decision (Phase 0). |
-| `0.1.0` | Task 16 | Public API, camera adapter, failure handling, dwell ring and scan highlight helpers. |
+| none | now (Tasks 1–9 done) | Keep building. Decision recorded (Phase 0), build set up (Phase 1). Nothing published. |
+| `0.1.0` | Task 16, and not before the 4 Dec 2026 submission | Public API, camera adapter, failure handling, dwell ring and scan highlight helpers. |
 | `0.x` | each later change | API may still change; note breaking changes in the changelog. |
 | `1.0.0` | real-user testing | API frozen; breaking changes only in a new major version. |
 
@@ -40,33 +40,36 @@ Publishing waits until the package can do its main job.
 is no head pointing, which is the main reason to install it.
 
 ## Phase 0: record the decision (now)
-- [ ] Add to `.kiro/steering/product.md` under "What ships in this repo": the skeleton
-      is published to npm as `@planchette/skeleton` and also usable as a template.
-- [ ] Add to `.kiro/steering/tech.md`: the public API in `skeleton/src/index.ts` is the
-      package's only entry point; anything not exported there is private and may change.
-- [ ] Journal entry in `docs/kiro-journal.md`.
+- [x] Add to `.kiro/steering/product.md` under "What ships in this repo": the skeleton
+      is also published to npm later; until then it is a template.
+- [x] Add to `.kiro/steering/tech.md`: `skeleton/src/index.ts` is the only public entry
+      point; anything not exported there is private and may change.
+- [x] Journal entry in `docs/kiro-journal.md`.
 
 ## Phase 1: package setup (alongside Task 11)
-- [ ] Add `skeleton/tsconfig.build.json` that compiles only `src/` to `skeleton/dist/`
+- [x] Add `skeleton/tsconfig.build.json` that compiles only `src/` to `skeleton/dist/`
       with `declaration: true` and `declarationMap: true`. The current `tsconfig.json`
       also includes `test`, `demo` and `examples` and keeps `rootDir: "."`, so it
       cannot be used for the published build as it is.
-- [ ] `skeleton/package.json`:
-  - remove `private: true`
-  - `version: "0.1.0"`, `license` matching the repo `LICENSE`
+- [x] `skeleton/package.json`:
+  - keep `private: true` and `version: "0.0.0"` until the first publish (remove
+    `private` and set `0.1.0` then; add `license` matching the repo `LICENSE`)
   - `exports: { ".": { "types": "./dist/index.d.ts", "import": "./dist/index.js" } }`
   - `files: ["dist", "assets", "README.md", "LICENSE"]`
   - `sideEffects: false`
-  - scripts: `build` (tsc with the build config), `prepublishOnly` (test then build)
-  - `@mediapipe/tasks-vision` as a `dependency`, pinned exactly
-- [ ] `skeleton/README.md`: install, the 15-line example, input modes, profile,
+  - scripts: `build` (tsc with the build config, then copy `../LICENSE`), `prepublishOnly`
+    (test then build)
+  - `@mediapipe/tasks-vision` as a `dependency`, pinned exactly: Task 14, not yet
+- [ ] `skeleton/README.md` (before the first publish): install, the 15-line example, input modes, profile,
       self-hosting the model files, "not a medical device" notice.
 
 ## Phase 2: model files (with Task 14)
 `tech.md` requires the MediaPipe WASM and model files to be served from the app's own
 site, not a third-party CDN. A package cannot serve files, so:
 
-- [ ] Ship the WASM and `face_landmarker.task` files in `skeleton/assets/`.
+- [ ] Ship only `face_landmarker.task` in `skeleton/assets/`. The WASM files come from
+      `@mediapipe/tasks-vision`'s own `wasm/` folder, which the app copies from that
+      dependency (see the review notes).
 - [ ] Add an option `createPlanchette({ assetsUrl: '/planchette/' })` that tells the
       camera adapter where the app serves them. No default CDN URL.
 - [ ] Document one copy step for common setups (Vite `public/`, plain static site).
@@ -85,20 +88,46 @@ site, not a third-party CDN. A package cannot serve files, so:
 - [ ] `CHANGELOG.md` in `skeleton/`.
 
 ## Phase 4: publish
-- [ ] Check that the npm name `@planchette/skeleton` is free, or choose another;
-      create the npm organisation.
-- [ ] Publish from a GitHub Action on a version tag, with npm provenance, not from a
-      laptop. Run on demand (`tech.md`: CI that uses credits runs on demand).
+- [ ] Check that the npm name `@planchette/input` is free, or choose another; create the
+      npm organisation.
+- [ ] Publish from a GitHub Action on a version tag using npm trusted publishing (GitHub
+      Actions OIDC, with provenance). No `NPM_TOKEN` secret exists. Run on demand
+      (`tech.md`: CI that uses credits runs on demand).
 - [ ] Turn on two-factor authentication for the npm account.
+- [ ] Not before the 4 Dec 2026 submission.
 
 ## Open questions
 1. **Name.** "skeleton" means template inside this repo but is unclear on npm.
-   Alternatives: `@planchette/core`, `@planchette/input`, `planchette-kit`.
+   Candidate: `@planchette/input`. Alternatives: `@planchette/core`, `planchette-kit`.
+   The workspace keeps the name `@planchette/skeleton` until the first publish; the apps
+   import that name, so renaming is one change in `package.json` and the imports.
 2. **Licence.** Confirm the repo licence suits a published library.
-3. **UI helpers.** Ship the dwell ring and scan highlight in the same package, or as
-   a separate optional import (`@planchette/skeleton/ui`)?
+3. ~~UI helpers.~~ Decided: same package, under a `./ui` subpath export
+   (`@planchette/input/ui`), added to `exports` when Task 16 creates `src/ui/`.
 4. **Who maintains it.** Publishing creates a duty to fix bugs and answer issues.
    Who owns that after the hackathon?
+
+## Review notes (20 Nov 2026)
+- **LICENSE.** `npm pack` does not include files from the parent folder, so the build
+  copies `../LICENSE` into `skeleton/` (`scripts/copy-license.mjs`). The copy is
+  gitignored, and `files` lists `LICENSE`.
+- **Model and WASM.** Ship only `face_landmarker.task`. The WASM comes from
+  `@mediapipe/tasks-vision`'s own `wasm/` folder, so there is one copy, at the version
+  the code was tested with.
+- **`sideEffects: false`.** True only if no file does anything when imported. The UI
+  helpers must not inject CSS on import; styles are applied from code the app calls, or
+  shipped as a separate file the app chooses to import. The build test checks that
+  importing `dist/index.js` only defines `createPlanchette`.
+- **Publishing.** Use npm trusted publishing (GitHub Actions OIDC, provenance). No
+  `NPM_TOKEN` is stored anywhere.
+- **Name and subpaths.** Candidate name `@planchette/input`. UI helpers go under the
+  `./ui` subpath.
+- **Timing.** Publishing waits until after the 4 Dec 2026 submission.
+- **ES module imports.** The compiled files import each other with `.js` extensions, so
+  they load in Node, in a browser import map and in any bundler, not only in bundlers.
+- **In-repo use.** The apps import `@planchette/skeleton` only by that name. The root
+  `vite.config.ts` maps the name to `skeleton/src/index.ts` so `npm run dev` works
+  without a build first.
 
 ## Risks
 - **Publishing too early.** Early adopters hit breaking changes. Mitigation: `0.x`

@@ -7,8 +7,8 @@
  * step where a press was counted.
  */
 
-import type { Profile } from './profile';
-import type { DwellTarget, TargetRole } from './targets';
+import type { Profile } from './profile.js';
+import type { DwellTarget, TargetRole } from './targets.js';
 
 /** Id reported when the virtual "back" item is highlighted. */
 export const SCAN_BACK_ID = '$back';
