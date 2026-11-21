@@ -192,12 +192,15 @@ test.describe('the demo page', () => {
 
   test('a scan select works on the grid with the keyboard only, without the camera', async ({ page }) => {
     await open(page, '/');
-    await page.locator('#mode').selectOption('scan');
-    await demo(page, 'setProfile', { scanInterval: 600 });
+    // The listener and the interval first, then the mode: scanning starts with the mode
+    // change, and the first highlight (row 1) must not be missed. A long interval, so the
+    // poll below (up to half a second late) still sees row 1 before it moves on.
     await page.evaluate(() => {
       const w = window as unknown as Win & { __hl: { kind: string; targetId: string; targetIds: string[] } };
       w.planchetteDemo.planchette.addEventListener('highlight', (e) => (w.__hl = e.detail));
     });
+    await demo(page, 'setProfile', { scanInterval: 2500 });
+    await page.locator('#mode').selectOption('scan');
     await page.locator('#rest').click(); // focus off the select, so Space is the switch
     const hl = () => page.evaluate(() => (window as unknown as { __hl?: { kind: string; targetId: string; targetIds: string[] } }).__hl);
     const press = async () => {
@@ -216,14 +219,14 @@ test.describe('the demo page', () => {
     await expect(page.locator('#log-list li')).toHaveText(['Ghost']);
   });
 
-  test('mouse mode selects with a click, without the camera', async ({ page }) => {
+  test('mouse mode selects with a real quick click (down and up inside one frame), without the camera', async ({ page }) => {
     await open(page, '/');
     await page.locator('#mode').selectOption('mouse');
-    // A real click lasts tens of ms; the mouse adapter samples once per frame, so hold the button for a few.
-    await page.locator('[data-planchette-target="witch"]').hover();
-    await page.mouse.down();
+    // page.mouse.click sends pointerdown and pointerup back to back, like a trackpad tap.
+    const box = (await page.locator('[data-planchette-target="witch"]').boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.waitForTimeout(100);
-    await page.mouse.up();
+    await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
     await expect(page.locator('#log-list li')).toHaveText(['Witch']);
   });
 

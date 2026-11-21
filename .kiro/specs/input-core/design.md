@@ -1079,8 +1079,8 @@ Each adapter converts device events into `TimestampedSample` objects and calls
 | Adapter | `source` value | Produces |
 |---|---|---|
 | `camera-adapter.ts` | `'camera'` | `{ now, source, faces, gestureScores }` — one sample per processed frame; capture timestamp used as `now` |
-| `keyboard-adapter.ts` | `'keyboard'` | `{ now, source, signal }` — one sample per animation frame; sets `cancel: true` when Escape is pressed |
-| `mouse-adapter.ts` | `'mouse'` | `{ now, source, signal, pointer? }` — one sample per animation frame |
+| `keyboard-adapter.ts` | `'keyboard'` | `{ now, source, signal }` — one sample per animation frame, plus one per switch press or release (see Short presses); sets `cancel: true` when Escape is pressed |
+| `mouse-adapter.ts` | `'mouse'` | `{ now, source, signal, pointer? }` — one sample per animation frame, plus one per switch press or release (see Short presses) |
 | `gamepad-adapter.ts` | `'gamepad'` | `{ now, source, signal }` — one sample per animation frame |
 
 The camera adapter owns the `<video>` element and the "camera on" indicator. It is
@@ -1096,6 +1096,40 @@ own `lastNow` and silently discards samples where `now` has not advanced; it nev
 compares its timestamp against another adapter's clock. This ensures the press
 machine always receives a continuous stream and the input timeout never fires while a
 switch is held.
+
+### Short presses (keyboard and mouse adapters)
+A press can go down and up inside one animation frame (a trackpad tap, a switch interface
+that sends a quick key tap, an on-screen keyboard, assistive technology that sends clicks).
+Sampling the held state once per frame never sees it, so with `switchAcceptanceTime` 0 it
+was lost. The keyboard and mouse adapters therefore also record each press and release of
+the switch as it happens (`createEdgeQueue` and `frameLoop` in `input-env.ts`):
+- **Times.** An edge is stamped with the event's own `timeStamp`, which is on the same clock
+  as the animation-frame time. The press machine judges `switchAcceptanceTime` (Req 4 AC 5)
+  on these real times: at 0 a 5 ms tap is one press, at 100 it is ignored. The engines are
+  unchanged.
+- **How they are sent.** Edges are queued and sent at the next frame, before that frame's
+  sample: one sample per edge, `{ now: event time, source, signal: level after the edge }`.
+  The mouse adds `pointer`, the position of that event, so a mouse-mode click selects what
+  was under the pointer at that moment. Then the usual frame sample follows. With no edge in
+  a frame nothing changes: one sample per frame while holding. Edges wait for the next frame
+  (at most one frame, about 16 ms) rather than being sent from the event handler, so the
+  bounce rule below can see all of a frame's edges first.
+- **Increasing times.** One clock per source, as before. An edge whose time is not later
+  than the last sample sent is moved to that time plus 0.001 ms, so a press and a release in
+  the same millisecond stay in order (0.001 ms is far below anything the engines measure). A
+  frame sample whose time has not advanced past the last edge is skipped, as before; that
+  edge already carries the current level.
+- **Bounce.** Inside one frame, a release followed by a new press is dropped (both edges), so
+  down, up, down is one press and the switch is still held afterwards; the real release comes
+  later. A key already held when the frame starts, released and pressed again within the
+  frame, gives no new press. Key auto-repeat and repeats of the current level are ignored.
+  Only the switch binding's key, or the switch mouse button (left in mouse mode, or the bound
+  button), makes edges.
+- **No time.** An event without a usable `timeStamp` queues nothing; the frame sample carries
+  its level, as before.
+- **Gamepad.** The Gamepad API can only be polled, with no events or times in between, so the
+  gamepad adapter stays at one sample per frame and a button press shorter than one frame
+  can be missed.
 
 ### Adapter details (Task 14)
 

@@ -8,7 +8,7 @@
  * false, so a carer's mouse does not act as the person's switch.
  */
 import type { Profile } from '../engine/profile.js';
-import { frameLoop, type InputAdapter, type InputEnvironment, type InputSink, type PointerEventLike } from './input-env.js';
+import { createEdgeQueue, frameLoop, type InputAdapter, type InputEnvironment, type InputSink, type PointerEventLike } from './input-env.js';
 
 const BUTTONS: Record<string, number> = { MouseLeft: 0, MouseMiddle: 1, MouseRight: 2 };
 
@@ -22,6 +22,8 @@ export function switchButton(profile: Profile): number | null {
 export function createMouseAdapter(env: InputEnvironment, sink: InputSink): InputAdapter {
   let pointer: { x: number; y: number } | null = null;
   const held = new Set<number>();
+  const edges = createEdgeQueue();
+  const isSwitch = (button: number): boolean => switchButton(sink.profile()) === button;
 
   const onMove = (e: PointerEventLike): void => {
     pointer = { x: e.clientX, y: e.clientY };
@@ -29,12 +31,15 @@ export function createMouseAdapter(env: InputEnvironment, sink: InputSink): Inpu
   const onDown = (e: PointerEventLike): void => {
     pointer = { x: e.clientX, y: e.clientY };
     held.add(e.button ?? 0);
+    if (isSwitch(e.button ?? 0)) edges.push(true, e.timeStamp, { x: e.clientX, y: e.clientY });
   };
   const onUp = (e: PointerEventLike): void => {
     held.delete(e.button ?? 0);
+    if (isSwitch(e.button ?? 0)) edges.push(false, e.timeStamp, { x: e.clientX, y: e.clientY });
   };
-  const onRelease = (): void => {
+  const onRelease = (e?: { timeStamp?: number }): void => {
     held.clear();
+    edges.push(false, e?.timeStamp);
   };
   env.addEventListener('pointermove', onMove);
   env.addEventListener('pointerdown', onDown);
@@ -46,6 +51,9 @@ export function createMouseAdapter(env: InputEnvironment, sink: InputSink): Inpu
     const button = switchButton(sink.profile());
     const signal = button !== null && held.has(button);
     return pointer === null ? { now, source: 'mouse', signal } : { now, source: 'mouse', signal, pointer: { x: pointer.x, y: pointer.y } };
+  }, {
+    drain: edges.drain,
+    sample: (edge) => ({ now: edge.t, source: 'mouse', signal: edge.level, ...(edge.pointer === undefined ? {} : { pointer: edge.pointer }) }),
   });
 
   return {
