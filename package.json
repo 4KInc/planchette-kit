@@ -3,11 +3,14 @@
   "private": true,
   "type": "module",
   "workspaces": [
-    "skeleton"
+    "skeleton",
+    "tools/dwell-sim-mcp"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit -p skeleton/tsconfig.json",
-    "test": "npm run typecheck && npm run test --workspace=skeleton",
+    "typecheck": "tsc --noEmit -p skeleton/tsconfig.json && tsc --noEmit -p tools/dwell-sim-mcp/tsconfig.json",
+    "build:sim": "npm run build --workspace=skeleton && npm run build --workspace=tools/dwell-sim-mcp",
+    "sim": "node tools/dwell-sim-mcp/dist/server.js",
+    "test": "npm run typecheck && npm run build:sim && npm run test --workspace=skeleton --workspace=tools/dwell-sim-mcp",
     "test:e2e": "playwright test",
     "build": "vite build",
     "dev": "vite"

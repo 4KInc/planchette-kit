@@ -42,15 +42,22 @@ simulated user does not react to what the screen shows.
   target the simulated user is currently aiming for, once the simulated user is moving
   towards it or holding on it, and not during a reading pause.
 - **Accidental selection**: every `select` or `cancel` the skeleton emits during a
-  trial that is not an intended selection, including one on the right target before the
-  user meant to select it (for example while still passing over it).
+  trial that is neither an intended selection nor a start-of-session event, including one
+  on the right target before the user meant to select it (for example while still passing
+  over it).
+- **Start-of-session event**: a `select` or `cancel` the skeleton emits during the start
+  of session or while the simulated user is waiting at the start (including the warm-up).
+  It is not an accidental selection and is counted only in the per-user start-of-session
+  line. Its activity label is `waiting` and its cause is `start`.
 - **Activity label**: what the simulated user was doing at the time of an accidental
-  selection. One of `waiting`, `moving`, `reading pause`, `holding on the aim point`.
+  selection or a start-of-session event. One of `waiting`, `moving`, `reading pause`,
+  `holding on the aim point`.
 - **Cause**: why an accidental selection happened. One of `reading-pause`,
   `pass-over`, `tremor-at-edge`, `repeat`, `waiting`, `early-on-intended-target`,
-  `other`, `start`. The cause `start` marks an accidental selection during the start
-  of session or while waiting at the start; its activity label is `waiting`. "Tremor near an edge" is a cause, not an activity. Each accidental selection
-  has exactly one activity label and exactly one cause.
+  `other`, `start`. The cause `start` is carried only by start-of-session events.
+  "Tremor near an edge" is a cause, not an activity. Each accidental selection
+  has exactly one activity label and exactly one cause from the seven causes other than
+  `start`.
 - **Miss**: a task entry whose intended target is not selected within the analysis
   window.
 - **Analysis window**: the time, from the moment the simulated user starts moving
@@ -216,9 +223,10 @@ to select by accident.
    (15, 30 or 60 fps), an analysis window (caller-set, default 10 s, range 2 to 120 s)
    and a seed (default 1).
 2. THE `simulate` tool SHALL return, per simulated user: the count of intended
-   selections, the count of accidental selections, the accidental selection rate per 100
-   intended selections, the count of misses, and time-to-select (median and 90th
-   percentile), plus the same figures per target.
+   selections, the count of accidental selections (not including start-of-session
+   events), the accidental selection rate per 100 intended selections (accidental
+   selections divided by intended selections, times 100), the count of misses, and
+   time-to-select (median and 90th percentile), plus the same figures per target.
 3. THE `simulate` tool SHALL list in its result each accidental selection with the
    target, the time, its activity label and its cause.
 4. THE `simulate` tool SHALL include in its result the seed and the full parameters used,
@@ -236,12 +244,14 @@ to select by accident.
    press duration, using the scan reaction time, late-press chance and press duration
    listed in the Presets table.
 9. WHEN the skeleton emits a `select` or `cancel` event during a trial, THE simulator
-   SHALL classify it exactly once, as an intended selection or an accidental selection.
+   SHALL classify it exactly once, as an intended selection, an accidental selection or
+   a start-of-session event.
 10. THE simulator SHALL give every accidental selection exactly one activity label from
-    the Glossary set and exactly one cause from the Glossary set.
+    the Glossary set and exactly one cause from the Glossary set other than `start`.
 11. IF a `select` or `cancel` event occurs during the start of session or while the
-    simulated user is waiting at the start, THEN THE simulator SHALL count it as an
-    accidental selection with the activity label `waiting` and the cause `start`.
+    simulated user is waiting at the start, THEN THE simulator SHALL count it as a
+    start-of-session event with the activity label `waiting` and the cause `start`, and
+    SHALL NOT count it as an accidental selection.
 12. WHEN a task entry is intended, THE simulator SHALL resolve it exactly once, as an
     intended selection or a miss.
 13. IF a rate or percentile has no data (for example the rate per 100 intended
@@ -277,10 +287,10 @@ to select by accident.
     THE simulator SHALL press the switch one item late with the late-press chance listed
     in the Presets section for that user.
 25. THE `simulate` tool SHALL report, per simulated user, a "start of session" line
-    holding the count of accidental selections with cause `start`, and SHALL NOT include
-    those selections in the accidental selection rate per 100 intended selections.
-    Criterion 2 is otherwise unchanged: the count of accidental selections in
-    criterion 2 includes selections with cause `start`.
+    holding the count of start-of-session events and their count per target
+    (`byTarget`), and SHALL NOT include those events in the count of accidental
+    selections or in the accidental selection rate per 100 intended selections
+    (criterion 2).
 26. IF an explicit task lists the same target id twice in a row and that target does not
     have `autoRepeat`, THEN THE simulator SHALL return a validation error naming the
     position (the zero-based index of the second entry) and the target id, and SHALL NOT
@@ -526,10 +536,10 @@ so that the results are on record.
    reachable within the head range (computed with the skeleton's mapping helpers) gets
    no `select` or `cancel` event at all, and every intended entry for it is a miss. A
    partly reachable target is not covered.
-4. **Every event is accounted for**: intended + accidental selections (including those
-   with cause `start`, from the start of session and the wait at the start) equal all
-   `select` and `cancel` events the skeleton emitted during the trials, counted by a
-   listener that is independent of the classifier.
+4. **Every event is accounted for**: intended selections + accidental selections +
+   start-of-session events (from the start of session and the wait at the start) equal
+   all `select` and `cancel` events the skeleton emitted during the trials, counted by a
+   listener that is independent of the classifier. The three categories do not overlap.
 5. **Same random draws when comparing**: in `compare`, both configurations consume the
    same random draws. If they differ only in `dwellTime`, `graceTime`,
    `postSelectionPause`, `autoRepeatInterval` or `smoothingStrength`, the head-angle

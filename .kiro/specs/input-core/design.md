@@ -885,7 +885,7 @@ type InputEventType =
   | 'dwell-progress'     // { targetId: string; progress: number }  0–1
   | 'highlight'          // { kind: ScanHighlightKind; targetId: string; targetIds: string[] }
   | 'select'             // { targetId: string; now: number; source: SelectSource; role: TargetRole }
-  | 'cancel'             // {}
+  | 'cancel'             // { targetId?: string; now: number }  (`targetId` absent, never undefined, unless a cancel-role target caused it; see "Cancel event payload")
   | 'tracking-status'    // { status: TrackingStatus; message?; alternatives?; cause? } (failures: §7 "Adapter details")
   | 'mode-change'        // { mode: InputMode }
   | 'calibration-step'   // { run: 'full' | 'centre'; step: CalibrationStep; completed: boolean; timeout: boolean; result?: CalibrationResult }  // result on 'done' only (§5 "Calibration engine details")
@@ -911,6 +911,55 @@ type TrackingStatus =
 type CalibrationStep = 'centre' | 'left' | 'right' | 'up' | 'down' | 'rest' | 'gesture' | 'done'
 ```
 
+### Cancel event payload
+
+The `cancel` event carries `{ targetId?: string; now: number }`. `now` is the time of the
+sample that caused the cancel. The `targetId` key is **absent** (not present with the value
+`undefined`) when no registered target caused the cancel:
+- the scan engine's virtual cancel item (`$cancel`);
+- a sample with `cancel: true` (for example the Escape key);
+- hold-to-cancel from a switch or a face gesture (press machine).
+
+`targetId` is present, and is the id of the target, when the cancel came from a target with
+role `cancel`:
+- a dwell on that target;
+- that target selected as an ordinary scan item (in a row or at the top level);
+- a head + gesture press, or a mouse click, on that target.
+
+### Pointer helpers
+
+Two pure functions are exported next to `createPlanchette` (skeleton/src/pointer-helpers.ts,
+re-exported from `index.ts`). They are for simulators and tests that need to turn a screen
+point into a head rotation and back. Angles are degrees, yaw > 0 to the right, pitch > 0 up
+(§4).
+
+```typescript
+export function pointToRotation(
+  profile: MappingProfile, screen: ScreenSize, centre: HeadRotation, point: ScreenPoint,
+): HeadRotation
+export function rotationToPoint(
+  profile: MappingProfile, screen: ScreenSize, centre: HeadRotation, rotation: HeadRotation,
+): ScreenPoint
+
+type HeadRotation = { yaw: number; pitch: number }     // the engine's FaceRotation
+type ScreenPoint  = { x: number; y: number }           // CSS px
+type MappingProfile = Pick<Profile, 'headGain' | 'headDeadZone' | 'calibrationRangeLeft'
+  | 'calibrationRangeRight' | 'calibrationRangeUp' | 'calibrationRangeDown'>
+```
+
+- `pointToRotation` returns the head rotation that puts the pointer at `point`, given the
+  session `centre`. It is pure (reads only its arguments, changes none) and uses the same
+  mapping code as the head pointer (`engine/pointer-mapping.ts`, §1), so callers cannot
+  disagree with the engine.
+- `rotationToPoint` returns the pixel the pointer is at for a head `rotation`, given
+  `centre`. It is pure, uses the same mapping, and applies no smoothing.
+- The two are inverses within 1 px: for any in-screen `point`,
+  `rotationToPoint(…, pointToRotation(…, point))` is within 1 px of `point` (P11).
+
+The types `HeadRotation`, `ScreenPoint` and `MappingProfile` are exported from `index.ts`
+as types only. The runtime exports of `index.ts` are `createPlanchette`, `pointToRotation`
+and `rotationToPoint`.
+
 ### TimestampedSample
 
 ```typescript
@@ -929,7 +978,8 @@ interface TimestampedSample {
 ```
 
 `cancel: true` is handled by the engine before the press machine. When present, the
-engine immediately emits `cancel` and returns to idle regardless of current state.
+engine immediately emits `cancel` (payload `{ now }`, no `targetId`) and returns to idle
+regardless of current state.
 This lets `feedSamples` carry Escape-key cancel in tests and the simulator without
 needing a separate API call. The keyboard adapter sets `cancel: true` on the sample
 produced when the Escape key is pressed.
@@ -969,8 +1019,9 @@ cannot put the profile into an invalid state. It applies the same field ordering
 
 ### API assembly details (`index.ts`, `api-types.ts`, `planchette.ts`)
 Choices made where the sections above leave something open (Task 11).
-**Files.** `index.ts` is the only public entry point. Its one runtime export is
-`createPlanchette`; everything else it exports is a type, so importing it does nothing
+**Files.** `index.ts` is the only public entry point. Its runtime exports are
+`createPlanchette` and the two pure pointer helpers (see "Pointer helpers"); everything
+else it exports is a type, so importing it does nothing
 (`sideEffects: false`). `api-types.ts` holds the public types and has no runtime code.
 `planchette.ts` assembles the engines and also exports `createPlanchetteInternal`, which
 returns the instance and an `inspect()` snapshot for tests. `planchette.ts` is private.

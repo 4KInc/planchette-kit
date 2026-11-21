@@ -5,3 +5,5 @@ dist/
 skeleton/LICENSE
 test-results/
 playwright-report/
+tools/dwell-sim-mcp/dist/
+tools/dwell-sim-mcp/dist-scripts/

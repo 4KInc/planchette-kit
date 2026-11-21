@@ -63,25 +63,25 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 9 AC 1–7.
 
-- [ ] 2. Package scaffolding and wiring (Requirements 8, 10)
+- [x] 2. Package scaffolding and wiring (Requirements 8, 10)
 
-  - [ ] 2.1 Create the package files.
+  - [x] 2.1 Create the package files.
     - Write `tools/dwell-sim-mcp/package.json`: name `dwell-sim-mcp`, `type: module`, `engines.node` `>=20` (design §14, Requirement 10 AC 5), `bin: { "dwell-sim-mcp": "dist/server.js" }`, `main`, `files: ["dist","README.md","METHODOLOGY.md"]`, scripts `test` (`vitest run --passWithNoTests`), `build` (`tsc -p tsconfig.build.json && tsc -p tsconfig.scripts.json`), dependencies pinned exactly: `@modelcontextprotocol/sdk` 1.32.2, `zod` 4.6.7, `@planchette/skeleton` `*`; devDependencies `fast-check`, `vitest`, `typescript` at the same exact versions as `skeleton/package.json` (currently 4.10.3, 5.1.1, 7.0.2).
     - Write `tsconfig.json` (typecheck, `noEmit`, `strict`, `paths` mapping `@planchette/skeleton` to `../../skeleton/src/index.ts`, include `src`, `test`, `scripts`), `tsconfig.build.json` (no `paths`, `rootDir: src`, `outDir: dist`) `tsconfig.scripts.json` (compiles `scripts/` to `dist-scripts/`, same `module` settings as the build config, no `paths`) and `vitest.config.ts` (alias to the skeleton source).
     - Write `tools/dwell-sim-mcp/test/package.test.ts`: every dependency version is exact (no range characters), the three dev tool versions equal the skeleton's, `engines.node` minimum is at least 20, `bin` points at `dist/server.js`.
     - _Requirements: 8.5, 10.5_
 
-  - [ ] 2.2 Wire the workspace into the root.
+  - [x] 2.2 Wire the workspace into the root.
     - In root `package.json` add `tools/dwell-sim-mcp` to `workspaces`; add scripts `build:sim`, `sim` (`node tools/dwell-sim-mcp/dist/server.js`), extend `typecheck` to also run `tsc --noEmit -p tools/dwell-sim-mcp/tsconfig.json`, and extend `test` to run `build:sim` first and then the tests of both workspaces (design §14). Add `tools/dwell-sim-mcp/dist/` and `tools/dwell-sim-mcp/dist-scripts/` to `.gitignore` (do not touch `.kiro/`). Run `npm install` so the lock file and workspace link update.
     - Write `tools/dwell-sim-mcp/test/root-wiring.test.ts`: the root `workspaces` lists the package, the `sim`, `build:sim`, `typecheck` and `test` scripts contain the expected commands, `.gitignore` ignores `tools/dwell-sim-mcp/dist/` and `tools/dwell-sim-mcp/dist-scripts/` and does not ignore `.kiro/`.
     - _Requirements: 10.1, 10.2, 10.3_
 
-  - [ ] 2.3 Record the dependencies and test the record.
+  - [x] 2.3 Record the dependencies and test the record.
     - Add to `THIRD_PARTY.md` the package `@modelcontextprotocol/sdk` 1.32.2 (MIT) and `zod` 4.6.7 (MIT), and every transitive production dependency that `npm ls --all --omit=dev --workspace=tools/dwell-sim-mcp` lists, each with its exact installed version and licence. If any licence is not MIT, Apache-2.0, BSD or ISC, stop and ask the user (Req 8.7).
     - Write `tools/dwell-sim-mcp/test/third-party.test.ts`: every installed production dependency of the package (read from `node_modules` package files) appears in `THIRD_PARTY.md` with its exact version and licence, and every licence is MIT, Apache-2.0, BSD-* or ISC.
     - _Requirements: 8.3, 8.5, 8.7_
 
-  - [ ] 2.4 Add the static rule test for the source.
+  - [x] 2.4 Add the static rule test for the source.
     - Write `tools/dwell-sim-mcp/test/static-rules.test.ts`: no file in `src/` uses `Math.random`, `Date.now`, `performance.now`, `new Date`, or `setTimeout`/`setInterval`; `src/` imports only `@modelcontextprotocol/sdk/server/mcp.js`, `@modelcontextprotocol/sdk/server/stdio.js`, `zod`, `@planchette/skeleton` and relative paths (no `node:http`, `node:net`, `node:https`, `fetch`, or any skeleton internal path); no `any` type annotation. `scripts/` and `test/` are excluded from the clock rule.
     - _Requirements: 1.1, 7.1, 7.2, 8.1, 8.3, 9.7_
 
@@ -191,9 +191,9 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 - [ ] 7. Classification
 
   - [ ] 7.1 Classify events as intended or accidental.
-    - Write `src/classify.ts`: `phaseAt` (the plan in force is the start plan while `now < tEnd`, including the warm-up, otherwise the active entry plan), the activity label table (phase `start-of-session` and `waiting` both give `waiting`), the intended rule (never intended in the start of session; cancel-role aim matched by `targetId`), the eight causes in the design's precedence order (`start`, `repeat`, `waiting`, `reading-pause` with the 500 ms lag allowance, `tremor-at-edge`, `early-on-intended-target`, `pass-over`, `other`) and the miss causes (`unreachable`, `tremor-at-edge`, `other`) (design §6).
-    - Write `test/classify.test.ts`: one example for every cause and every activity label; `start` wins over every other cause, for a select during the warm-up, the reaction wait at the centre and the start movement, each with activity `waiting`; `repeat` wins over `waiting`; an unattributed cancel (no `targetId`) is never intended and never `tremor-at-edge`; an event on the aimed target while the planned position is still outside it is accidental with cause `early-on-intended-target` or `tremor-at-edge`; an event during an entry's reaction wait is accidental with label `waiting` and cause `waiting`.
-    - Write `test/classify.props.test.ts`: for random events and random plans (including start plans and unattributed cancels) the classifier returns exactly one of intended or accidental, and an accidental result has exactly one label from the four and exactly one cause from the eight.
+    - Write `src/classify.ts`: `phaseAt` (the plan in force is the start plan while `now < tEnd`, including the warm-up, otherwise the active entry plan), the activity label table (phase `start-of-session` and `waiting` both give `waiting`), the intended rule (never intended in the start of session; cancel-role aim matched by `targetId`), the start-of-session category (an event before the start plan's `tEnd` is a start-of-session event, activity `waiting`, cause `start`, checked before intended and accidental) and the seven accidental causes in the design's precedence order (`repeat`, `waiting`, `reading-pause` with the 500 ms lag allowance, `tremor-at-edge`, `early-on-intended-target`, `pass-over`, `other`) and the miss causes (`unreachable`, `tremor-at-edge`, `other`) (design §6).
+    - Write `test/classify.test.ts`: one example for every cause and every activity label; an event during the warm-up, the reaction wait at the centre or the start movement is a start-of-session event (activity `waiting`, cause `start`) and never accidental, whatever else would match; `repeat` wins over `waiting`; an unattributed cancel (no `targetId`) is never intended and never `tremor-at-edge`; an event on the aimed target while the planned position is still outside it is accidental with cause `early-on-intended-target` or `tremor-at-edge`; an event during an entry's reaction wait is accidental with label `waiting` and cause `waiting`.
+    - Write `test/classify.props.test.ts`: for random events and random plans (including start plans and unattributed cancels) the classifier returns exactly one of start-of-session, intended or accidental, and an accidental result has exactly one label from the four and exactly one cause from the seven accidental causes.
     - _Requirements: 4.9, 4.10, 4.11_
 
   - **Covers:** Req 4 AC 9–11.
@@ -211,8 +211,8 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
     - _Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 11.1_
 
   - [ ] 8.3 Trial driver, part 2: start of session.
-    - Extend `src/run-trial.ts`: after the centre step call `planStart` (6.3) with the frame time of the `calibration-step` event and feed `head(startPlan, now)` until `startPlan.tEnd`. Every `select` or `cancel` from the warm-up and the start of session is classified (7.1) as accidental with activity `waiting` and cause `start`. The `start-clamped` warning comes from `startPlan.clamped`. Without a rest area the start of session has zero length and the user stays at the screen centre. The first entry starts at `tEnd` from `endPose`. The warm-up and the start of session are in no time-to-select.
-    - Write `test/run-trial-start.test.ts`: with and without a rest area; the end pose is inside the rest area; a select while waiting at the centre, during the reaction wait and during the start movement (a selectable target between the centre and the rest area) is recorded with label `waiting` and cause `start`; `start-clamped`; entry 0 starts at `tEnd`.
+    - Extend `src/run-trial.ts`: after the centre step call `planStart` (6.3) with the frame time of the `calibration-step` event and feed `head(startPlan, now)` until `startPlan.tEnd`. Every `select` or `cancel` from the warm-up and the start of session is classified (7.1) as a start-of-session event with activity `waiting` and cause `start`, not as an accidental selection. The `start-clamped` warning comes from `startPlan.clamped`. Without a rest area the start of session has zero length and the user stays at the screen centre. The first entry starts at `tEnd` from `endPose`. The warm-up and the start of session are in no time-to-select.
+    - Write `test/run-trial-start.test.ts`: with and without a rest area; the end pose is inside the rest area; a select while waiting at the centre, during the reaction wait and during the start movement (a selectable target between the centre and the rest area) is recorded as a start-of-session event with label `waiting` and cause `start`, and not as an accidental selection; `start-clamped`; entry 0 starts at `tEnd`.
     - _Requirements: 4.11, 11.9, 11.10_
 
   - [ ] 8.4 Trial driver, part 3: the entry loop and miss handling.
@@ -221,7 +221,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
     - _Requirements: 1.2, 4.9, 4.12, 11.3, 11.11_
 
   - [ ] 8.5 Write property test for Property 4: every event is accounted for.
-    - In `test/property-4-every-event.props.test.ts` (200 runs): attach a second, independent listener to the same planchette (through `observers.onEvent`) and assert intended + accidental = the number of `select` and `cancel` events it counted, with the accidental count including events with cause `start`; the `accidentalSelections` list length equals `accidental`; every record has one of the four labels and one of the eight causes. The generator mixes layouts with and without a rest area and puts selectable targets between the screen centre and the rest area, so `start` events occur. Also assert: every event before the start plan's `tEnd` has label `waiting` and cause `start`; `startOfSession.count` equals the number of `start` records; `accidentalPer100Intended = (accidental − startCount) / intended × 100`, and `null` when `intended = 0`. Tag: `Feature: dwell-sim-mcp, Property 4: Every event is accounted for`.
+    - In `test/property-4-every-event.props.test.ts` (200 runs): attach a second, independent listener to the same planchette (through `observers.onEvent`) and assert intended + accidental + `startOfSession.count` = the number of `select` and `cancel` events it counted (three categories that do not overlap; the accidental count excludes start-of-session events); the `accidentalSelections` list length equals `accidental`; every accidental record has one of the four labels and one of the seven accidental causes. The generator mixes layouts with and without a rest area and puts selectable targets between the screen centre and the rest area, so start-of-session events occur. Also assert: every event before the start plan's `tEnd` is a start-of-session event (label `waiting`, cause `start`) and is in no accidental record; `startOfSession.byTarget` counts sum to `startOfSession.count`; `accidentalPer100Intended = accidental / intended × 100`, and `null` when `intended = 0`. Tag: `Feature: dwell-sim-mcp, Property 4: Every event is accounted for`.
     - **Property 4: Every event is accounted for**
     - **Validates: Requirements 4.3, 4.9, 4.10, 4.11, 4.25**
 
@@ -231,7 +231,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
     - **Validates: Requirements 11.1, 11.2, 11.11, 11.12**
 
   - [ ] 8.7 Write property test for Property 2: clean run, no accidents, no misses.
-    - In `test/property-2-clean-run.props.test.ts`: generate by construction tremor 0, noise 0, reading-pause chance 0, no `autoRepeat` target; draw the user's scatter cap first, then size every target at least 6 × SDcap in degrees on both axes plus a 2 px margin (so SD = SDcap); the screen centre is outside every selectable target; `dwellTime` is at least the longest planned crossing time of any non-intended target plus 1 ms, computed from the entry plans and from the start plan (the start path crosses targets without a reading pause); an analysis window of reaction + movement + dwell + post-selection pause + 1000 ms (movement from the slowest throughput in range, capped at 120 s); all targets reachable. Assert each intended target is selected exactly once, accidental = 0 (so no `start` event either) and misses = 0.
+    - In `test/property-2-clean-run.props.test.ts`: generate by construction tremor 0, noise 0, reading-pause chance 0, no `autoRepeat` target; draw the user's scatter cap first, then size every target at least 6 × SDcap in degrees on both axes plus a 2 px margin (so SD = SDcap); the screen centre is outside every selectable target; `dwellTime` is at least the longest planned crossing time of any non-intended target plus 1 ms, computed from the entry plans and from the start plan (the start path crosses targets without a reading pause); an analysis window of reaction + movement + dwell + post-selection pause + 1000 ms (movement from the slowest throughput in range, capped at 120 s); all targets reachable. Assert each intended target is selected exactly once, accidental = 0 and misses = 0 (start-of-session events are not accidental and are not asserted on).
     - **Property 2: Clean run, no accidents, no misses**
     - **Validates: Requirements 4.2, 4.9, 4.10, 4.12, 11.3, 11.4**
 
@@ -259,8 +259,8 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 - [ ] 9. Metrics, warnings, runner and `simulate` core
 
   - [ ] 9.1 Metrics and aggregation.
-    - Write `src/metrics.ts`: nearest-rank percentile `sorted[ceil(p × n) − 1]` (null when n = 0), rate per 100 intended (null when no intended), per-target and per-user aggregation (counts summed, time samples pooled, `null` bucket for an unattributed cancel) (design §7). Each target and user carries `startCount` (accidental events with cause `start`) and each user a `startOfSession: { count, byTarget }` line (targets sorted by id, `null` last). `accidental` includes the `start` events; `accidentalPer100Intended = (accidental − startCount) / intended × 100`, `null` when `intended = 0`.
-    - Write `test/metrics.test.ts` and `test/metrics.props.test.ts`: null rules (no intended, nothing selected); nearest-rank percentile values for fixed samples; for any trial results the per-target counts sum to the per-user counts; `startOfSession.byTarget` counts sum to `startOfSession.count` and equal the user's `startCount`; the rate excludes `start` events (example: 5 accidental with 1 `start` and 38 intended gives 10.5); no NaN or Infinity in any output field.
+    - Write `src/metrics.ts`: nearest-rank percentile `sorted[ceil(p × n) − 1]` (null when n = 0), rate per 100 intended (null when no intended), per-target and per-user aggregation (counts summed, time samples pooled, `null` bucket for an unattributed cancel) (design §7). Each target and user carries `startCount` (start-of-session events, kept separate from `accidental`) and each user a `startOfSession: { count, byTarget }` line (targets sorted by id, `null` last). `accidental` excludes start-of-session events; `accidentalPer100Intended = accidental / intended × 100`, `null` when `intended = 0`.
+    - Write `test/metrics.test.ts` and `test/metrics.props.test.ts`: null rules (no intended, nothing selected); nearest-rank percentile values for fixed samples; for any trial results the per-target counts sum to the per-user counts; `startOfSession.byTarget` counts sum to `startOfSession.count` and equal the user's `startCount`; `accidental` and the rate never include start-of-session events (example: 4 accidental, 1 start-of-session event and 38 intended gives a rate of 10.5); no NaN or Infinity in any output field.
     - _Requirements: 4.2, 4.13, 4.25_
 
   - [ ] 9.2 Warnings and notes.
@@ -274,7 +274,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
     - _Requirements: 1.4, 4.2, 7.1_
 
   - [ ] 9.4 The `simulate` core function.
-    - Write `src/simulate.ts`: `simulate(request)` taking a validated `SimulateRequest`, running `runUser` for every user, and building the result with `startOfSession` per user, the echo of the seed, the full parameters after defaults, resolved users and the effective profile, the accidental selections list, warnings, notes and the disclaimer. No wall-clock field anywhere.
+    - Write `src/simulate.ts`: `simulate(request)` taking a validated `SimulateRequest`, running `runUser` for every user, and building the result with `startOfSession` per user, the echo of the seed, the full parameters after defaults, resolved users and the effective profile, the accidental selections list (start-of-session events are not in it; they appear only in each user's `startOfSession` line, and `accidental` and the rate exclude them), warnings, notes and the disclaimer. No wall-clock field anywhere.
     - Write `test/simulate.test.ts`: the result has every field from the design §11 example; a seed of 1 is used by default; rates and percentiles are `null` with no data; the disclaimer is present.
     - _Requirements: 4.2, 4.3, 4.4, 4.5, 4.13, 7.2_
 
@@ -288,8 +288,8 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 - [ ] 10. Suggestions and follow-up runs
 
   - [ ] 10.1 Suggestion rules.
-    - Write `src/suggest.ts`: events per target, the reading-pause share (above 50 %: longer dwell, or move the target when it is on the path of a commonly used target of at least 20 % of entries), the tremor-at-edge share (above 50 %: larger target or more spacing), the unreachable rule (uses `reachable.ts`), the minimum of 3 events, and the metric and user names in every suggestion (design §8). Events with cause `start` are left out of the reading-pause share, the tremor-at-edge share and the 3-event count.
-    - Write `test/suggest.test.ts` and `test/suggest.props.test.ts`: a suggestion appears exactly when the share is above 50 % and there are at least 3 events; no suggestion otherwise (also with exactly 50 %); `start` events do not count towards the shares or the threshold; each suggestion names the metric and the users; the "on the path" check with a segment-to-rectangle distance fixture.
+    - Write `src/suggest.ts`: events per target, the reading-pause share (above 50 %: longer dwell, or move the target when it is on the path of a commonly used target of at least 20 % of entries), the tremor-at-edge share (above 50 %: larger target or more spacing), the unreachable rule (uses `reachable.ts`), the minimum of 3 events, and the metric and user names in every suggestion (design §8). Start-of-session events (not accidental selections) are left out of the reading-pause share, the tremor-at-edge share and the 3-event count.
+    - Write `test/suggest.test.ts` and `test/suggest.props.test.ts`: a suggestion appears exactly when the share is above 50 % and there are at least 3 events; no suggestion otherwise (also with exactly 50 %); start-of-session events do not count towards the shares or the threshold; each suggestion names the metric and the users; the "on the path" check with a segment-to-rectangle distance fixture.
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.6, 6.7_
 
   - [ ] 10.2 Follow-up runs.
@@ -348,8 +348,8 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 - [ ] 14. Input validation and error codes
 
   - [ ] 14.1 Tool input schemas.
-    - Write `src/tool-schemas.ts`: the zod shapes for `simulate`, `compare` and `list_users` (structure and types only; ranges and caps described in `.describe()` text; design §11) and the output shapes used as `outputSchema`: per-user `startCount` and `startOfSession: { count, byTarget: { targetId: string | null, count }[] }`, the eight-value cause enum with `start`, and suggestions `{ targetId, metric, users, text, followUp?: { factor, overlaps } }` (`users` may be empty).
-    - Write `test/tool-schemas.test.ts`: valid requests parse; wrong types are rejected; `list_users` has an empty input shape; every schema field has a description; a `simulate` result example from design §11 (with a `start` record and a `screen-centre-hit` suggestion) parses against the output shape.
+    - Write `src/tool-schemas.ts`: the zod shapes for `simulate`, `compare` and `list_users` (structure and types only; ranges and caps described in `.describe()` text; design §11) and the output shapes used as `outputSchema`: per-user `startCount` and `startOfSession: { count, byTarget: { targetId: string | null, count }[] }`, the seven-value accidental cause enum (no `start`), and suggestions `{ targetId, metric, users, text, followUp?: { factor, overlaps } }` (`users` may be empty).
+    - Write `test/tool-schemas.test.ts`: valid requests parse; wrong types are rejected; `list_users` has an empty input shape; every schema field has a description; a `simulate` result example from design §11 (with a non-zero `startOfSession` line and a `screen-centre-hit` suggestion) parses against the output shape.
     - _Requirements: 3.4, 4.1, 4.25_
 
   - [ ] 14.2 Request validation with stable error codes.
@@ -390,7 +390,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
     - _Requirements: 2.5, 2.6_
 
   - [ ] 17.2 Write METHODOLOGY.md.
-    - Write `tools/dwell-sim-mcp/METHODOLOGY.md` in the design §13 order: purpose and disclaimer; the movement model with the formulas of design §4; the generated Figures table with source links; each derived value worked out (scatter SD 72 / 4.133 = 17.4 px and 2.5° / 4.133 = 0.6°; tremor size 12.3 / (2π × 4.25) = 0.46° and 7.77 / (2π × 4.37) = 0.28°; "ET mean + 2 SD = 1.6°" as chosen, not a percentile); the chosen values with reasons (reading pauses, reaction time, noise 0, drift, `MT_MIN`, `READING_DEPTH`, `SETTLE_MS`, `LAG_ALLOWANCE_MS`, noise as uniform peak, scan parameters); the limits, including every Out of scope item, the caveat that tremor is a pure sinusoid while real tremor is less regular (in cervical dystonia often irregular), the open-loop model and engine-level rotation; how determinism works; the start of session (the start path, the cause `start`, and the rate that excludes it); and the decision that an event on the aimed target counts as intended once the planned position is inside it.
+    - Write `tools/dwell-sim-mcp/METHODOLOGY.md` in the design §13 order: purpose and disclaimer; the movement model with the formulas of design §4; the generated Figures table with source links; each derived value worked out (scatter SD 72 / 4.133 = 17.4 px and 2.5° / 4.133 = 0.6°; tremor size 12.3 / (2π × 4.25) = 0.46° and 7.77 / (2π × 4.37) = 0.28°; "ET mean + 2 SD = 1.6°" as chosen, not a percentile); the chosen values with reasons (reading pauses, reaction time, noise 0, drift, `MT_MIN`, `READING_DEPTH`, `SETTLE_MS`, `LAG_ALLOWANCE_MS`, noise as uniform peak, scan parameters); the limits, including every Out of scope item, the caveat that tremor is a pure sinusoid while real tremor is less regular (in cervical dystonia often irregular), the open-loop model and engine-level rotation; how determinism works; the start of session (the start path, the cause `start` carried only by start-of-session events, and that they are counted in neither the accidental count nor the rate); and the decision that an event on the aimed target counts as intended once the planned position is inside it.
     - Write `test/methodology.test.ts`: the document mentions every `FIGURES` row label, every reference number with its link, every `chosen` parameter's reason in the preset data, every Out of scope item, the sinusoid caveat and the three derived values.
     - _Requirements: 2.5, 2.6_
 

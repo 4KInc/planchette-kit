@@ -571,7 +571,7 @@ else:
 - **No reading pauses.** Step 4 of `planEntry` is not run for the start path: the start of session crosses any target between the centre and
   the rest area without stopping. Tremor (§4.5) and tracking noise (§4.6) are applied exactly as in an entry, because they are added
   in `head(t)`, not in the plan.
-- **Activity and cause.** Every event with `now < tEnd` is classified `waiting` with cause `start` (§6), in both sub-phases and during
+- **Activity and cause.** Every event with `now < tEnd` is a start-of-session event with activity `waiting` and cause `start` (§6), in both sub-phases and during
   the warm-up. A select or cancel while the user waits at the centre (the reaction sub-phase, or the whole warm-up) gets the same classification.
 - **Not counted in time-to-select.** Entry 0 starts at `tEnd`; `tMove0` of every entry is measured from its own reaction wait, so the
   time in the start of session, and the warm-up, appear in no time-to-select (Req 1 AC 5, Req 11 AC 9).
@@ -636,7 +636,7 @@ function runTrial(cfg):
   // 2. start of session (Req 11 AC 9, 10): the head is at the screen centre; with a rest area it moves there as a normal movement
   startPlan = planStart(ctx, tDone)                         // §4.7a; no segments and tEnd = tDone without a rest area
   while (k*frameMs < startPlan.tEnd): now = k*frameMs; feed(head(startPlan, now), now); k++
-      for ev of drain(queue): record(classify(ev, startPlan, lastPointer, state))     // always accidental, cause 'start'
+      for ev of drain(queue): record(classify(ev, startPlan, lastPointer, state))     // always a start-of-session event, cause 'start'
   // 3. entries
   p0 = startPlan.endPose; tEntry = startPlan.tEnd
   for entry in 0..task.length−1:
@@ -656,8 +656,8 @@ Choices:
 - **Start of session.** After the `calibration-step` `centre`/`done` event the head is at the screen centre. WHERE the layout has a rest-area target,
   the user waits the reaction time, then moves along a minimum-jerk path at the user's throughput to an aim point inside the rest area (§4.7a).
   No reading pause is applied on the way; tremor and noise are on. Events during the warm-up, the reaction wait and the movement
-  are not hidden: they are accidental selections with activity `waiting` and cause `start` (Req 4 AC 11), so property 4 holds. Their count is
-  reported per user as `startOfSession` and excluded from the rate per 100 (§7). WHERE there is no rest area, the user stays at the screen
+  are not hidden: they are start-of-session events with activity `waiting` and cause `start` (Req 4 AC 11), a third category next to intended and accidental, so property 4 holds. Their count is
+  reported per user as `startOfSession` and is in neither the accidental count nor the rate per 100 (§7). WHERE there is no rest area, the user stays at the screen
   centre, the start of session has zero length, and the first entry starts at the `calibration-step` event. The time spent here is in no time-to-select.
 - **Time origin.** Frame `k` has `now = k × (1000 / fps)`, starting at `k = 0`. The trial ends when the last entry resolves
   (no frames after it).
@@ -696,13 +696,17 @@ The start-of-session phase is labelled `waiting` in both sub-phases because the 
 sample was fed; after an intended event resolves an entry, later events of the same sample are classified against the
 new plan (its first phase, `waiting`, includes `tEntry`).
 
-**Intended or accidental.** Let `Q(t) = toPx(base(t))` be the planned noiseless position.
+**Three categories.** Every event is classified exactly once as a start-of-session event, an intended selection or an accidental selection, checked in
+that order. An event with `e.now` before the start plan's `tEnd` (warm-up, reaction at the centre, start movement) is a *start-of-session event*:
+activity `waiting`, cause `start`, counted only in the per-user `startOfSession` line, and in neither `accidental` nor the rate. Only events at or
+after `tEnd` are tested for intended or accidental.
+
+**Intended or accidental** (events at or after the start plan's `tEnd`). Let `Q(t) = toPx(base(t))` be the planned noiseless position.
 
 ```
 aimedMatch = A.role === 'cancel' ? (e.kind === 'cancel' && e.targetId === A.id)
                                  : (e.kind === 'select'  && e.targetId === A.id)
-intended   = phase !== 'start-of-session'
-             && aimedMatch && ( phase === 'holding' || (phase === 'moving' && Q(e.now) inside A.rect) )
+intended   = aimedMatch && ( phase === 'holding' || (phase === 'moving' && Q(e.now) inside A.rect) )
 ```
 
 A `cancel` on the aimed cancel-role target matches by `targetId`, which Req 9 AC 5 now provides. A virtual-cancel or Escape
@@ -711,30 +715,29 @@ the planned position is inside it (the user is arriving); an event on the aimed 
 outside it (tremor or noise put the pointer in early) is accidental with cause `early-on-intended-target` or
 `tremor-at-edge`. During `waiting` and `reading-pause` nothing is intended.
 
-**Cause, first match wins, for accidental events only.** `ampPx` is the tremor peak amplitude in px
+**Cause, first match wins, for accidental events only** (start-of-session events carry the fixed cause `start` and never reach this table). `ampPx` is the tremor peak amplitude in px
 (`a0 × (1 + driftFraction) / 2` degrees on the tremor axis, converted with `toPx(base ± amp)` at `Q`) plus the noise
 peak `n` in px, plus 1 px of rounding. `edgeDist(Z, R)` is the distance from point `Z` to the boundary of rectangle
 `R` (0 on the boundary; for a point inside, the least distance to the four edges; outside, the distance to the rectangle).
 
 | # | Cause | Condition |
 |---|---|---|
-| 1 | `start` | phase is `start-of-session` (the event is before the start plan's `tEnd`: warm-up, reaction at the centre, or the start movement) |
-| 2 | `repeat` | `target(e)` is `autoRepeat`, the previous select/cancel event of the trial was on the same target, and no `pointer-move` between the two left its rect |
-| 3 | `waiting` | phase is `waiting` |
-| 4 | `reading-pause` | a pause `R` in `E.pauses` has `R.targetId = e.targetId` and `R.t0 ≤ e.now < R.t1 + graceTime + 500 ms` (the 500 ms is `LAG_ALLOWANCE_MS`, chosen: above the measured smoother lag of 400 ms at smoothing strength 0.9) |
-| 5 | `tremor-at-edge` | tremor or noise is on and (`edgeDist(Q(e.now), rect(target)) ≤ ampPx` or `edgeDist(P, rect(target)) ≤ ampPx`); false when `e.targetId` is absent |
-| 6 | `early-on-intended-target` | `e.targetId = A.id` and phase is `moving` |
-| 7 | `pass-over` | phase is `moving` (target not aimed) |
-| 8 | `other` | always |
+| 1 | `repeat` | `target(e)` is `autoRepeat`, the previous select/cancel event of the trial was on the same target, and no `pointer-move` between the two left its rect |
+| 2 | `waiting` | phase is `waiting` |
+| 3 | `reading-pause` | a pause `R` in `E.pauses` has `R.targetId = e.targetId` and `R.t0 ≤ e.now < R.t1 + graceTime + 500 ms` (the 500 ms is `LAG_ALLOWANCE_MS`, chosen: above the measured smoother lag of 400 ms at smoothing strength 0.9) |
+| 4 | `tremor-at-edge` | tremor or noise is on and (`edgeDist(Q(e.now), rect(target)) ≤ ampPx` or `edgeDist(P, rect(target)) ≤ ampPx`); false when `e.targetId` is absent |
+| 5 | `early-on-intended-target` | `e.targetId = A.id` and phase is `moving` |
+| 6 | `pass-over` | phase is `moving` (target not aimed) |
+| 7 | `other` | always |
 
-**Order.** `start` is first: every event in the start-of-session phase is `start`, whatever else would match (Req 4 AC 11), and the activity label is `waiting`.
+**Order.** A start-of-session event is taken out first (above), whatever else would match (Req 4 AC 11), with activity `waiting`.
 `repeat` goes before `waiting`. With `waiting` first, an auto-repeat select
 that lands in the reaction wait after a selection on the same auto-repeat target would be labelled `waiting` and the
 cause that the developer can act on (the auto-repeat setting) would be lost. Activity labels are not affected. All other
-positions are as suggested. The `repeat` rule cannot match during the start of session because rule 1 already took the event.
+positions are as suggested. The `repeat` rule cannot match during the start of session because those events are taken out first.
 
-**Totality.** Intended or accidental is a boolean of defined values. The label is a total function of `phaseAt`. The cause list ends in an
-unconditional `other`. Hence each event gets exactly one classification, one label and (if accidental) one cause
+**Totality.** The category (start-of-session, intended, accidental) is a function of `e.now` and a boolean of defined values. The label is a total function of `phaseAt`. The cause list ends in an
+unconditional `other`. Hence each event gets exactly one category, one label and (if accidental) one cause
 (property 4). The classifier is a pure function of its inputs; it is called once per drained event.
 
 **Miss causes** (used by suggestions): `unreachable` (target outside the user's reachable pixel rectangle), else
@@ -752,19 +755,23 @@ export interface AccidentalRecord {
   targetId: string | null;                       // null for a cancel without a target
   timeMs: number; activity: Activity; cause: AccidentalCause; entry: number;
 }
+export interface StartEventRecord {              // a start-of-session event: not an accidental selection
+  targetId: string | null;                       // null for a cancel without a target
+  timeMs: number;                                // activity is always 'waiting' and cause always 'start'
+}
 export interface TrialResult {
   userName: string; trialIndex: number;
-  entries: TrialEntryResult[]; accidental: AccidentalRecord[];
+  entries: TrialEntryResult[]; accidental: AccidentalRecord[]; startEvents: StartEventRecord[];
   warnings: string[]; effectiveProfile: Profile;
 }
 export interface TargetMetrics {
   targetId: string | null; intended: number;
-  accidental: number;                            // includes events with cause 'start' (Req 4 AC 2, 25)
-  startCount: number;                            // accidental events with cause 'start'
-  accidentalPer100Intended: number | null;       // excludes start events, see the formula below
+  accidental: number;                            // excludes start-of-session events (Req 4 AC 2, 25)
+  startCount: number;                            // start-of-session events on this target, separate from `accidental`
+  accidentalPer100Intended: number | null;       // accidental / intended × 100, see the formula below
   misses: number;
   timeToSelectMs: { median: number | null; p90: number | null };
-  causes: Record<AccidentalCause, number>; activities: Record<Activity, number>;
+  causes: Record<AccidentalCause, number>; activities: Record<Activity, number>;   // accidental selections only
 }
 export interface UserMetrics extends TargetMetrics {
   userName: string; trials: number; perTarget: TargetMetrics[];
@@ -774,11 +781,11 @@ export interface UserMetrics extends TargetMetrics {
 
 - `timeToSelectMs = event.now − tMove0`, from the moment the user starts moving to the intended selection. The warm-up and the start of session are before every `tMove0` and are in no time-to-select.
 - Percentile: nearest rank, `sorted[ceil(p × n) − 1]`, `null` when `n = 0`.
-- **Rate (Req 4 AC 2, 13, 25).** `accidentalPer100Intended = ((accidental − startCount) / intended) × 100`, and `null` when `intended = 0` (never 0 or NaN).
-  `accidental` is the full count and includes the `start` events; `startCount` is the count of accidental events with cause `start`. The same
-  formula is used per user and per target. A `start` event has the target it hit (or `null` for a cancel without a target), so per target it is in that
-  target's `accidental` and `startCount`, and the per-target rate excludes it too.
-- `startOfSession.byTarget` lists the targets hit by `start` events (sorted by id, `null` last), with their counts; its counts sum to `startOfSession.count`.
+- **Rate (Req 4 AC 2, 13, 25).** `accidentalPer100Intended = (accidental / intended) × 100`, and `null` when `intended = 0` (never 0 or NaN).
+  `accidental` does not include start-of-session events; they are counted in `startCount` only. The same
+  formula is used per user and per target. A start-of-session event has the target it hit (or `null` for a cancel without a target), so per target it is in that
+  target's `startCount` and in no other count.
+- `startOfSession.byTarget` lists the targets hit by start-of-session events (sorted by id, `null` last), with their counts; its counts sum to `startOfSession.count`.
 - Aggregation: counts are summed over the trials of a user; time-to-select samples are pooled; per-target figures
   group by the aimed target (intended, misses, time) or by the event's target (accidental; `null` bucket for an unattributed cancel).
 - Notes and warnings (top level of the result): a note when any user has `tremorPeakToPeakDeg > 1` ("tremor … exceeds
@@ -796,7 +803,7 @@ Inputs: the aggregated per-target data over all users, the pooled task list, the
 
 ```
 centre-hit rule (below) first: it does not use events(T) and is not limited by the threshold      // Req 6 AC 10
-events(T)  = accidental records on T with cause ≠ 'start' + misses whose aimed target is T       // start events are not about T's use
+events(T)  = accidental records on T + misses whose aimed target is T                           // start-of-session events are not accidental records
 if |events(T)| < 3: no event-based suggestion for T                      // AC 7
 reading(T) = count(accidental on T with cause 'reading-pause') / count(accidental on T)
 edge(T)    = count(events on T with cause/missCause 'tremor-at-edge') / |events(T)|
@@ -811,7 +818,7 @@ if T is unreachable for user U (outside U's reachable pixel rectangle) -> "outsi
   (`x ≤ C.x < x + width` and `y ≤ C.y < y + height`), add one suggestion naming `T`: keep the screen centre empty, or put the rest area there. The
   suggestion is made whether or not the layout has a rest-area target, and without regard to the 3-event threshold of AC 7 and to any events.
   Its metric is `screen-centre-hit` and its `users` list is empty (it comes from the layout, not from a simulated user).
-- Events with cause `start` are left out of the reading-pause, tremor-at-edge and threshold counts, because they say where the start path went, not how `T` is used.
+- Start-of-session events are not accidental selections, so they are in none of the reading-pause, tremor-at-edge and threshold counts: they say where the start path went, not how `T` is used.
 
 - **Commonly used target:** at least 20 % of all task entries pooled over every trial of the run.
 - **On the path:** for some pair of consecutive intended entries `(i → j)` where `j` is a commonly used target and `T` is
@@ -975,16 +982,14 @@ a test checks that.
 { "seed": 1, "parameters": { "mode": "head + dwell", "fps": 30, "analysisWindowS": 10, "trialsPerUser": 10,
     "task": { "eachTarget": 2 }, "profile": { "dwellTime": 1000 }, "effectiveProfile": { "…": "all 30 fields" },
     "users": [ { "name": "steady", "params": { "…": "all values" } } ] },
-  "users": [ { "name": "head-tremor", "trials": 10, "intended": 38, "accidental": 5, "accidentalPer100Intended": 10.5,
+  "users": [ { "name": "head-tremor", "trials": 10, "intended": 38, "accidental": 4, "accidentalPer100Intended": 10.5,
       "startOfSession": { "count": 1, "byTarget": [ { "targetId": "menu", "count": 1 } ] },
       "misses": 2, "timeToSelectMs": { "median": 2310, "p90": 3590 },
-      "causes": { "start": 1, "tremor-at-edge": 3, "pass-over": 1 }, "activities": { "waiting": 1, "moving": 1, "holding on the aim point": 3 },
+      "causes": { "tremor-at-edge": 3, "pass-over": 1 }, "activities": { "moving": 1, "holding on the aim point": 3 },
       "perTarget": [ { "targetId": "ghost", "intended": 4, "accidental": 3, "startCount": 0, "accidentalPer100Intended": 75,
                        "misses": 1, "timeToSelectMs": { "median": 2100, "p90": 2900 } } ] } ],
   "accidentalSelections": [ { "user": "head-tremor", "trial": 3, "targetId": "ghost", "timeMs": 18420,
-                              "activity": "holding on the aim point", "cause": "tremor-at-edge" },
-                            { "user": "head-tremor", "trial": 0, "targetId": "menu", "timeMs": 1900,
-                              "activity": "waiting", "cause": "start" } ],
+                              "activity": "holding on the aim point", "cause": "tremor-at-edge" } ],
   "suggestions": [ { "targetId": "ghost", "metric": "tremor-at-edge share 0.75", "users": ["head-tremor"],
                      "text": "…larger target (1.5 times the current size had no accidental selections and no misses)…" },
                    { "targetId": "menu", "metric": "screen-centre-hit", "users": [],
@@ -992,11 +997,11 @@ a test checks that.
   "warnings": [ "No rest area: …" ], "notes": [ "…" ],
   "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings." }
 ```
-With no data the rate and percentiles are `null`. In the example the rate is (5 − 1) / 38 × 100 = 10.5: the `start` event is in `accidental`
-and in `startOfSession.count`, and out of the rate. The `outputSchema` of `simulate` (zod) declares, per user, `startCount`-bearing metrics and
+With no data the rate and percentiles are `null`. In the example the rate is 4 / 38 × 100 = 10.5. The one start-of-session event is only in
+`startOfSession.count` (and the target's `startCount`); it is not in `accidental`, the rate, `causes`, `activities` or `accidentalSelections`. The `outputSchema` of `simulate` (zod) declares, per user, `startCount`-bearing metrics and
 `startOfSession: { count: number, byTarget: { targetId: string | null, count: number }[] }`; `causes` and each record's `cause` use the
-eight-value enum (`start` included); a suggestion is `{ targetId: string, metric: string, users: string[], text: string, followUp?: { factor: number, overlaps: string[] } }`.
-`compare` pairs count accidental selections including `start` events, as in the user's `accidental` field.
+seven-value enum (no `start`); a suggestion is `{ targetId: string, metric: string, users: string[], text: string, followUp?: { factor: number, overlaps: string[] } }`.
+`compare` pairs count accidental selections only, as in the user's `accidental` field; start-of-session events are not paired.
 
 `compare`:
 ```json
@@ -1100,7 +1105,7 @@ export interface LayoutTarget { id: string; rect: Rect; autoRepeat: boolean; rol
 export interface Layout { screen: ScreenSize; targets: LayoutTarget[] }
 export type Activity = 'waiting' | 'moving' | 'reading pause' | 'holding on the aim point';
 export type AccidentalCause = 'reading-pause' | 'pass-over' | 'tremor-at-edge' | 'repeat' | 'waiting'
-                            | 'early-on-intended-target' | 'other' | 'start';
+                            | 'early-on-intended-target' | 'other';   // 'start' is not an accidental cause: start-of-session events are their own category
 export type TaskSpec = readonly string[] | { eachTarget: number };
 export interface RawEvent { kind: 'select' | 'cancel'; targetId?: string; now: number }
 export interface SimulateRequest { layout: Layout; profile: Partial<Profile>; mode: 'head + dwell' | 'scan';
@@ -1150,11 +1155,11 @@ contains no pointer position reachable within the head range (computed with the 
 
 ### Property 4: Every event is accounted for
 
-*For any* completed run, the number of intended selections plus accidental selections equals the number of `select` and `cancel` events the
-skeleton emitted during the trials, counted by a listener that is independent of the classifier, and each accidental selection has exactly
-one activity label and exactly one cause from the Glossary sets. The accidental count includes the selections with cause `start` (from the
-start of session and the wait at the start), which carry activity `waiting`; their count is also reported as `startOfSession.count` and is left out of the rate per 100 intended
-selections only, by the formula (accidental − start) / intended × 100.
+*For any* completed run, the number of intended selections plus accidental selections plus start-of-session events (from the start of session and the wait
+at the start) equals the number of `select` and `cancel` events the skeleton emitted during the trials, counted by a listener that is independent of the
+classifier. The three categories do not overlap. Each accidental selection has exactly one activity label and exactly one cause from the seven
+accidental causes; each start-of-session event has activity `waiting` and cause `start`, and is counted in `startOfSession.count`, not in `accidental`. The rate per 100
+intended selections is accidental / intended × 100.
 
 **Validates: Requirements 4.3, 4.9, 4.10, 4.11, 4.25**
 
@@ -1237,10 +1242,10 @@ Where a property touches only pure code (planning, classification, metrics) it r
 3. *Unreachable means miss.* Users with `headRangeDeg` 3–10° and profile ranges 1.5–3× larger. The test computes the reachable pixel rectangle with the helpers and places one target
    fully outside it (when none exists in the generated screen the case is built by moving the target, not discarded). Assertion on the event stream of a listener attached through `observers`:
    no select or cancel for that id; every entry for it is a miss.
-4. *Every event accounted for.* `observers.onEvent` is attached to the same planchette by the test, independent of the driver's queue. Assertion: `intended + accidental = count`, the
-   `accidentalSelections` list length equals `accidental`, and every record has an activity from the four labels and a cause from the eight (`start` included). The generator mixes layouts with and without a rest area and targets between the screen centre and the rest area, so
-   `start` events occur; the test also asserts that every event with `now` before the start plan's end has activity `waiting` and cause `start`, that
-   `startOfSession.count` equals the number of `start` records, and that `accidentalPer100Intended = (accidental − startCount) / intended × 100` (`null` for `intended = 0`). A classifier-level property feeds random
+4. *Every event accounted for.* `observers.onEvent` is attached to the same planchette by the test, independent of the driver's queue. Assertion: `intended + accidental + startOfSession.count = count` (three categories), the
+   `accidentalSelections` list length equals `accidental`, and every accidental record has an activity from the four labels and a cause from the seven accidental causes. The generator mixes layouts with and without a rest area and targets between the screen centre and the rest area, so
+   start-of-session events occur; the test also asserts that every event with `now` before the start plan's end is a start-of-session event (activity `waiting`, cause `start`) and appears in no accidental record, that
+   `startOfSession.byTarget` counts sum to `startOfSession.count`, and that `accidentalPer100Intended = accidental / intended × 100` (`null` for `intended = 0`). A classifier-level property feeds random
    events and plans (including unattributed cancels) and asserts totality.
 5. *Same random draws.* Run both configurations with only timing fields differing (generator picks any subset of the five fields with different values). Both runs record
    the head samples (a recording hook in `observers.onSample`). Assertion: the sample sequences are equal element by element until the sample after the first event whose
