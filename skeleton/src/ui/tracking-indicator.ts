@@ -96,7 +96,9 @@ export function createTrackingIndicator(
 
   function line(t: string): ElementLike {
     const p = dom.createElement('p');
-    p.setAttribute('style', 'margin:0');
+    // Not setAttribute('style', ...): a page with a strict Content-Security-Policy (no
+    // 'unsafe-inline' for styles) blocks that, while setting the style through the DOM is allowed.
+    if (p.style !== undefined) p.style.cssText = 'margin:0';
     p.textContent = t;
     return p;
   }

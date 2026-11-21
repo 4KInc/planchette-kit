@@ -1268,6 +1268,41 @@ import (`sideEffects: false`); the factory adds its elements.
   files. axe-core checks the page with the ring, the scan highlight (row and virtual item)
   and each indicator state showing. Every request is checked to stay on localhost.
 
+### Demo page and Content-Security-Policy (Task 17)
+Decisions the spec left open:
+- **Policy.** Every page (`index.html`, `board/index.html`, `game/index.html`) carries the same
+  `<meta http-equiv="Content-Security-Policy">`:
+  `default-src 'self'; connect-src 'self'; script-src 'self' 'wasm-unsafe-eval'`. A meta tag
+  works in dev, in the build and on GitHub Pages, which cannot set headers. The only addition
+  to the base policy is `'wasm-unsafe-eval'`, which MediaPipe needs to compile its WASM. Its
+  loader adds a same-origin `<script>` tag (covered by `'self'`), reads the model with
+  `fetch` (`connect-src`), and its bundle has no `eval` or `new Function`. Styles fall under
+  `default-src 'self'`, so the pages have no inline `<style>` or `style=""` attributes: the
+  demo's CSS is `skeleton/demo/demo.css`, and the UI helpers set styles through the DOM
+  (`element.style`), which the policy allows. (`tracking-indicator.ts` used
+  `setAttribute('style', ...)` once; changed to `style.cssText`.) A meta policy cannot set
+  `frame-ancestors`, `report-uri` or `sandbox`; not needed. Not verified with a real camera:
+  the tests use no camera, so a camera session under this policy is untested until a person tries it.
+- **Camera.** Only the "Start camera" button calls `startCamera()`. The demo never reads the
+  profile's `startCameraOnLoad`. "Stop camera" shows while the camera is wanted; the camera-on
+  indicator is the one from the UI helpers, rendered into `#camera-status`. If the camera
+  fails, the Start button comes back and the indicator offers scanning and the mouse.
+- **Layout.** Grid of nine Halloween words (ghost … moon), a Cancel and an Undo target in a
+  row below it (so scanning reaches them as an ordinary row), and a rest area (`rest-area`
+  role) in the log panel. Selecting a word adds it to the séance log; Undo removes the last
+  entry; Cancel and Escape say "Cancelled". Target size and spacing follow the profile.
+- **Controls** (mode switcher, Calibrate, profile box) are ordinary buttons, not targets. The
+  profile is exported to and imported from a text box, so no `blob:` or `data:` URLs are
+  needed. Calibrate asks for the camera first when it is off.
+- **Test hook.** The page sets `window.planchetteDemo = { planchette }` so the end-to-end tests
+  can feed synthetic samples. It stays in the build because the tests also run on it.
+- **Colours** (all measured by `demo.e2e.ts` from computed styles): text ≥ 4.5:1 and target
+  outlines, control borders and the focus ring ≥ 3:1 against the page background. The targets'
+  fill is near-black so that the scan highlight's yellow tint (45%) over it still gives text
+  4.5:1.
+- **End-to-end** (`skeleton/test/demo.e2e.ts`): runs twice, under the dev server and on the
+  production build (`vite build` into `node_modules/.e2e-dist`, then `vite preview`, the
+  `built` project). `getUserMedia` is wrapped only to count calls and refuse them.
 ### Notes on revised properties
 
 **P3** generates streams with alternating found/lost periods of random duration.

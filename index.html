@@ -2,12 +2,51 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self' 'wasm-unsafe-eval'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Planchette — Skeleton Demo</title>
+    <link rel="stylesheet" href="skeleton/demo/demo.css" />
   </head>
   <body>
-    <h1>Planchette Skeleton Demo</h1>
-    <p>Coming soon.</p>
+    <header>
+      <h1>Planchette Séance</h1>
+      <div class="camera">
+        <button type="button" id="camera-start">Start camera</button>
+        <button type="button" id="camera-stop" hidden>Stop camera</button>
+        <div id="camera-status"></div>
+      </div>
+    </header>
+    <main>
+      <section aria-labelledby="board-title" class="board">
+        <h2 id="board-title">Summon a spirit</h2>
+        <div class="grid" id="grid"></div>
+        <div class="actions">
+          <button type="button" class="target" data-planchette-target="cancel" data-role="cancel">Cancel</button>
+          <button type="button" class="target" data-planchette-target="undo" data-role="undo">Undo</button>
+        </div>
+      </section>
+      <section aria-labelledby="controls-title" class="controls">
+        <h2 id="controls-title">Settings</h2>
+        <p id="hint" class="hint"></p>
+        <label for="mode">Input mode</label>
+        <select id="mode"></select>
+        <button type="button" id="calibrate">Calibrate</button>
+        <label for="profile-json">Profile (JSON)</label>
+        <textarea id="profile-json" rows="6" spellcheck="false"></textarea>
+        <div class="row">
+          <button type="button" id="profile-export">Export profile</button>
+          <button type="button" id="profile-import">Import profile</button>
+        </div>
+      </section>
+      <section aria-labelledby="log-title" class="log">
+        <h2 id="log-title">Séance log</h2>
+        <p id="message" role="status">Choose a spirit.</p>
+        <ol id="log-list"></ol>
+        <div class="rest" id="rest" data-planchette-target="rest" data-role="rest-area">
+          <p>Rest area. Nothing here is selected.</p>
+        </div>
+      </section>
+    </main>
     <script type="module" src="skeleton/demo/main.ts"></script>
   </body>
 </html>

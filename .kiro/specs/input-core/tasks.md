@@ -276,9 +276,9 @@ have no logic; they consume public API events only.
 
 Wire all engines and UI helpers into the demo page at `skeleton/demo/`.
 
-- [ ] 17.1 Build `skeleton/demo/main.ts`: implement the Halloween-themed demo page logic (3×3 grid of targets, a cancel target, an undo target, and a rest area). The shell HTML is the root `index.html`; add any needed markup there.
-- [ ] 17.2 Integrate `createPlanchette` with head + dwell mode as default; expose a mode switcher, a calibration button and a profile import/export control.
-- [ ] 17.3 Confirm `npm run dev` serves the demo at `/` (root `index.html` → `skeleton/demo/main.ts`) and both app stubs at `/board/` and `/game/`.
+- [x] 17.1 Build `skeleton/demo/main.ts`: implement the Halloween-themed demo page logic (3×3 grid of targets, a cancel target, an undo target, and a rest area). The shell HTML is the root `index.html`; add any needed markup there.
+- [x] 17.2 Integrate `createPlanchette` with head + dwell mode as default; expose a mode switcher, a calibration button and a profile import/export control.
+- [x] 17.3 Confirm `npm run dev` serves the demo at `/` (root `index.html` → `skeleton/demo/main.ts`) and both app stubs at `/board/` and `/game/`.
 
 **Covers:** Req 1 AC 5; product.md demo requirements; structure.md `/skeleton/demo/` entry.
 
