@@ -87,34 +87,34 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 8 AC 1, 3, 5, 7; Req 10 AC 1–3, 5.
 
-- [ ] 3. Preset data and `list_users`
+- [x] 3. Preset data and `list_users`
 
-  - [ ] 3.1 Types, disclaimer and the Figures table as data.
+  - [x] 3.1 Types, disclaimer and the Figures table as data.
     - Write `tools/dwell-sim-mcp/src/types.ts` (the core types from design "Data Models"), `src/disclaimer.ts` (the exact sentence from Req 4 AC 5) and `src/figures.ts` (`FIGURES`, `REFERENCES`, `FigureRowId`, `ParamSource`, `Sourced`).
     - Write `test/figures.test.ts`: parse the Figures table and the References list in `.kiro/specs/dwell-sim-mcp/requirements.md` and assert every row label, value and reference number in `FIGURES` and `REFERENCES` matches it, with no row missing or extra.
     - _Requirements: 2.5, 2.6, 4.5_
 
-  - [ ] 3.2 Presets and custom ranges.
+  - [x] 3.2 Presets and custom ranges.
     - Write `src/custom-ranges.ts` (`CUSTOM_RANGES` with path, min, max, unit) and `src/presets.ts` (`UserParams`, `SourcedParams`, `PRESET_NAMES`, `PRESETS`), every parameter carrying a `figure` source (row and reference) or a `chosen` reason.
     - Write `test/presets.test.ts`: the six preset names exist; every value equals the Presets and shared-parameter tables in requirements.md; every parameter has a source; every `figure` source names an existing `FIGURES` row and reference; every preset value is inside its custom range; every `CUSTOM_RANGES` key is overridable and every other key is not.
     - _Requirements: 2.5, 3.1, 3.2, 3.3_
 
-  - [ ] 3.3 The `list_users` data and the golden file.
+  - [x] 3.3 The `list_users` data and the golden file.
     - Write `src/list-users.ts` (`listUsers()` returning every preset with each parameter's value and citation or `chosen: <reason>`, the custom ranges and the disclaimer; takes no input).
     - Write `test/list-users.test.ts` and `test/golden/list-users.json`: the live output equals the golden file; every `source.row` label exists in the Figures table of requirements.md with the same reference number; the ranges equal the "Custom ranges" paragraph of requirements.md; the disclaimer is present.
     - _Requirements: 2.7, 3.4, 3.5, 3.7, 3.8, 4.5_
 
   - **Covers:** Req 2 AC 5, 7; Req 3 AC 1–5, 7, 8; Req 4 AC 5.
 
-- [ ] 4. Seeded randomness and user keys
+- [x] 4. Seeded randomness and user keys
 
-  - [ ] 4.1 Counter-based random draws.
+  - [x] 4.1 Counter-based random draws.
     - Write `src/rng.ts` (`mix32`, `hash32`, `Purpose`, `stream`, `u01`, design §3).
     - Write `test/rng.test.ts`: fixed known outputs for fixed keys (pins the generator), `u01` is in [0, 1), a different key gives a different draw.
     - Write `test/rng.props.test.ts`: for any keys, `u01` is in [0, 1) and is a pure function of its key; drawing other keys first never changes a draw (no shared state); two different streams do not give equal draw sequences.
     - _Requirements: 7.1, 7.4_
 
-  - [ ] 4.2 Resolve users and derive user keys.
+  - [x] 4.2 Resolve users and derive user keys.
     - Write `src/resolve-user.ts`: a preset name or a custom user (base preset plus overrides) becomes a `ResolvedUser`; `key` is the hash of the preset name (UTF-16) or of the canonical JSON of the resolved parameters plus the name (design §3).
     - Write `test/resolve-user.test.ts`: preset resolution, overrides replace only the named fields, an unknown preset name and an out-of-range override are reported with the name and range (the typed error codes are wired in Task 14), identical users give identical keys.
     - Write `test/resolve-user.props.test.ts`: stream independence. For any user list, adding, removing or reordering other users does not change a given user's key or any draw `u01(stream(seed, key, trial, purpose), k, j)`.

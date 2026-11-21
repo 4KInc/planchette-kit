@@ -158,6 +158,80 @@
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795287000767
       }
+    ],
+    "3.1 Types, disclaimer and the Figures table as data.": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795297025005
+      },
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298218789
+      }
+    ],
+    "4.1 Counter-based random draws.": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795297025057
+      },
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298218876
+      }
+    ],
+    "3.2 Presets and custom ranges.": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298220935
+      },
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298571728
+      }
+    ],
+    "3.3 The `list_users` data and the golden file.": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298586134
+      },
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298850531
+      }
+    ],
+    "4.2 Resolve users and derive user keys.": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298586215
+      },
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795302036447
+      }
+    ],
+    "3. Preset data and `list_users`": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795298850617
+      }
+    ],
+    "4. Seeded randomness and user keys": [
+      {
+        "executionId": "e076d0e9-4c86-4deb-a0cd-7143f501f8ec",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795302036490
+      }
     ]
   }
 }

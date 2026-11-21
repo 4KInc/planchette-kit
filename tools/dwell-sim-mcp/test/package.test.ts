@@ -14,6 +14,7 @@ function readJson(relative: string): PackageJson {
 }
 
 const pkg = readJson("../package.json");
+const rootPkg = readJson("../../../package.json");
 const skeleton = readJson("../../../skeleton/package.json");
 
 describe("dwell-sim-mcp package.json", () => {
@@ -36,6 +37,12 @@ describe("dwell-sim-mcp package.json", () => {
     }
   });
 
+  it("pins @types/node to the exact version of the root package.json", () => {
+    const version = pkg.devDependencies?.["@types/node"];
+    expect(version).toBeDefined();
+    expect(version).toMatch(/^\d+\.\d+\.\d+$/);
+    expect(version).toBe(rootPkg.devDependencies?.["@types/node"]);
+  });
   it("requires Node 20 or newer", () => {
     const range = pkg.engines?.node ?? "";
     const match = /^>=\s*(\d+)/.exec(range);

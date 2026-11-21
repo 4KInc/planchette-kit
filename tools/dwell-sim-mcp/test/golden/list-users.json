@@ -1,0 +1,547 @@
+{
+  "users": [
+    {
+      "name": "steady",
+      "description": "Steady head pointing at the mobile head-tracker throughput, no tremor, no reading pauses.",
+      "parameters": {
+        "throughputBitsPerS": {
+          "value": 1.42,
+          "source": {
+            "row": "Head pointing throughput, mobile head tracker",
+            "ref": 5,
+            "citation": "Roig-Maimó MF, MacKenzie IS, Manresa-Yee C, Varona J. Head-tracking interfaces on mobile devices: evaluation using Fitts' law and a new multi-directional corner task for small displays. *International Journal of Human-Computer Studies* 112 (2018) 1–15. doi:10.1016/j.ijhcs.2017.12.003."
+          }
+        },
+        "tremorFrequencyHz": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorPeakToPeakDeg": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorAxis": {
+          "value": "yaw",
+          "source": "chosen: [8] measured the single principal axis of head tremor, so applying the full size to both axes would overstate it"
+        },
+        "headRangeDeg": {
+          "value": {
+            "left": 15,
+            "right": 15,
+            "up": 15,
+            "down": 15
+          },
+          "source": "chosen: our own default calibration constant, not a published human range"
+        },
+        "readingPauseChancePct": {
+          "value": 0,
+          "source": "chosen: no reading pauses"
+        },
+        "readingPauseLengthMs": {
+          "value": {
+            "min": 0,
+            "max": 0
+          },
+          "source": "chosen: no reading pauses"
+        },
+        "tremorDriftFraction": {
+          "value": 0.2,
+          "source": "chosen: random walk keeping the size within ±20 % of nominal, changing over about 5 s; tremor size varies slowly in real recordings, but [8] gives no figure"
+        },
+        "reactionTimeMs": {
+          "value": 500,
+          "source": "chosen: a choice reaction time for a user who has to pick the next target"
+        },
+        "scatterCapDeg": {
+          "value": 0.6,
+          "source": {
+            "row": "Head effective width, same study",
+            "ref": 3,
+            "citation": "Hansen JP, Rajanna V, MacKenzie IS, Bækgaard P. A Fitts' law study of click and dwell interaction by gaze, head and mouse with a head-mounted display. COGAIN @ ETRA 2018. doi:10.1145/3206343.3206344.",
+            "note": "derived: SD = We / 4.133 = 2.5 / 4.133 = 0.6 degrees"
+          }
+        },
+        "trackingNoiseDeg": {
+          "value": 0,
+          "source": "chosen: not measured yet; input-core Task 14.9 will measure it from our own face clip and replace it"
+        },
+        "scanReactionTimeMs": {
+          "value": 500,
+          "source": "chosen: same as reaction time"
+        },
+        "scanLatePressChancePct": {
+          "value": 10,
+          "source": "chosen: one item late, to exercise scan interval settings"
+        },
+        "scanPressDurationMs": {
+          "value": 150,
+          "source": "chosen: must be below cancelHoldTime (minimum 1000 ms)"
+        }
+      }
+    },
+    {
+      "name": "slow",
+      "description": "Slow head pointing at the throughput of people with motor impairments, no tremor.",
+      "parameters": {
+        "throughputBitsPerS": {
+          "value": 0.61,
+          "source": {
+            "row": "Head pointing throughput with a phone's front camera",
+            "ref": 4,
+            "citation": "Cicek M, Dave A, Feng W, Huang MX, Haines JK, Nichols J. Designing and evaluating head-based pointing on smartphones for people with motor impairments. ASSETS 2020. doi:10.1145/3373625.3416994."
+          }
+        },
+        "tremorFrequencyHz": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorPeakToPeakDeg": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorAxis": {
+          "value": "yaw",
+          "source": "chosen: [8] measured the single principal axis of head tremor, so applying the full size to both axes would overstate it"
+        },
+        "headRangeDeg": {
+          "value": {
+            "left": 15,
+            "right": 15,
+            "up": 15,
+            "down": 15
+          },
+          "source": "chosen: our own default calibration constant, not a published human range"
+        },
+        "readingPauseChancePct": {
+          "value": 0,
+          "source": "chosen: no reading pauses"
+        },
+        "readingPauseLengthMs": {
+          "value": {
+            "min": 0,
+            "max": 0
+          },
+          "source": "chosen: no reading pauses"
+        },
+        "tremorDriftFraction": {
+          "value": 0.2,
+          "source": "chosen: random walk keeping the size within ±20 % of nominal, changing over about 5 s; tremor size varies slowly in real recordings, but [8] gives no figure"
+        },
+        "reactionTimeMs": {
+          "value": 500,
+          "source": "chosen: a choice reaction time for a user who has to pick the next target"
+        },
+        "scatterCapDeg": {
+          "value": 0.6,
+          "source": {
+            "row": "Head effective width, same study",
+            "ref": 3,
+            "citation": "Hansen JP, Rajanna V, MacKenzie IS, Bækgaard P. A Fitts' law study of click and dwell interaction by gaze, head and mouse with a head-mounted display. COGAIN @ ETRA 2018. doi:10.1145/3206343.3206344.",
+            "note": "derived: SD = We / 4.133 = 2.5 / 4.133 = 0.6 degrees"
+          }
+        },
+        "trackingNoiseDeg": {
+          "value": 0,
+          "source": "chosen: not measured yet; input-core Task 14.9 will measure it from our own face clip and replace it"
+        },
+        "scanReactionTimeMs": {
+          "value": 500,
+          "source": "chosen: same as reaction time"
+        },
+        "scanLatePressChancePct": {
+          "value": 10,
+          "source": "chosen: one item late, to exercise scan interval settings"
+        },
+        "scanPressDurationMs": {
+          "value": 150,
+          "source": "chosen: must be below cancelHoldTime (minimum 1000 ms)"
+        }
+      }
+    },
+    {
+      "name": "head-tremor",
+      "description": "Head tremor at the essential-tremor mean (4.25 Hz, 0.46° peak to peak, yaw).",
+      "parameters": {
+        "throughputBitsPerS": {
+          "value": 0.9,
+          "source": {
+            "row": "Head pointing throughput with a phone's front camera",
+            "ref": 4,
+            "citation": "Cicek M, Dave A, Feng W, Huang MX, Haines JK, Nichols J. Designing and evaluating head-based pointing on smartphones for people with motor impairments. ASSETS 2020. doi:10.1145/3373625.3416994.",
+            "note": "chosen pairing: one shared base (0.90 bits/s, without motor impairments), so each preset differs in one feature"
+          }
+        },
+        "tremorFrequencyHz": {
+          "value": 4.25,
+          "source": {
+            "row": "Head tremor, essential tremor (n = 78)",
+            "ref": 8,
+            "citation": "Berbakov L, Jovanović Č, Svetel M, Vasiljević J, Dimić G, Radulović N. Quantitative assessment of head tremor in patients with essential tremor and cervical dystonia by using inertial sensors. *Sensors* 19(19) (2019) 4246. doi:10.3390/s19194246."
+          }
+        },
+        "tremorPeakToPeakDeg": {
+          "value": 0.46,
+          "source": {
+            "row": "Head tremor size in degrees (derived)",
+            "ref": 8,
+            "citation": "Berbakov L, Jovanović Č, Svetel M, Vasiljević J, Dimić G, Radulović N. Quantitative assessment of head tremor in patients with essential tremor and cervical dystonia by using inertial sensors. *Sensors* 19(19) (2019) 4246. doi:10.3390/s19194246."
+          }
+        },
+        "tremorAxis": {
+          "value": "yaw",
+          "source": "chosen: [8] measured the single principal axis of head tremor, so applying the full size to both axes would overstate it"
+        },
+        "headRangeDeg": {
+          "value": {
+            "left": 15,
+            "right": 15,
+            "up": 15,
+            "down": 15
+          },
+          "source": "chosen: our own default calibration constant, not a published human range"
+        },
+        "readingPauseChancePct": {
+          "value": 0,
+          "source": "chosen: no reading pauses"
+        },
+        "readingPauseLengthMs": {
+          "value": {
+            "min": 0,
+            "max": 0
+          },
+          "source": "chosen: no reading pauses"
+        },
+        "tremorDriftFraction": {
+          "value": 0.2,
+          "source": "chosen: random walk keeping the size within ±20 % of nominal, changing over about 5 s; tremor size varies slowly in real recordings, but [8] gives no figure"
+        },
+        "reactionTimeMs": {
+          "value": 500,
+          "source": "chosen: a choice reaction time for a user who has to pick the next target"
+        },
+        "scatterCapDeg": {
+          "value": 0.6,
+          "source": {
+            "row": "Head effective width, same study",
+            "ref": 3,
+            "citation": "Hansen JP, Rajanna V, MacKenzie IS, Bækgaard P. A Fitts' law study of click and dwell interaction by gaze, head and mouse with a head-mounted display. COGAIN @ ETRA 2018. doi:10.1145/3206343.3206344.",
+            "note": "derived: SD = We / 4.133 = 2.5 / 4.133 = 0.6 degrees"
+          }
+        },
+        "trackingNoiseDeg": {
+          "value": 0,
+          "source": "chosen: not measured yet; input-core Task 14.9 will measure it from our own face clip and replace it"
+        },
+        "scanReactionTimeMs": {
+          "value": 500,
+          "source": "chosen: same as reaction time"
+        },
+        "scanLatePressChancePct": {
+          "value": 10,
+          "source": "chosen: one item late, to exercise scan interval settings"
+        },
+        "scanPressDurationMs": {
+          "value": 150,
+          "source": "chosen: must be below cancelHoldTime (minimum 1000 ms)"
+        }
+      }
+    },
+    {
+      "name": "strong-head-tremor",
+      "description": "Head tremor at the essential-tremor mean plus 2 SD (4.25 Hz, 1.6° peak to peak, yaw).",
+      "parameters": {
+        "throughputBitsPerS": {
+          "value": 0.9,
+          "source": {
+            "row": "Head pointing throughput with a phone's front camera",
+            "ref": 4,
+            "citation": "Cicek M, Dave A, Feng W, Huang MX, Haines JK, Nichols J. Designing and evaluating head-based pointing on smartphones for people with motor impairments. ASSETS 2020. doi:10.1145/3373625.3416994.",
+            "note": "chosen pairing: one shared base (0.90 bits/s, without motor impairments), so each preset differs in one feature"
+          }
+        },
+        "tremorFrequencyHz": {
+          "value": 4.25,
+          "source": {
+            "row": "Head tremor, essential tremor (n = 78)",
+            "ref": 8,
+            "citation": "Berbakov L, Jovanović Č, Svetel M, Vasiljević J, Dimić G, Radulović N. Quantitative assessment of head tremor in patients with essential tremor and cervical dystonia by using inertial sensors. *Sensors* 19(19) (2019) 4246. doi:10.3390/s19194246."
+          }
+        },
+        "tremorPeakToPeakDeg": {
+          "value": 1.6,
+          "source": "chosen: ET mean + 2 SD; the SD exceeds the mean, so this is not a percentile (see head-tremor-deg row, [8])"
+        },
+        "tremorAxis": {
+          "value": "yaw",
+          "source": "chosen: [8] measured the single principal axis of head tremor, so applying the full size to both axes would overstate it"
+        },
+        "headRangeDeg": {
+          "value": {
+            "left": 15,
+            "right": 15,
+            "up": 15,
+            "down": 15
+          },
+          "source": "chosen: our own default calibration constant, not a published human range"
+        },
+        "readingPauseChancePct": {
+          "value": 0,
+          "source": "chosen: no reading pauses"
+        },
+        "readingPauseLengthMs": {
+          "value": {
+            "min": 0,
+            "max": 0
+          },
+          "source": "chosen: no reading pauses"
+        },
+        "tremorDriftFraction": {
+          "value": 0.2,
+          "source": "chosen: random walk keeping the size within ±20 % of nominal, changing over about 5 s; tremor size varies slowly in real recordings, but [8] gives no figure"
+        },
+        "reactionTimeMs": {
+          "value": 500,
+          "source": "chosen: a choice reaction time for a user who has to pick the next target"
+        },
+        "scatterCapDeg": {
+          "value": 0.6,
+          "source": {
+            "row": "Head effective width, same study",
+            "ref": 3,
+            "citation": "Hansen JP, Rajanna V, MacKenzie IS, Bækgaard P. A Fitts' law study of click and dwell interaction by gaze, head and mouse with a head-mounted display. COGAIN @ ETRA 2018. doi:10.1145/3206343.3206344.",
+            "note": "derived: SD = We / 4.133 = 2.5 / 4.133 = 0.6 degrees"
+          }
+        },
+        "trackingNoiseDeg": {
+          "value": 0,
+          "source": "chosen: not measured yet; input-core Task 14.9 will measure it from our own face clip and replace it"
+        },
+        "scanReactionTimeMs": {
+          "value": 500,
+          "source": "chosen: same as reaction time"
+        },
+        "scanLatePressChancePct": {
+          "value": 10,
+          "source": "chosen: one item late, to exercise scan interval settings"
+        },
+        "scanPressDurationMs": {
+          "value": 150,
+          "source": "chosen: must be below cancelHoldTime (minimum 1000 ms)"
+        }
+      }
+    },
+    {
+      "name": "small-range",
+      "description": "Small head range (±3°, the smallest range input-core supports), no tremor.",
+      "parameters": {
+        "throughputBitsPerS": {
+          "value": 0.9,
+          "source": {
+            "row": "Head pointing throughput with a phone's front camera",
+            "ref": 4,
+            "citation": "Cicek M, Dave A, Feng W, Huang MX, Haines JK, Nichols J. Designing and evaluating head-based pointing on smartphones for people with motor impairments. ASSETS 2020. doi:10.1145/3373625.3416994.",
+            "note": "chosen pairing: one shared base (0.90 bits/s, without motor impairments), so each preset differs in one feature"
+          }
+        },
+        "tremorFrequencyHz": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorPeakToPeakDeg": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorAxis": {
+          "value": "yaw",
+          "source": "chosen: [8] measured the single principal axis of head tremor, so applying the full size to both axes would overstate it"
+        },
+        "headRangeDeg": {
+          "value": {
+            "left": 3,
+            "right": 3,
+            "up": 3,
+            "down": 3
+          },
+          "source": "chosen: input-core minimum supported head range (MIN_RANGE), see the min-head-range row"
+        },
+        "readingPauseChancePct": {
+          "value": 0,
+          "source": "chosen: no reading pauses"
+        },
+        "readingPauseLengthMs": {
+          "value": {
+            "min": 0,
+            "max": 0
+          },
+          "source": "chosen: no reading pauses"
+        },
+        "tremorDriftFraction": {
+          "value": 0.2,
+          "source": "chosen: random walk keeping the size within ±20 % of nominal, changing over about 5 s; tremor size varies slowly in real recordings, but [8] gives no figure"
+        },
+        "reactionTimeMs": {
+          "value": 500,
+          "source": "chosen: a choice reaction time for a user who has to pick the next target"
+        },
+        "scatterCapDeg": {
+          "value": 0.6,
+          "source": {
+            "row": "Head effective width, same study",
+            "ref": 3,
+            "citation": "Hansen JP, Rajanna V, MacKenzie IS, Bækgaard P. A Fitts' law study of click and dwell interaction by gaze, head and mouse with a head-mounted display. COGAIN @ ETRA 2018. doi:10.1145/3206343.3206344.",
+            "note": "derived: SD = We / 4.133 = 2.5 / 4.133 = 0.6 degrees"
+          }
+        },
+        "trackingNoiseDeg": {
+          "value": 0,
+          "source": "chosen: not measured yet; input-core Task 14.9 will measure it from our own face clip and replace it"
+        },
+        "scanReactionTimeMs": {
+          "value": 500,
+          "source": "chosen: same as reaction time"
+        },
+        "scanLatePressChancePct": {
+          "value": 10,
+          "source": "chosen: one item late, to exercise scan interval settings"
+        },
+        "scanPressDurationMs": {
+          "value": 150,
+          "source": "chosen: must be below cancelHoldTime (minimum 1000 ms)"
+        }
+      }
+    },
+    {
+      "name": "reads-while-pointing",
+      "description": "Stops on targets it does not intend to select: 30 % chance per passed target, 300–900 ms.",
+      "parameters": {
+        "throughputBitsPerS": {
+          "value": 0.9,
+          "source": {
+            "row": "Head pointing throughput with a phone's front camera",
+            "ref": 4,
+            "citation": "Cicek M, Dave A, Feng W, Huang MX, Haines JK, Nichols J. Designing and evaluating head-based pointing on smartphones for people with motor impairments. ASSETS 2020. doi:10.1145/3373625.3416994.",
+            "note": "chosen pairing: one shared base (0.90 bits/s, without motor impairments), so each preset differs in one feature"
+          }
+        },
+        "tremorFrequencyHz": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorPeakToPeakDeg": {
+          "value": 0,
+          "source": "chosen: no tremor"
+        },
+        "tremorAxis": {
+          "value": "yaw",
+          "source": "chosen: [8] measured the single principal axis of head tremor, so applying the full size to both axes would overstate it"
+        },
+        "headRangeDeg": {
+          "value": {
+            "left": 15,
+            "right": 15,
+            "up": 15,
+            "down": 15
+          },
+          "source": "chosen: our own default calibration constant, not a published human range"
+        },
+        "readingPauseChancePct": {
+          "value": 30,
+          "source": "chosen: 30 % chance per passed target; the low end of the length is below the 400 ms minimum dwell and the high end is below the 1000 ms default, so it exercises dwell settings"
+        },
+        "readingPauseLengthMs": {
+          "value": {
+            "min": 300,
+            "max": 900
+          },
+          "source": "chosen: 300–900 ms uniform; below the 400 ms minimum dwell at the low end and below the 1000 ms default at the high end"
+        },
+        "tremorDriftFraction": {
+          "value": 0.2,
+          "source": "chosen: random walk keeping the size within ±20 % of nominal, changing over about 5 s; tremor size varies slowly in real recordings, but [8] gives no figure"
+        },
+        "reactionTimeMs": {
+          "value": 500,
+          "source": "chosen: a choice reaction time for a user who has to pick the next target"
+        },
+        "scatterCapDeg": {
+          "value": 0.6,
+          "source": {
+            "row": "Head effective width, same study",
+            "ref": 3,
+            "citation": "Hansen JP, Rajanna V, MacKenzie IS, Bækgaard P. A Fitts' law study of click and dwell interaction by gaze, head and mouse with a head-mounted display. COGAIN @ ETRA 2018. doi:10.1145/3206343.3206344.",
+            "note": "derived: SD = We / 4.133 = 2.5 / 4.133 = 0.6 degrees"
+          }
+        },
+        "trackingNoiseDeg": {
+          "value": 0,
+          "source": "chosen: not measured yet; input-core Task 14.9 will measure it from our own face clip and replace it"
+        },
+        "scanReactionTimeMs": {
+          "value": 500,
+          "source": "chosen: same as reaction time"
+        },
+        "scanLatePressChancePct": {
+          "value": 10,
+          "source": "chosen: one item late, to exercise scan interval settings"
+        },
+        "scanPressDurationMs": {
+          "value": 150,
+          "source": "chosen: must be below cancelHoldTime (minimum 1000 ms)"
+        }
+      }
+    }
+  ],
+  "customRanges": {
+    "throughputBitsPerS": {
+      "min": 0.3,
+      "max": 4,
+      "unit": "bits/s"
+    },
+    "tremorFrequencyHz": {
+      "min": 0,
+      "max": 15,
+      "unit": "Hz"
+    },
+    "tremorPeakToPeakDeg": {
+      "min": 0,
+      "max": 5,
+      "unit": "degrees peak to peak"
+    },
+    "headRangeDeg": {
+      "min": 3,
+      "max": 60,
+      "unit": "degrees per direction"
+    },
+    "reactionTimeMs": {
+      "min": 150,
+      "max": 1500,
+      "unit": "ms"
+    },
+    "readingPauseChancePct": {
+      "min": 0,
+      "max": 100,
+      "unit": "%"
+    },
+    "readingPauseLengthMs": {
+      "min": 0,
+      "max": 3000,
+      "unit": "ms"
+    },
+    "scatterCapDeg": {
+      "min": 0.1,
+      "max": 3,
+      "unit": "degrees"
+    },
+    "trackingNoiseDeg": {
+      "min": 0,
+      "max": 2,
+      "unit": "degrees"
+    },
+    "analysisWindowS": {
+      "min": 2,
+      "max": 120,
+      "unit": "s"
+    }
+  },
+  "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings."
+}
