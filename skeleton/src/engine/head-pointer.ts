@@ -12,6 +12,7 @@
  */
 
 import type { Profile } from './profile.js';
+import { mapCentredAngles, screenSize } from './pointer-mapping.js';
 import {
   createSmootherState,
   cloneSmootherState,
@@ -201,46 +202,6 @@ export function selectionPointer(s: HeadPointerState): { x: number; y: number } 
 // Mapping (design §1)
 // ---------------------------------------------------------------------------
 
-function screenSize(n: number): number {
-  return Number.isFinite(n) && n >= 1 ? Math.floor(n) : 1;
-}
-
-/** Dead zone: δ_dz = sign(δ) × max(0, |δ| − D). */
-function deadZone(d: number, D: number): number {
-  const m = Math.abs(d) - D;
-  return m > 0 ? Math.sign(d) * m : 0;
-}
-
-/**
- * u = clamp(δ_dz / (R_eff / G) × 0.5 + 0.5, 0, 1), with R_eff = R_side − D for the side
- * δ_dz is on. Positive δ_dz uses rPos.
- */
-function toUnit(dz: number, rPos: number, rNeg: number, D: number, G: number): number {
-  if (dz === 0) return 0.5;
-  const rEff = (dz > 0 ? rPos : rNeg) - D;
-  if (!(rEff > 0)) return dz > 0 ? 1 : 0;
-  const u = (dz / (rEff / G)) * 0.5 + 0.5;
-  return u < 0 ? 0 : u > 1 ? 1 : u;
-}
-
-/** Filtered centred angles (degrees) → pixel position. */
-function mapToPixel(
-  dx: number,
-  dy: number,
-  profile: Profile,
-  screen: { width: number; height: number },
-): { x: number; y: number } {
-  const D = profile.headDeadZone;
-  const G = profile.headGain;
-  const ux = toUnit(deadZone(dx, D), profile.calibrationRangeRight, profile.calibrationRangeLeft, D, G);
-  // Pitch up (positive) moves the pointer up, so it maps to smaller y.
-  const uyUp = toUnit(deadZone(dy, D), profile.calibrationRangeUp, profile.calibrationRangeDown, D, G);
-  const uy = 1 - uyUp;
-  const W = screenSize(screen.width);
-  const H = screenSize(screen.height);
-  return { x: Math.round(ux * (W - 1)), y: Math.round(uy * (H - 1)) };
-}
-
 // ---------------------------------------------------------------------------
 // Face lock (design §4)
 // ---------------------------------------------------------------------------
@@ -399,7 +360,7 @@ export function stepHeadPointer(
     const fx = stepSmoother(state.smootherX, { angle: dxRaw, dt, smoothingStrength: s });
     const fy = stepSmoother(state.smootherY, { angle: dyRaw, dt, smoothingStrength: s });
     state.t_smooth = now;
-    const p = mapToPixel(fx, fy, profile, input.screen);
+    const p = mapCentredAngles(fx, fy, profile, input.screen);
     state.liveX = p.x;
     state.liveY = p.y;
     if (!state.hasPointer) {

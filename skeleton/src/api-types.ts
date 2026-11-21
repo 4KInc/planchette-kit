@@ -93,7 +93,7 @@ export interface PlanchetteEventMap {
   'dwell-progress': { targetId: string; progress: number };
   highlight: { kind: ScanHighlightKind; targetId: string; targetIds: string[] };
   select: { targetId: string; now: number; source: SelectSource; role: TargetRole };
-  cancel: Record<string, never>;
+  cancel: { targetId?: string; now: number };
   'tracking-status': {
     status: TrackingStatus;
     /** For lost, low-confidence and the failures: what to tell the person, in plain language. */

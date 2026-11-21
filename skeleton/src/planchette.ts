@@ -225,9 +225,9 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
   }
 
   /** A cancel: back to idle and exactly one `cancel` event. */
-  function cancelToIdle(resetScan = true, resetDwell = true): void {
+  function cancelToIdle(now: number, targetId?: string, resetScan = true, resetDwell = true): void {
     toIdle(false, resetScan, resetDwell);
-    emit('cancel', {});
+    emit('cancel', targetId === undefined ? { now } : { now, targetId });
   }
 
   // ---- profile -----------------------------------------------------------
@@ -275,7 +275,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
     const hit = hitTest(p, targetList);
     if (hit === null) return;
     // Req 6 AC 1: a target with role 'cancel' cancels instead of selecting.
-    if (hit.role === 'cancel') cancelToIdle();
+    if (hit.role === 'cancel') cancelToIdle(now, hit.id);
     else emit('select', { targetId: hit.id, now, source, role: hit.role });
   }
 
@@ -284,7 +284,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
       if (e.type === 'dwell-progress') emit('dwell-progress', { targetId: e.targetId, progress: e.progress });
       // The dwell stay stays as the engine left it (finished, so it does not fire again
       // while the pointer rests on the cancel target); everything else returns to idle.
-      else if (e.type === 'cancel') cancelToIdle(true, false);
+      else if (e.type === 'cancel') cancelToIdle(e.now, e.targetId, true, false);
       else emit('select', { targetId: e.targetId, now: e.now, source: 'dwell', role: e.role });
     }
   }
@@ -297,7 +297,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
       } else if (e.type === 'select') {
         emit('select', { targetId: e.targetId, now: e.now, source: 'scan', role: e.role });
       } else {
-        cancelToIdle(false);
+        cancelToIdle(e.now, e.targetId, false);
       }
     }
   }
@@ -419,7 +419,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
     let result: 'press' | 'cancelled' | 'none' = 'none';
     for (const e of events) {
       if (e.type === 'cancel') {
-        cancelToIdle();
+        cancelToIdle(now);
         result = 'cancelled';
       } else if (result !== 'cancelled') {
         result = 'press';
@@ -443,7 +443,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
       else press = true;
     }
     if (cancelled) {
-      cancelToIdle();
+      cancelToIdle(now);
       return;
     }
     if (profile.mode === 'scan') {
@@ -479,7 +479,7 @@ export function createPlanchetteInternal(options: PlanchetteOptions, environment
     lastNow.set(source, now);
 
     if (raw.cancel === true) {
-      cancelToIdle();
+      cancelToIdle(now);
       return;
     }
     const cameraContent = source === 'camera' || raw.faces !== undefined || raw.gestureScores !== undefined;

@@ -44,7 +44,7 @@ describe('dwell on a cancel target (Req 6 AC 1, Task 10.1)', () => {
   it('emits cancel, not select, when the dwell time is reached', () => {
     const h = dwellHarness();
     h.cam(80);
-    expect(h.of('cancel')).toEqual([{}]);
+    expect(h.of('cancel')).toEqual([{ now: expect.any(Number), targetId: 'cancel' }]);
     expect(h.of('select')).toEqual([]);
   });
 
@@ -162,7 +162,7 @@ describe('scan: the cancel item and cancel-role targets (Req 6 AC 1, Task 10.2)'
     expect(h.of('highlight').at(-1)).toMatchObject({ kind: 'cancel', targetId: '$cancel' });
     h.clear();
     press(h);
-    expect(h.of('cancel')).toEqual([{}]);
+    expect(h.of('cancel')).toEqual([{ now: expect.any(Number) }]);
     expect(h.of('select')).toEqual([]);
     expect(h.of('highlight').at(-1)).toMatchObject({ kind: 'item', targetId: 'a' });
   });
@@ -184,7 +184,7 @@ describe('scan: the cancel item and cancel-role targets (Req 6 AC 1, Task 10.2)'
     expect(scanUntil(h, (d) => d.targetId === 'x')).toBe(true);
     h.clear();
     press(h);
-    expect(h.of('cancel')).toEqual([{}]);
+    expect(h.of('cancel')).toEqual([{ now: expect.any(Number), targetId: 'x' }]);
     expect(h.of('select')).toEqual([]);
     expect(h.of('highlight').at(-1)).toMatchObject({ targetId: 'a' });
   });

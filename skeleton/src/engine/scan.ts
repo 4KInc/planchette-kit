@@ -27,7 +27,7 @@ export type ScanEvent =
       targetIds: string[];
     }
   | { type: 'select'; targetId: string; now: number; source: 'scan'; role: TargetRole }
-  | { type: 'cancel' };
+  | { type: 'cancel'; now: number; targetId?: string };
 
 export interface ScanInput {
   /** True on the step where a press was counted. */
@@ -290,7 +290,7 @@ function act(state: ScanState, layout: Layout, now: number, profile: Profile): S
 
   if (state.index === lastSlot) {
     // The cancel item, at either level.
-    events.push({ type: 'cancel' });
+    events.push({ type: 'cancel', now });
     restart(state);
     return finish();
   }
@@ -327,7 +327,7 @@ function act(state: ScanState, layout: Layout, now: number, profile: Profile): S
 
 /** Selecting an item: a target with role 'cancel' cancels instead of selecting (Req 6 AC 1). */
 function selectEvent(t: DwellTarget, now: number): ScanEvent {
-  if (t.role === 'cancel') return { type: 'cancel' };
+  if (t.role === 'cancel') return { type: 'cancel', now, targetId: t.id };
   return { type: 'select', targetId: t.id, now, source: 'scan', role: t.role };
 }
 

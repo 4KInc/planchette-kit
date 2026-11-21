@@ -6,6 +6,7 @@
 import fc from 'fast-check';
 import type { InputMode, PlanchetteEventType, TimestampedSample } from '../src/api-types';
 import { createPlanchetteInternal } from '../src/planchette';
+import { clampProfile, type Profile } from '../src/engine/profile';
 
 export const MODES: InputMode[] = ['head + dwell', 'head + gesture', 'scan', 'gesture scan', 'mouse'];
 export const TYPES: PlanchetteEventType[] = [
@@ -136,3 +137,17 @@ export function run(c: Case): Run {
   return { log, clocks, inspect, p };
 }
 
+
+/** A valid Profile: every field in range, built through `clampProfile` (which enforces D ≤ 0.5 × min range). */
+export function validProfile(): fc.Arbitrary<Profile> {
+  return fc
+    .record({
+      calibrationRangeLeft: fc.double({ min: 3, max: 90, noNaN: true }),
+      calibrationRangeRight: fc.double({ min: 3, max: 90, noNaN: true }),
+      calibrationRangeUp: fc.double({ min: 3, max: 90, noNaN: true }),
+      calibrationRangeDown: fc.double({ min: 3, max: 90, noNaN: true }),
+      headDeadZone: fc.oneof(fc.double({ min: 0, max: 1, noNaN: true }), fc.double({ min: 0, max: 45, noNaN: true })),
+      headGain: fc.double({ min: 1, max: 2, noNaN: true }),
+    })
+    .map((r) => clampProfile(r));
+}

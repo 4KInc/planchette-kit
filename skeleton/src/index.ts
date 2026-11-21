@@ -2,7 +2,8 @@
  * The public API of the skeleton (design §6). This file is the package's only entry
  * point: anything not exported here is private and may change.
  *
- * It does nothing when imported: the only runtime export is the factory function.
+ * It does nothing when imported: the runtime exports are the factory function and the two
+ * pure pointer helpers.
  */
 import type { Planchette, PlanchetteOptions } from './api-types.js';
 import { createPlanchetteInternal } from './planchette.js';
@@ -31,6 +32,9 @@ export type {
   TimestampedSample,
   TrackingStatus,
 } from './api-types.js';
+
+export { pointToRotation, rotationToPoint } from './pointer-helpers.js';
+export type { HeadRotation, MappingProfile, ScreenPoint } from './pointer-helpers.js';
 
 /** Create a Planchette instance. There is no module-level state: each call is independent. */
 export function createPlanchette(options: PlanchetteOptions): Planchette {

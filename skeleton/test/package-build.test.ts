@@ -22,7 +22,7 @@ const runDir = resolve(tmpBase, `pkg-${Date.now()}-${randomBytes(4).toString('he
 const outDir = resolve(runDir, 'dist');
 
 /** The runtime names exported from the package entry point. Types do not appear here. */
-const EXPECTED_EXPORTS = ['createPlanchette'];
+const EXPECTED_EXPORTS = ['createPlanchette', 'pointToRotation', 'rotationToPoint'];
 /** The runtime names of the `./ui` entry point (Task 16). */
 const EXPECTED_UI_EXPORTS = ['createDwellRing', 'createScanHighlight'];
 

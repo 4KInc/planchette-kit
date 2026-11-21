@@ -326,7 +326,7 @@ describe('cancel input (Req 6 AC 4)', () => {
     const h = harness({ mode: 'mouse' });
     h.p.registerTarget('a', { x: 100, y: 100, width: 100, height: 100 });
     h.tick('mouse', 1, { pointer: { x: 150, y: 150 }, signal: true, cancel: true });
-    expect(h.of('cancel')).toEqual([{}]);
+    expect(h.of('cancel')).toEqual([{ now: expect.any(Number) }]);
     expect(h.of('pointer-move')).toEqual([]);
   });
 

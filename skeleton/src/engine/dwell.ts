@@ -61,7 +61,7 @@ export interface DwellState {
 export type DwellEvent =
   | { type: 'dwell-progress'; targetId: string; progress: number }
   | { type: 'select'; targetId: string; now: number; source: 'dwell'; role: TargetRole }
-  | { type: 'cancel' };
+  | { type: 'cancel'; targetId: string; now: number };
 
 export interface DwellInput {
   /** Pointer position in CSS px, or null when the pointer is lost. */
@@ -212,7 +212,7 @@ export function stepDwell(
     state.pauseEnd = now + profile.postSelectionPause;
     events.push({ type: 'dwell-progress', targetId: hit.id, progress: 1 });
     // Req 6 AC 1: a cancel target cancels instead of selecting. It fires once per stay.
-    if (hit.role === 'cancel') events.push({ type: 'cancel' });
+    if (hit.role === 'cancel') events.push({ type: 'cancel', targetId: hit.id, now });
     else events.push({ type: 'select', targetId: hit.id, now, source: 'dwell', role: hit.role });
     return events;
   }
