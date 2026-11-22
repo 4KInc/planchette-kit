@@ -85,7 +85,8 @@ export const READING_DEPTH = 0.5;
 /** Most samples taken along the straight path to find crossings (design 4.7 step 4). */
 export const MAX_PATH_SAMPLES = 2000;
 
-function insideRect(rect: Rect, p: Point): boolean {
+/** Half-open test: `[x, x + w) x [y, y + h)`. Shared with the classifier. */
+export function insideRect(rect: Rect, p: Point): boolean {
   return p.x >= rect.x && p.x < rect.x + rect.width && p.y >= rect.y && p.y < rect.y + rect.height;
 }
 

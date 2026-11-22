@@ -759,17 +759,31 @@ the planned position is inside it (the user is arriving); an event on the aimed 
 outside it (tremor or noise put the pointer in early) is accidental with cause `early-on-intended-target` or
 `tremor-at-edge`. During `waiting` and `reading-pause` nothing is intended.
 
-**Cause, first match wins, for accidental events only** (start-of-session events carry the fixed cause `start` and never reach this table). `ampPx` is the tremor peak amplitude in px
-(`a0 × (1 + driftFraction) / 2` degrees on the tremor axis, converted with `toPx(base ± amp)` at `Q`) plus the noise
-peak `n` in px, plus 1 px of rounding. `edgeDist(Z, R)` is the distance from point `Z` to the boundary of rectangle
-`R` (0 on the boundary; for a point inside, the least distance to the four edges; outside, the distance to the rectangle).
+**Cause, first match wins, for accidental events only** (start-of-session events carry the fixed cause `start` and never reach this table). `ampPx` is one formula, computed in degrees and then mapped to pixels. Let `a0` be the tremor peak-to-peak size, `f` the tremor frequency and `n` the tracking-noise peak in degrees per axis.
+
+```
+tremorOrNoiseOn = (a0 > 0 && f > 0) || n > 0
+aT     = (a0 > 0 && f > 0) ? a0 × (1 + driftFraction) / 2 : 0      // degrees, on tremorAxis
+dYaw   = n + (tremorAxis === 'yaw'   ? aT : 0)
+dPitch = n + (tremorAxis === 'pitch' ? aT : 0)
+ampPx(base) = 1 + max over sy, sp in {−1, +1} of
+              hypot( toPx({ yaw: base.yaw + sy·dYaw, pitch: base.pitch + sp·dPitch }) − toPx(base) )     // px
+```
+
+- **Why degrees first.** Tremor and noise add to the head pose in degrees (§4.5, §4.6) before the mapping, so the pixel reach is the mapping of the summed degrees, not a sum of two pixel amounts.
+- **Why the four corners.** The mapping is not symmetric near the dead zone and near the screen edge, so the offset in `+` and `−` can differ; the maximum over the four sign corners covers both. The Euclidean length matches `edgeDist`.
+- **`toPx`** is the geometry helper of §4.1 (through `rotationToPoint`, so it includes the clamp to the screen). Near the screen edge the clamp makes `ampPx` smaller, which is correct: the pointer cannot move further than the edge. The `+ 1` is 1 px of rounding.
+- **Base pose.** For cause 4 the base is `base(e.now)`, the planned pose without tremor and noise at the event time (`basePose`). For the miss cause it is the aim pose.
+- **"Tremor or noise is on"** means `tremorOrNoiseOn` above. `aT` uses only the tremor part: it is 0 when `a0 = 0` or `f = 0`.
+- **`edgeDist(Z, R)`** is the distance from point `Z` to the boundary of rectangle `R`: 0 on the boundary, the distance to the rectangle outside it, and for a point inside the least distance to the four edges. It is continuous across the boundary, so it needs no inside test.
+- **Inside test.** "Inside `A.rect`" in `intended` uses the half-open test `[x, x + w) × [y, y + h)`, the same helper as `plan-entry.ts`.
 
 | # | Cause | Condition |
 |---|---|---|
-| 1 | `repeat` | `target(e)` is `autoRepeat`, the previous select/cancel event of the trial was on the same target, and no `pointer-move` between the two left its rect |
+| 1 | `repeat` | `e.targetId` is present, `target(e)` is `autoRepeat`, the previous select/cancel event (after the start plan's `tEnd`) was on the same target, and no `pointer-move` between the two left its rect; false when `e.targetId` is absent |
 | 2 | `waiting` | phase is `waiting` |
 | 3 | `reading-pause` | a pause `R` in `E.pauses` has `R.targetId = e.targetId` and `R.t0 ≤ e.now < R.t1 + graceTime + 500 ms` (the 500 ms is `LAG_ALLOWANCE_MS`, chosen: above the measured smoother lag of 400 ms at smoothing strength 0.9) |
-| 4 | `tremor-at-edge` | tremor or noise is on and (`edgeDist(Q(e.now), rect(target)) ≤ ampPx` or `edgeDist(P, rect(target)) ≤ ampPx`); false when `e.targetId` is absent |
+| 4 | `tremor-at-edge` | tremor or noise is on and (`edgeDist(Q(e.now), rect(target)) ≤ ampPx(base(e.now))` or `edgeDist(P, rect(target)) ≤ ampPx(base(e.now))`); the `P` half is skipped when no `pointer-move` has been seen yet; false when `e.targetId` is absent |
 | 5 | `early-on-intended-target` | `e.targetId = A.id` and phase is `moving` |
 | 6 | `pass-over` | phase is `moving` (target not aimed) |
 | 7 | `other` | always |
@@ -779,13 +793,16 @@ peak `n` in px, plus 1 px of rounding. `edgeDist(Z, R)` is the distance from poi
 that lands in the reaction wait after a selection on the same auto-repeat target would be labelled `waiting` and the
 cause that the developer can act on (the auto-repeat setting) would be lost. Activity labels are not affected. All other
 positions are as suggested. The `repeat` rule cannot match during the start of session because those events are taken out first.
+The state `repeat` uses (the previous event and the "left its rect" flag) is reset at the start plan's `tEnd`, and start-of-session events are never the previous event, so the first event of entry 0 is never a `repeat`. An event with no `targetId` is never `repeat` and never `tremor-at-edge`.
 
 **Totality.** The category (start-of-session, intended, accidental) is a function of `e.now` and a boolean of defined values. The label is a total function of `phaseAt`. The cause list ends in an
 unconditional `other`. Hence each event gets exactly one category, one label and (if accidental) one cause
 (property 4). The classifier is a pure function of its inputs; it is called once per drained event.
 
 **Miss causes** (used by suggestions): `unreachable` (target outside the user's reachable pixel rectangle), else
-`tremor-at-edge` (tremor or noise on and `edgeDist(aimPx, rect) ≤ ampPx`), else `other`.
+`tremor-at-edge` (tremor or noise is on, as defined above, and `edgeDist(aimPx, rect) ≤ ampPx(aim pose)`), else `other`.
+For a miss the base pose in `ampPx` is the entry's aim pose (`E.aim`), because no event exists to give an event time; the
+aim is where the user was trying to hold, so it is the position that tremor and noise push across the edge.
 
 ### 7. Metrics and results (`metrics.ts`)
 
