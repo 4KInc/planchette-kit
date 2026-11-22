@@ -439,6 +439,16 @@
         "executionId": "424549c9-f3ab-4f54-839d-ed19c9b9b38a",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795318542496
+      },
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795318846573
+      },
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323000371
       }
     ],
     "7. Classification": [
@@ -446,6 +456,213 @@
         "executionId": "424549c9-f3ab-4f54-839d-ed19c9b9b38a",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795318542575
+      }
+    ],
+    "8.1 Shared test arbitraries.": [
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795318853455
+      },
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323000540
+      },
+      {
+        "executionId": "aeda8ff4-c384-4f18-b4ca-cc9d828a2d1f",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795370033751
+      },
+      {
+        "executionId": "aeda8ff4-c384-4f18-b4ca-cc9d828a2d1f",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795370514895
+      }
+    ],
+    "8.2 Trial driver, part 1: instance and warm-up.": [
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795318853519
+      },
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323000835
+      }
+    ],
+    "8.3 Trial driver, part 2: start of session.": [
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323003110
+      },
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323827593
+      },
+      {
+        "executionId": "d8eddd02-6f72-4371-81d7-232a55f7e2e0",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795324224725
+      },
+      {
+        "executionId": "d8eddd02-6f72-4371-81d7-232a55f7e2e0",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795324344026
+      }
+    ],
+    "8.4 Trial driver, part 3: the entry loop and miss handling.": [
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323827659
+      },
+      {
+        "executionId": "d31812c5-3573-4c6e-a1d3-559da4dd14ce",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795323885280
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795324594761
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795326264458
+      }
+    ],
+    "8.5 Write property test for Property 4: every event is accounted for.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795326267443
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795327141804
+      }
+    ],
+    "8.6 Write property test for Property 3: unreachable means miss.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795326268091
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795327142440
+      }
+    ],
+    "8.7 Write property test for Property 2: clean run, no accidents, no misses.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795326269208
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795329927781
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795330041408
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795331056069
+      },
+      {
+        "executionId": "7534dba9-9a56-4ecb-9aa6-0b421e136e5a",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795332785396
+      },
+      {
+        "executionId": "7534dba9-9a56-4ecb-9aa6-0b421e136e5a",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795369224382
+      }
+    ],
+    "8.8 Write property test for Property 8: each task entry resolves once.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795326270203
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795327143437
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795329927932
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795330041344
+      }
+    ],
+    "8.9 Write property test for Property 7: frame rate.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795326270692
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795329927842
+      },
+      {
+        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795330041833
+      },
+      {
+        "executionId": "aeda8ff4-c384-4f18-b4ca-cc9d828a2d1f",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795370033643
+      },
+      {
+        "executionId": "aeda8ff4-c384-4f18-b4ca-cc9d828a2d1f",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795370520104
+      }
+    ],
+    "8.10 Write property test for Property 6: longer dwell, fewer reading-pause accidents.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795327146813
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795328133741
+      }
+    ],
+    "8.11 Pin the known Property 6 counterexample as a named example test.": [
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795327147538
+      },
+      {
+        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795328133820
       }
     ]
   }

@@ -676,23 +676,34 @@ function runTrial(cfg):
   cap = eff.calibrationStepTimeout + 1000
   while (!centreDone && k*frameMs <= cap): now = k*frameMs; feed(headWarm(now), now); drainWarm(); k++
   tDone = (k−1) × frameMs            // if the cap was hit: tDone = cap, warning 'centre-step-cap'
-  // (events drained during the warm-up are classified like the start of session below: activity waiting, cause start)
+  // Every event drained during the warm-up (drainWarm), including one emitted by the sample at tDone, is a start-of-session event by
+  // definition (design §5/§6): the driver records it directly as a start event (activity 'waiting', cause 'start'). It is not
+  // passed to classify(): without a rest area startPlan.tEnd = tDone, so an event at now == tDone is not before tEnd and classify would not treat it as one.
   // 2. start of session (Req 11 AC 9, 10): the head is at the screen centre; with a rest area it moves there as a normal movement
   startPlan = planStart(ctx, tDone)                         // §4.7a; no segments and tEnd = tDone without a rest area
   while (k*frameMs < startPlan.tEnd): now = k*frameMs; feed(head(startPlan, now), now); k++
       for ev of drain(queue): record(classify(ev, startPlan, lastPointer, state))     // always a start-of-session event, cause 'start'
   // 3. entries
-  p0 = startPlan.endPose; tEntry = startPlan.tEnd
-  for entry in 0..task.length−1:
-    plan = planEntry(ctx, entry, tEntry, p0)
-    resolved = null
-    while (resolved === null):
-      now = k*frameMs; feed(head(plan, now), now); k++
-      for ev of drain(queue): c = classify(ev, plan, lastPointer, state)
-          record(c); if (c.intended && resolved === null) resolved = { kind:'selected', now: ev.now }
-      if (resolved === null && now >= plan.deadline) resolved = { kind:'miss', now }
-    results.entries.push(...);  tEntry = resolved.now;  p0 = basePose(plan, resolved.now)    // pure, from the segments
-  pl.destroy()
+  last = task.length − 1;  entry = 0;  plan = planEntry(ctx, 0, startPlan.tEnd, startPlan.endPose);  finished = false
+  while (!finished):
+    now = k*frameMs; feed(head(plan, now), now); k++
+    advanced = false                                          // did an intended event resolve an entry in this frame?
+    for ev of drain(queue):                                   // emission order; `plan` may change inside this loop
+      c = classify(ev, plan, lastPointer, state)              // under the plan in force at this event
+      if (finished && c.intended)                             // same frame, after the last entry resolved: it cannot resolve the entry again
+        c = accidental(ev, cause 'other', activity = label(phaseAt(plan, ev.now)))
+      record(c, plan.entry)                                   // an event is recorded with the index of the plan that classified it
+      if (c.intended):                                        // never true once finished
+        results.entries.push({ entry: plan.entry, outcome:'selected', now: ev.now });  advanced = true
+        if (entry < last):                                    // §6 wins: switch plan now, at this frame's `now`
+          p0 = basePose(plan, now);  entry++;  plan = planEntry(ctx, entry, now, p0)
+          // the rest of this frame is classified under the new plan with entry = k+1 (first phase 'waiting')
+        else: finished = true                                 // last entry: remaining events of this frame stay under `plan`, entry = last
+    if (!advanced && now >= plan.deadline):                   // deadline frame: fed and drained under the old plan first, so an intended event already won
+      results.entries.push({ entry: plan.entry, outcome:'miss', now })
+      if (entry < last): p0 = basePose(plan, now);  entry++;  plan = planEntry(ctx, entry, now, p0)
+      else: finished = true
+  pl.destroy()                                                // no frame is fed after the last entry resolves
 ```
 
 Choices:
@@ -708,11 +719,14 @@ Choices:
 - **Feeding.** One `feedSamples` call per frame with a reused one-element array and a mutated sample object, so
   nothing is allocated per frame in the driver. The engine does not keep the sample (`feedOne` reads fields and
   `sanitizeFaces` copies). There is no `await` anywhere in a trial: all of it is synchronous.
-- **When entry k+1 starts.** At the frame time `now` of the sample whose events resolved entry `k` (`tEntry = resolved.now`).
-  The new plan only affects frames after `now`, so the sample at `now` was generated from the old plan. This is the
+- **Warm-up events.** Events from the warm-up are start-of-session events by definition (§6), so the driver records them directly as start events (activity `waiting`, cause `start`) and does not call `classify` for them. The code carries a comment citing design §5/§6. `classify.ts` is unchanged: it needs no context copy with `tEnd = +Infinity`.
+- **When entry k+1 starts.** At the frame time `now` of the sample whose events resolved entry `k` (`tEntry = now`), from `basePose(plan, now)`.
+  The plan switch happens inside the drain loop, right after the first intended event (§6 wins): the remaining events of that frame are classified under
+  plan `k+1` and recorded with entry `k+1`. The sample at `now` was generated from the old plan; the new plan only affects later frames. This is the
   only dependence of the head path on engine output.
+- **Last entry.** Events of the same frame after the last entry resolves are classified under the just-resolved plan and recorded with that entry's index. Nothing is dropped, so property 4 holds. No frame is fed after the last entry resolves. If such an event classifies as `intended`, the driver records it as an accidental selection with cause `other`, the activity label of `phaseAt(plan, ev.now)`, and the resolved entry's index. It is counted once, and the entry is not resolved a second time, so intended + misses stays equal to the task length (properties 4 and 8).
 - **Start pose of an entry.** `p0` is the base pose (no tremor, no noise) of the previous plan at its resolution time.
-- **Deadline.** `tMove0 + analysisWindow`. An intended event on the same frame as the deadline wins.
+- **Deadline.** `tMove0 + analysisWindow`. The deadline frame is the first frame with `now >= deadline`. It is fed, its events are classified under the old plan, an intended event on it wins, and only then is the miss (if any) recorded. `timeToSelectMs` can therefore exceed the analysis window by less than one frame.
 - **Safety cap.** The warm-up loop is bounded by `calibrationStepTimeout + 1000 ms`; every entry loop is bounded by its deadline,
   so a trial always ends.
 - **Unreachable targets.** The user still tries: the clamped head stays at the range edge and the entry misses at its
@@ -738,7 +752,7 @@ segments, it returns `start-of-session`. So the phases cover all times and every
 
 The start-of-session phase is labelled `waiting` in both sub-phases because the glossary fixes that label for cause `start`. The reaction wait of each entry is `waiting`. The plan in force at `e.now` is the plan of the entry that was active when the
 sample was fed; after an intended event resolves an entry, later events of the same sample are classified against the
-new plan (its first phase, `waiting`, includes `tEntry`).
+new plan with entry = k+1 (its first phase, `waiting`, includes `tEntry`); after the last entry they stay under the just-resolved plan (§5). An event there that would classify as `intended` is recorded as accidental with cause `other` (§5, "Last entry"), so the entry resolves once.
 
 **Three categories.** Every event is classified exactly once as a start-of-session event, an intended selection or an accidental selection, checked in
 that order. An event with `e.now` before the start plan's `tEnd` (warm-up, reaction at the centre, start movement) is a *start-of-session event*:
@@ -1198,11 +1212,18 @@ wall-clock field.
 
 *For any* layout and any simulated user such that tremor, tracking noise and reading pauses are off, no target has `autoRepeat`, the
 scatter is truncated at ±3 SD with the per-user SD cap, every target is at least 6 SD wide on both axes, the screen centre is
-outside every selectable target, the dwell time is longer than the longest planned crossing time of any non-intended target (the planned
-crossing times include the start-of-session path), the analysis window is above reaction time + movement time + dwell time + post-selection pause, and every target is reachable, each
+outside every selectable target, `smoothingStrength` is the default 0.5, the dwell time is at least the longest planned crossing time of any non-intended target (the planned
+crossing times include the start-of-session path) plus `margin = L + F(fps)`, the analysis window is above reaction time + movement time + dwell time + post-selection pause, and every target is reachable, each
 intended target is selected exactly once, with no accidental selection and no miss.
 
 (The generator builds "at least 6 SD wide" as `W ≥ 6 × SDcap` in degrees on both axes plus a 2 px rounding margin, so `SD = SDcap`; see §4.4.)
+
+**Derivation of the margin.** `margin = L + F(fps)` replaces the earlier "+ 1 ms". `F(fps) = 1000 / fps` ms is one frame (66.667 ms at 15 fps, 16.667 ms at 60 fps). `L = 150 ms` is the smoother arrival-lag limit of the default smoothing
+(`smoothingStrength` 0.5): `LAG_LIMIT_MS = 150` in `skeleton/test/smoother.test.ts` ("a 20° turn reaches 90 % within 150 ms"), asserted there at 30, 60 and 120 fps; at 15 fps it is only logged (133.3 ms even, 151.6 ms with ±20 % spacing, "not asserted"),
+so 150 ms is used there as a stated assumption. The pointer can stay on a non-intended target up to `L` longer than the planned crossing (smoother lag) and the dwell timer counts whole frames
+(`skeleton/src/engine/dwell.ts`: it adds the gap between consecutive on-target samples), so one more frame `F` is allowed. The margin is built from these two named terms and is not tuned.
+Caveats: `L` bounds the arrival lag of a target edge only when the edge lies within the first 90 % of the move; `L` is known only for `smoothingStrength` 0.5, so the generator must not vary it; `L` at 15 fps is an assumption.
+The test must also report the smallest observed `dwellTime − (longest actual pointer stay on a non-intended target)`, which must be positive.
 
 **Validates: Requirements 4.2, 4.9, 4.10, 4.12, 11.3, 11.4**
 
@@ -1245,8 +1266,25 @@ that the restriction in (b) excludes (d1 = 1000 ms, d2 = 1200 ms, `postSelection
 ### Property 7: Frame rate
 
 *For any* trial with tremor, tracking noise, reading pauses and `autoRepeat` targets off, and meeting input-core P15's boundary conditions B1, B2, B4 and
-B5 (B3 is replaced by the next sentence), 15 fps and 60 fps give the same sequence, order and count of intended selections, and each time-to-select
-differs by at most 140 ms (input-core measured 133 ms of smoother-lag difference between 15 and 60 fps).
+B5 (B3 is replaced by the next sentence), and `smoothingStrength` at the default 0.5, 15 fps and 60 fps give the same sequence, order and count of intended selections, and each time-to-select
+differs by at most `L + q × F(15) = 150 + 2 × 66.667 = 283.33 ms`.
+
+**Derivation of the bound.** Each term is named; none is tuned.
+
+- `F(fps) = 1000 / fps` ms, one frame. `F(15) = 66.667 ms`, `F(60) = 16.667 ms`.
+- `L = 150 ms`: the smoother arrival-lag limit of the default smoothing (`smoothingStrength` 0.5). It is `LAG_LIMIT_MS = 150` in `skeleton/test/smoother.test.ts` ("a 20° turn reaches 90 % within 150 ms"), asserted there at 30, 60 and 120 fps.
+  `L` is therefore ASSERTED at 30, 60 and 120 fps and ASSUMED at 15 fps: at 15 fps the same test only logs the lag (133.3 ms measured with even spacing, 151.6 ms with ±20 % jitter, "not asserted"). The simulator feeds evenly spaced frames, so the 15 fps lag it meets is the 133.3 ms figure, which is below 150 ms; the jittered 151.6 ms case does not occur in a simulated run.
+- `q = 2`: the number of frame quantisations in time-to-select. The dwell timer (`skeleton/src/engine/dwell.ts`, `stepDwell`) adds the gap between consecutive on-target samples, so the select comes at
+  `firstSampleInside + ceil(dwellTime / F) × F`. Quantisation 1: the first frame on which the pointer is inside the target (up to one frame after the pointer arrives). Quantisation 2: `dwellTime` rounded up to a whole number of frames
+  (up to one frame extra). `tMove0` is not quantised.
+- Bound: `|tts15 − tts60| ≤ L + q × F(15)`. The 60 fps terms are not subtracted: their minimum is 0, so they cannot be shown to reduce the worst case (15 fps later than 60 fps). This replaces the earlier 140 ms, which was input-core's measured
+  133 ms lag difference and does not cover the quantisations.
+- `arrival = max(first frame on which the pointer is inside the target, first frame at or after the end of the post-selection pause)`. The dwell timer counts only after the pause ends (`skeleton/src/engine/dwell.ts`: `from = max(prevNow, pauseEnd)`), so a pointer that is already inside the target when the pause ends starts its dwell at the pause end, not at its own arrival. This `max(…)` is the exact definition of `arrival`.
+- Second assertion (the dwell part of time-to-select): for each selected entry, `tts − arrival = ceil(dwellTime / F) × F` exactly, with a tolerance of 1e-6 ms, checked at both 15 and 60 fps. It holds for an uninterrupted stay.
+- B4 (`reactionTimeMs ≥ postSelectionPause`) is enforced by the generator, so the pointer cannot enter the target inside the pause (the previous run's generator violated it). The `max(…)` definition of `arrival` is kept regardless, as the exact definition.
+
+**Caveats.** (1) input-core's P15 B-properties prove no lag bound: B3 removes the smoother, and the second P15 property measures from the pointer's arrival. (2) `L` is the lag to 90 % of a 20° step, so it bounds the arrival lag of a target edge only
+when the edge lies within the first 90 % of the move. (3) `L` is known only for `smoothingStrength` 0.5, so the generators of Properties 2 and 7 must not vary `smoothingStrength`. (4) `L` at 15 fps is an assumption (the source test does not assert it); the simulator's even frame spacing meets the logged 133.3 ms, below 150 ms.
 
 **Validates: Requirements 2.2, 2.3, 7.4**
 
@@ -1296,8 +1334,10 @@ Where a property touches only pure code (planning, classification, metrics) it r
    assert no `Date`-like or `NaN` field. Also run once with the users in reverse order and assert each user's result is unchanged (stable user keys).
 2. *Clean run.* The generator enforces every condition by construction: tremor 0, noise 0, chance 0, `autoRepeat` false; the user's `scatterCapDeg` is drawn first, then every target is sized
    `W ≥ 6 × SDcap` in degrees (converted with the mapping at the target) plus 2 px, so `SD = SDcap`; the screen centre is outside every selectable
-   target (the grid leaves the centre cell for the rest area, or empty); `dwellTime ≥ max planned crossing time of any non-intended target + 1 ms`, where the test computes the
-   crossings from the plans of the entries and from the `StartPlan` (the path from the screen centre to the rest area crosses targets without a reading pause, so it is included); the window is
+   target (the grid leaves the centre cell for the rest area, or empty); `dwellTime ≥ max planned crossing time of any non-intended target + margin`, with `margin = L + F(fps) = 150 + 1000 / fps` ms of the run (derivation in Property 2), where the test computes the
+   crossings from the plans of the entries and from the `StartPlan` (the path from the screen centre to the rest area crosses targets without a reading pause, so it is included). The generator keeps `crossing + margin ≤ 3000 ms` (the dwell clamp) by construction where possible
+   (it shortens the planned path or widens the gap, never the margin); `fc.pre` is used only if the discard rate is rare, and the test prints the discard rate. `smoothingStrength` is not varied (default 0.5). The test prints the smallest observed
+   `dwellTime − (longest actual pointer stay on a non-intended target)`, with the stays taken from the `pointer-move` events, and asserts it is positive. The window is
    `RT + MT + dwell + pause + 1000 ms` capped at 120 s (and the MT bound uses the slowest throughput in the range); all targets reachable (head range ≥ profile
    ranges). Tasks use targets in the layout. Assertion: `intended = task length`, `accidental = 0`, `misses = 0`, and each target selected once per entry.
 3. *Unreachable means miss.* Users with `headRangeDeg` 3–10° and profile ranges 1.5–3× larger. The test computes the reachable pixel rectangle with the helpers and places one target
@@ -1319,8 +1359,10 @@ Where a property touches only pure code (planning, classification, metrics) it r
    The fixed example test `props6.counterexample.test` replays d1 = 1000, d2 = 1200, `postSelectionPause` 500, S1 [0, 1000], S2 [1100, 2400] and records that the restriction excludes it.
 7. *Frame rate.* The generator builds B1 by choosing stays shorter than `dwellTime − 67 ms` or longer than `dwellTime + postSelectionPause + 134 ms`: the layout puts targets on a line with the
    rest area apart, so non-intended crossings are shorter than `dwellTime − 67 ms`; B2 by making each target at least `6 SDcap_px + 40 px` wide so every aim (resting pointer) is more than 20 px from the edge; B4 by
-   drawing `reactionTimeMs ≥ postSelectionPause` (reaction ≤ 1500 ms limits `postSelectionPause` to 200–1500 ms in this generator); B5 by `autoRepeat` false. The same request runs at 15 and 60 fps.
-   Assertion: same ordered list of `(entry, targetId)` intended selections and `|ttsM15 − ttsM60| ≤ 140` per entry. Because tremor is a pure function of `t`, and noise is off, the two runs sample the same head path.
+   drawing `postSelectionPause` first and then `reactionTimeMs` from `[max(150, postSelectionPause), 1500]` in the custom user (so `postSelectionPause` is at most 1500 ms in this generator), and the test asserts B4 for every generated request; B5 by `autoRepeat` false. The same request runs at 15 and 60 fps.
+   `smoothingStrength` is not varied (default 0.5). Assertion: same ordered list of `(entry, targetId)` intended selections and `|tts15 − tts60| ≤ L + 2 × F(15) = 283.33 ms` per entry (derivation in Property 7).
+   Second assertion, for every selected entry, at both fps: `tts − arrival = ceil(dwellTime / F) × F` within 1e-6 ms, with `arrival = max(first frame whose pointer is inside the target (from `pointer-move`), first frame at or after the end of the post-selection pause)`. The test prints the largest observed
+   `|tts15 − tts60|` next to the bound 283.33 ms. Because tremor is a pure function of `t`, and noise is off, the two runs sample the same head path.
 8. *Each entry resolves once.* Any request from the shared arbitraries, with a mix of reachable and unreachable targets and a short window (2–10 s) so misses are common. Assertion per trial:
    `intended + misses = task length`, and the entry indices of the results are exactly `0..n−1` with no duplicates.
 

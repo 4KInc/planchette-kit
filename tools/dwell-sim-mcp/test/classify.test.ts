@@ -275,7 +275,7 @@ describe("design section 6 decisions 5 to 10", () => {
   it("7: a target outside the reachable rectangle is unreachable, before the other causes", () => {
     const small = { ...geometry, headRange: { left: 10, right: 10, up: 10, down: 10 } };
     const ctx = ctxFor({ ...shaky, headRangeDeg: small.headRange }, undefined, small);
-    const plan = mkPlan([hold(1000, 1500, pxPose(500, 500), "waiting")], { aim: pxPose(790, 500) });
+    const plan = mkPlan([hold(1000, 1500, pxPose(500, 500), "waiting")], { aim: pxPose(750, 500) });
     expect(classifyMiss(ctx, plan)).toBe("unreachable"); // reachable x is 250..750; goal starts at 800
   });
 

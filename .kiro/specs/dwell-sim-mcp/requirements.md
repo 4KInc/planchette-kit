@@ -526,8 +526,10 @@ so that the results are on record.
 2. **Clean run, no accidents, no misses**: with tremor, tracking noise and reading
    pauses off, no `autoRepeat` targets, scatter truncated at ±3 SD with the per-user SD
    cap, every target at least 6 SD wide on both axes, the screen centre outside every
-   selectable target, dwell time longer than the longest planned crossing time of any
-   non-intended target (the planned crossing times include the start-of-session path),
+   selectable target, `smoothingStrength` at the default 0.5, dwell time at least the
+   longest planned crossing time of any non-intended target (the planned crossing times
+   include the start-of-session path) plus a margin of L + F(fps) = 150 ms + 1000 / fps
+   (L: smoother arrival lag limit; F: one frame; see Property 7 for both terms),
    an analysis window above reaction time + movement time + dwell
    time + post-selection pause, and every target reachable: each intended target is
    selected exactly once, with no accidental selection and no miss.
@@ -559,8 +561,17 @@ so that the results are on record.
 7. **Frame rate**: with tremor, tracking noise, reading pauses and `autoRepeat` targets
    off, and meeting input-core P15's boundary conditions B1, B2, B4 and B5 (B3 is
    replaced by the next sentence), 15 fps and 60 fps give the same sequence, order and
-   count of intended selections, and each time-to-select differs by at most 140 ms
-   (input-core measured 133 ms of smoother-lag difference between 15 and 60 fps).
+   count of intended selections, with `smoothingStrength` at the default 0.5, and each
+   time-to-select differs by at most L + q × F(15) = 150 + 2 × 66.667 = 283.33 ms.
+   Terms: F(fps) = 1000 / fps ms (F(15) = 66.667, F(60) = 16.667).
+   L = 150 ms is the smoother arrival-lag limit at smoothing 0.5
+   (`LAG_LIMIT_MS` in `skeleton/test/smoother.test.ts`, asserted at 30, 60 and 120 fps;
+   at 15 fps it is only logged, so 150 ms is an assumption there).
+   q = 2 is the number of frame quantisations in time-to-select: the dwell timer
+   (`skeleton/src/engine/dwell.ts`) selects at `firstSampleInside + ceil(dwellTime / F) × F`,
+   so one frame is lost to the first sample inside the target and up to one more to
+   rounding dwellTime up to whole frames. The 60 fps terms are not subtracted, because
+   their minimum is 0. For an uninterrupted stay, `tts − arrival = ceil(dwellTime / F) × F`.
 8. **Each task entry resolves once**: intended selections + misses = task length.
 
 ## Figures (sources)
