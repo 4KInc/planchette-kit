@@ -26,8 +26,6 @@ import { planEntry, type EntryPlan, type PlanContext, type PlanStreams } from ".
 import { planStart, type StartPlan } from "./plan-start.js";
 import { Purpose, stream } from "./rng.js";
 import type {
-  AccidentalCause,
-  Activity,
   Layout,
   Pose,
   RawEvent,
@@ -48,39 +46,10 @@ export interface TrialConfig {
   observers?: { onEvent?(e: RawEvent): void };
 }
 
-/** Result of one trial (design section 7). Parts 2 and 3 fill the lists; part 1 only echoes the profile and warnings. */
-export interface TrialEntryResult {
-  entry: number;
-  targetId: string;
-  outcome: "selected" | "miss";
-  timeToSelectMs: number | null;
-  missCause: "unreachable" | "tremor-at-edge" | "other" | null;
-}
+import type { AccidentalRecord, StartEventRecord, TrialEntryResult, TrialResult } from "./metrics.js";
 
-export interface AccidentalRecord {
-  /** null for a cancel without a target. */
-  targetId: string | null;
-  timeMs: number;
-  activity: Activity;
-  cause: AccidentalCause;
-  entry: number;
-}
-
-/** A start-of-session event: activity is always 'waiting' and cause always 'start'. */
-export interface StartEventRecord {
-  targetId: string | null;
-  timeMs: number;
-}
-
-export interface TrialResult {
-  userName: string;
-  trialIndex: number;
-  entries: TrialEntryResult[];
-  accidental: AccidentalRecord[];
-  startEvents: StartEventRecord[];
-  warnings: string[];
-  effectiveProfile: Profile;
-}
+// The result types live in metrics.ts (design section 7); re-exported so existing imports keep working.
+export type { AccidentalRecord, StartEventRecord, TrialEntryResult, TrialResult } from "./metrics.js";
 
 /** Warning text when the centre step does not finish within its cap. */
 export const WARNING_CENTRE_STEP_CAP = "centre-step-cap";

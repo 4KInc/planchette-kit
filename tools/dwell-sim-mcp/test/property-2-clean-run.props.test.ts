@@ -16,7 +16,7 @@ import {
 } from "../src/run-trial.js";
 import { MT_MIN } from "../src/fitts.js";
 import type { Layout, RawEvent, ResolvedUser } from "../src/types.js";
-import { customUserArb, layoutArb, taskArb } from "./arbitraries.js";
+import { customUserArb } from "./arbitraries.js";
 
 /**
  * Feature: dwell-sim-mcp, Property 2: clean run, no accidents, no misses.
@@ -91,51 +91,82 @@ function longestCrossing(
 
 type Rect = Layout["targets"][number]["rect"];
 
-function overlaps(a: Rect, b: Rect): boolean {
-  return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+/**
+ * Layout built for the property, not filtered: three selectable targets in one row at the top of the screen
+ * (columns left, middle, right; all with the same y and height, so any straight path between the left and the right
+ * target crosses the middle one) and the rest area at the bottom. The ids t0..t2 are assigned to the columns by `perm`.
+ * Every rect is at least minWidth x minHeight (6 x SDcap), the row ends above the screen centre, so no
+ * selectable target and not the rest area contains it; the targets do not overlap.
+ */
+function rowLayoutArb(
+  screen: { width: number; height: number },
+  minWidth: number,
+  minHeight: number,
+): fc.Arbitrary<Layout> {
+  const unit = fc.integer({ min: 0, max: 1000 });
+  return fc
+    .record({
+      perm: fc.shuffledSubarray([0, 1, 2], { minLength: 3, maxLength: 3 }),
+      hU: unit,
+      wU: fc.tuple(unit, unit, unit),
+      xU: fc.tuple(unit, unit, unit),
+      restU: fc.tuple(unit, unit, unit),
+    })
+    .map(({ perm, hU, wU, xU, restU }): Layout => {
+      const m = 4;
+      const cw = screen.width / 3;
+      const maxH = Math.max(minHeight, Math.floor(screen.height * 0.4));
+      const height = minHeight + Math.floor((hU / 1000) * (maxH - minHeight));
+      const column = (c: number, w01: number, x01: number): Rect => {
+        const x0 = Math.round(c * cw) + m;
+        const x1 = Math.round((c + 1) * cw) - m;
+        const width = Math.min(x1 - x0, minWidth + Math.floor((w01 / 1000) * (x1 - x0 - minWidth)));
+        return { x: x0 + Math.floor((x01 / 1000) * (x1 - x0 - width)), y: m, width, height };
+      };
+      const targets: Layout["targets"] = [0, 1, 2].map((i) => ({
+        id: `t${perm[i]}`,
+        rect: column(i, wU[i], xU[i]),
+        autoRepeat: false,
+        role: "default" as const,
+      }));
+      targets.sort((p, q) => p.id.localeCompare(q.id));
+      const rw = Math.min(screen.width - 2 * m, minWidth + Math.floor((restU[0] / 1000) * minWidth));
+      const rh = minHeight;
+      targets.push({
+        id: "rest",
+        rect: {
+          x: m + Math.floor((restU[1] / 1000) * (screen.width - 2 * m - rw)),
+          y: screen.height - m - rh,
+          width: rw,
+          height: rh,
+        },
+        autoRepeat: false,
+        role: "rest-area",
+      });
+      return { screen, targets };
+    });
 }
 
 /**
- * Bias by construction: for each pair of consecutive, different task targets (a, b) a third selectable target is
- * moved (same size, so the 6 x SDcap rule still holds) onto the straight segment between the centres of a and b,
- * at the position closest to the middle (steps of 5 % along the segment) where it is inside the screen, contains
- * not the screen centre and overlaps no other target. When no such position exists the target stays where it is.
- * Non-task targets are preferred; every target is moved at most once. Deterministic, no randomness.
+ * A task of 2..6 entries whose first two entries are the left and the right target of the row (in either order),
+ * so the pointer crosses the middle target on its way to the second entry. Later entries are any target
+ * different from the previous one.
  */
-function bridgeLayout(layout: Layout, task: readonly string[]): Layout {
-  const targets = layout.targets.map((t) => ({ ...t, rect: { ...t.rect } }));
-  const byId = (id: string): (typeof targets)[number] => targets.find((t) => t.id === id)!;
-  const moved = new Set<string>();
-  const cx = layout.screen.width / 2;
-  const cy = layout.screen.height / 2;
-  for (let k = 1; k < task.length; k++) {
-    const a = byId(task[k - 1]);
-    const b = byId(task[k]);
-    if (a.id === b.id) continue;
-    const candidates = targets
-      .filter((t) => t.role !== "rest-area" && t.id !== a.id && t.id !== b.id && !moved.has(t.id))
-      .sort((p, q) => Number(task.includes(p.id)) - Number(task.includes(q.id)));
-    const c = candidates[0];
-    if (c === undefined) continue;
-    const ax = a.rect.x + a.rect.width / 2;
-    const ay = a.rect.y + a.rect.height / 2;
-    const bx = b.rect.x + b.rect.width / 2;
-    const by = b.rect.y + b.rect.height / 2;
-    const order = [0.5];
-    for (let i = 1; i <= 9; i++) order.push(0.5 - i * 0.05, 0.5 + i * 0.05);
-    for (const f of order) {
-      const x = Math.round(ax + f * (bx - ax) - c.rect.width / 2);
-      const y = Math.round(ay + f * (by - ay) - c.rect.height / 2);
-      const r: Rect = { x, y, width: c.rect.width, height: c.rect.height };
-      if (x < 0 || y < 0 || x + r.width > layout.screen.width || y + r.height > layout.screen.height) continue;
-      if (cx >= x && cx <= x + r.width && cy >= y && cy <= y + r.height) continue;
-      if (targets.some((t) => t.id !== c.id && overlaps(r, t.rect))) continue;
-      c.rect = r;
-      moved.add(c.id);
-      break;
-    }
-  }
-  return { ...layout, targets };
+function crossingTaskArb(layout: Layout): fc.Arbitrary<readonly string[]> {
+  const sel = layout.targets.filter((t) => t.role !== "rest-area").sort((p, q) => p.rect.x - q.rect.x);
+  const left = sel[0].id;
+  const right = sel[2].id;
+  const ids = sel.map((t) => t.id);
+  return fc
+    .tuple(fc.boolean(), fc.array(fc.nat(), { minLength: 0, maxLength: 4 }))
+    .map(([flip, rest]) => {
+      const out = flip ? [right, left] : [left, right];
+      for (const raw of rest) {
+        const options = ids.filter((id) => id !== out[out.length - 1]);
+        out.push(options[raw % options.length]);
+      }
+      return out;
+    });
 }
 
 function buildCase(
@@ -275,26 +306,15 @@ const caseArb: fc.Arbitrary<Case> = fc
             if (!r.ok) throw new Error(`arbitrary produced an invalid user: ${r.error.message}`);
             return r.user;
           }),
-        layout: layoutArb({
-          screen,
-          minTargets: 3,
-          maxTargets: 3,
-          cancelTarget: false,
-          includeAutoRepeat: false,
-          centreClear: true,
-          minWidth: pxFor(width, 6 * cap),
-          minHeight: pxFor(height, 6 * cap),
-        }),
+        layout: rowLayoutArb(screen, pxFor(width, 6 * cap), pxFor(height, 6 * cap)),
         fps: fc.constantFrom<15 | 30 | 60>(15, 30, 60),
         requestSeed: fc.integer({ min: 0, max: 0xffffffff }),
         trialIndex: fc.integer({ min: 0, max: 20 }),
       })
       .chain(({ user, layout, fps, requestSeed, trialIndex }) =>
-        taskArb(layout, { form: "list", maxLength: 6 }).map((spec): Case => {
-          const task = spec as readonly string[];
-          const bridged = bridgeLayout(layout, task);
+        crossingTaskArb(layout).map((task): Case => {
           const built = buildCase({
-            layout: bridged,
+            layout,
             profile: { headGain, headDeadZone, graceTime, postSelectionPause },
             user,
             mode: "head + dwell",

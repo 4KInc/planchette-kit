@@ -848,26 +848,52 @@ export interface TargetMetrics {
   timeToSelectMs: { median: number | null; p90: number | null };
   causes: Record<AccidentalCause, number>; activities: Record<Activity, number>;   // accidental selections only
 }
-export interface UserMetrics extends TargetMetrics {
+export interface UserMetrics extends Omit<TargetMetrics, 'targetId'> {   // a user row has no targetId
   userName: string; trials: number; perTarget: TargetMetrics[];
   startOfSession: { count: number; byTarget: { targetId: string | null; count: number }[] };   // Req 4 AC 25; count = startCount
 }
+/** Entry point, in metrics.ts. `layout` gives the selectable targets for the `perTarget` rows. */
+export function aggregateUser(userName: string, trials: readonly TrialResult[], layout: Layout): UserMetrics;
 ```
 
+**Counting rules of `aggregateUser`.**
+
+- A `selected` entry counts as one intended selection on its aimed target.
+- A `miss` entry counts toward `misses` on its aimed target; the miss cause stays on the trial entry, where the suggestion rules (§8) read it.
+- A time-to-select sample is taken only from an entry whose `timeToSelectMs` is non-null.
+- An accidental record counts on its `targetId` (the `null` bucket when it is absent), and adds to `causes` and `activities`.
+- A start event counts as `startCount` on its `targetId` (the `null` bucket when absent) and in the user's `startOfSession`.
+
 - `timeToSelectMs = event.now − tMove0`, from the moment the user starts moving to the intended selection. The warm-up and the start of session are before every `tMove0` and are in no time-to-select.
-- Percentile: nearest rank, `sorted[ceil(p × n) − 1]`, `null` when `n = 0`.
-- **Rate (Req 4 AC 2, 13, 25).** `accidentalPer100Intended = (accidental / intended) × 100`, and `null` when `intended = 0` (never 0 or NaN).
+- **Median and p90.** Nearest rank, `sorted[ceil(p × n) − 1]`. The median is the nearest-rank p50, `sorted[ceil(0.5 × n) − 1]` (the lower middle value for an even count),
+  not the mean of the two middle values. p90 is `sorted[ceil(0.9 × n) − 1]`. Both are `null` when `n = 0`.
+- **Rate (Req 4 AC 2, 13, 25).** `metrics.ts` keeps full precision: `accidentalPer100Intended = (accidental / intended) × 100`, and `null` when `intended = 0` (never 0 or NaN).
   `accidental` does not include start-of-session events; they are counted in `startCount` only. The same
   formula is used per user and per target. A start-of-session event has the target it hit (or `null` for a cancel without a target), so per target it is in that
   target's `startCount` and in no other count.
+- **Rounding of the rate.** `metrics.ts` exports `round1(x: number | null): number | null` (one decimal, `null` stays `null`). `simulate` applies it to every
+  `accidentalPer100Intended` when it builds the tool output, on users and on targets. Metrics values and the property tests keep full precision; only the output is rounded.
+  Example: 4 accidental and 38 intended give 10.526…, and the output value is 10.5.
 - `startOfSession.byTarget` lists the targets hit by start-of-session events (sorted by id, `null` last), with their counts; its counts sum to `startOfSession.count`.
 - Aggregation: counts are summed over the trials of a user; time-to-select samples are pooled; per-target figures
   group by the aimed target (intended, misses, time) or by the event's target (accidental; `null` bucket for an unattributed cancel).
-- Notes and warnings (top level of the result): a note when any user has `tremorPeakToPeakDeg > 1` ("tremor … exceeds
-  the size the smoothing is tuned for", AC 14); warnings `NO_REST_AREA` and `NO_CANCEL_TARGET` for `head + dwell`
-  with the text and the accessibility rule they cite (AC 15, 16); `start-clamped`, `centre-step-cap` from trials.
-- Echo: `seed`, the full request parameters after defaults, the resolved users (all parameters), and `effectiveProfile`
-  (the skeleton's `getProfile()` after clamping) so a run is reproducible (AC 4).
+- **`perTarget` order.** By target id in UTF-16 order, with the `null` bucket last, the same as `startOfSession.byTarget`.
+- **`perTarget` membership.** One row for every selectable layout target (any role except `rest-area`), even when all its counts are zero. A `rest-area` target gets a row only if it
+  has events (it is not selectable). The `null` bucket appears only when it has events. "Has events" means any non-zero count in that row (`intended`, `misses`, `accidental` or `startCount`).
+- **`causes` and `activities`.** Always contain all keys, zeros included: the seven accidental causes and the four activity labels, on users and on targets.
+- **Notes and warnings (top level of the result).** Both are `string[]`. Every string starts with its code and a colon. The codes are exported constants: `NO_REST_AREA`,
+  `NO_CANCEL_TARGET`, `TREMOR_ABOVE_TUNED` (in `src/warnings.ts`) and the trial warnings `start-clamped` and `centre-step-cap` (`WARNING_START_CLAMPED`,
+  `WARNING_CENTRE_STEP_CAP` in `src/run-trial.ts`, values unchanged). Tests check the code prefix and the facts in the string, not the full sentence.
+  - `NO_REST_AREA` and `NO_CANCEL_TARGET` (AC 15, 16) are emitted only in `head + dwell` mode, never in scan mode (so no head-mode warning appears in scan mode). Texts:
+    `"NO_REST_AREA: the layout has no rest-area target. Accessibility rule: every layout has a rest area."` and
+    `"NO_CANCEL_TARGET: the layout has no cancel-role target. Accessibility rule: head-pointer layouts place a cancel target."`
+  - Tremor note (AC 14): emitted only in modes that use the head pointer (`head + dwell`; never in `scan`), because the note is about the head-pointer smoothing, which scan mode does not use. One note per user whose `tremorPeakToPeakDeg` is strictly above 1° (exactly 1° gives none), naming the user and the amount:
+    `"TREMOR_ABOVE_TUNED: user strong-head-tremor has tremor 1.6° peak to peak, above the 1° the smoothing is tuned for."`
+  - Trial warnings are aggregated to one entry per user and warning code, with the number of trials that raised it, for example
+    `"start-clamped: user small-range, 10 of 10 trials"`. Entries are in first-occurrence order: users in request order and, for each user, codes in the order `start-clamped`, `centre-step-cap`.
+- Echo (AC 4): `seed`, the full request parameters after defaults, and the resolved users. `parameters.profile` is the request profile as given. Each entry of `parameters.users[]` is
+  `{ name, params, effectiveProfile }`, where `effectiveProfile` is that user's `getProfile()` after the per-user calibration-range fill (§5) and clamping; it is identical across that user's trials.
+  There is no top-level `parameters.effectiveProfile`: the driver fills each user's calibration ranges from that user's head range, so the profiles differ between users, and the echo must show what each trial actually ran.
 - The result has no wall-clock or random-id field (property 1).
 - The disclaimer is the constant in `disclaimer.ts`, exactly: "Simulated users are models from published group averages,
   not real people. Use these results to compare layouts and settings."
@@ -1055,24 +1081,32 @@ a test checks that.
 `simulate`:
 ```json
 { "seed": 1, "parameters": { "mode": "head + dwell", "fps": 30, "analysisWindowS": 10, "trialsPerUser": 10,
-    "task": { "eachTarget": 2 }, "profile": { "dwellTime": 1000 }, "effectiveProfile": { "…": "all 30 fields" },
-    "users": [ { "name": "steady", "params": { "…": "all values" } } ] },
+    "task": { "eachTarget": 2 }, "profile": { "dwellTime": 1000 },
+    "users": [ { "name": "steady", "params": { "…": "all values" },
+                 "effectiveProfile": { "…": "all 30 fields, after this user's calibration-range fill and clamping" } } ] },
   "users": [ { "name": "head-tremor", "trials": 10, "intended": 38, "accidental": 4, "accidentalPer100Intended": 10.5,
       "startOfSession": { "count": 1, "byTarget": [ { "targetId": "menu", "count": 1 } ] },
       "misses": 2, "timeToSelectMs": { "median": 2310, "p90": 3590 },
-      "causes": { "tremor-at-edge": 3, "pass-over": 1 }, "activities": { "moving": 1, "holding on the aim point": 3 },
+      "causes": { "reading-pause": 0, "pass-over": 1, "tremor-at-edge": 3, "repeat": 0, "waiting": 0,
+                  "early-on-intended-target": 0, "other": 0 },
+      "activities": { "waiting": 0, "moving": 1, "reading pause": 0, "holding on the aim point": 3 },
       "perTarget": [ { "targetId": "ghost", "intended": 4, "accidental": 3, "startCount": 0, "accidentalPer100Intended": 75,
-                       "misses": 1, "timeToSelectMs": { "median": 2100, "p90": 2900 } } ] } ],
+                       "misses": 1, "timeToSelectMs": { "median": 2100, "p90": 2900 },
+                       "causes": { "reading-pause": 0, "pass-over": 0, "tremor-at-edge": 3, "repeat": 0, "waiting": 0,
+                                   "early-on-intended-target": 0, "other": 0 },
+                       "activities": { "waiting": 0, "moving": 0, "reading pause": 0, "holding on the aim point": 3 } } ] } ],
   "accidentalSelections": [ { "user": "head-tremor", "trial": 3, "targetId": "ghost", "timeMs": 18420,
                               "activity": "holding on the aim point", "cause": "tremor-at-edge" } ],
   "suggestions": [ { "targetId": "ghost", "metric": "tremor-at-edge share 0.75", "users": ["head-tremor"],
                      "text": "…larger target (1.5 times the current size had no accidental selections and no misses)…" },
                    { "targetId": "menu", "metric": "screen-centre-hit", "users": [],
                      "text": "The screen centre lies inside target \"menu\". Keep the centre empty or put the rest area there." } ],
-  "warnings": [ "No rest area: …" ], "notes": [ "…" ],
+  "warnings": [ "NO_REST_AREA: the layout has no rest-area target. Accessibility rule: every layout has a rest area." ],
+  "notes": [ "TREMOR_ABOVE_TUNED: user strong-head-tremor has tremor 1.6° peak to peak, above the 1° the smoothing is tuned for." ],
   "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings." }
 ```
-With no data the rate and percentiles are `null`. In the example the rate is 4 / 38 × 100 = 10.5. The one start-of-session event is only in
+With no data the rate and percentiles are `null`. The rate is rounded to one decimal in the output (`round1`, §7): 4 / 38 × 100 = 10.526…, shown as 10.5. The "ghost" row shows 75 because 3 / 4 × 100 is exactly 75. `causes` and `activities` always list all
+seven causes and all four labels, zeros included, on users and on per-target rows. `perTarget` is ordered by id (UTF-16) with the `null` bucket last, and has a row for every selectable target. The one start-of-session event is only in
 `startOfSession.count` (and the target's `startCount`); it is not in `accidental`, the rate, `causes`, `activities` or `accidentalSelections`. The `outputSchema` of `simulate` (zod) declares, per user, `startCount`-bearing metrics and
 `startOfSession: { count: number, byTarget: { targetId: string | null, count: number }[] }`; `causes` and each record's `cause` use the
 seven-value enum (no `start`); a suggestion is `{ targetId: string, metric: string, users: string[], text: string, followUp?: { factor: number, overlaps: string[] } }`.
