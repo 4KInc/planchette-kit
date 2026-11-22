@@ -375,7 +375,7 @@ How draws are keyed:
 | ReadingPauseLength | entry index | layout target index | length draw |
 | TrackingNoise | `round(t × 1000)` (µs of simulated time) | 0 or 1 (yaw, pitch) | jitter |
 | ScanLatePress | entry index | press index | late-press draw |
-| TaskOrder | round index | position | shuffling `{ eachTarget: n }` and repairing adjacent duplicates (§4.8) |
+| TaskOrder | round index `r` | position `i` | shuffling `{ eachTarget: n }` and repairing adjacent duplicates (§4.8). The stream itself is `stream(seed, 0, 0, TaskOrder)` (userKey 0, trialIndex 0), not a per-user stream |
 
 - Because the aim draw is keyed by the entry index, a miss, an early resolution or a different number of earlier
   events never shifts a later aim.
@@ -429,6 +429,10 @@ table gives no number, so it is marked "chosen". `W` is the projection of the wh
 direction (for an axis-aligned move it is the width or height). `A` is measured to the aim point, which
 sits inside the target; this is the nominal-distance form of the Shannon formulation.
 
+`W > 0` and `TP > 0` are guaranteed by input validation (Task 14): `validate-request.ts` rejects a target whose width or height is zero, negative
+or not finite (`INVALID_LAYOUT`), and a throughput that is zero, negative or not finite (`OUT_OF_RANGE`; the lowest allowed value is 0.3 bits/s). `W` is a
+weighted sum of width and height with weights `|d.x| + |d.y| ≥ 1` for a unit `d`, so `W ≥ min(width, height) > 0` for every direction. `fitts.ts` therefore needs no zero-division guard.
+
 #### 4.3 Minimum-jerk path
 
 Movement is a straight line in (yaw, pitch) space. For a segment `[t0, t0 + MT]` from `a` to `b`:
@@ -453,8 +457,45 @@ aim = clampToHeadRange({ yaw: c.yaw + zx × SDx, pitch: c.pitch + zy × SDy })
 
 `ttn(u)` is a truncated normal on (−3, 3) by inverse transform:
 `z = probit(Φ(−3) + u × (Φ(3) − Φ(−3)))`, then clamped to `±(3 − 1e-9)`, with `Φ(−3) = 0.0013498980316301`,
-`Φ(3) = 0.9986501019683699` and `probit` the Acklam rational approximation (relative error 1.15e-9). It consumes
+`Φ(3) = 0.9986501019683699` and `probit` the Acklam rational approximation defined below. It consumes
 one uniform per axis and cannot fail or retry, so the draw count is fixed (2 per aim).
+
+**`probit` (Acklam).** The algorithm is Peter J. Acklam's rational approximation of the normal quantile function, as reproduced at
+[stackedboxes.org](https://stackedboxes.org/2017/05/01/acklams-normal-quantile-function/). Breakpoints: `p_low = 0.02425`, `p_high = 1 − p_low`.
+Coefficients, exactly:
+
+```
+a1 = -3.969683028665376e+01  a2 =  2.209460984245205e+02  a3 = -2.759285104469687e+02
+a4 =  1.383577518672690e+02  a5 = -3.066479806614716e+01  a6 =  2.506628277459239e+00
+b1 = -5.447609879822406e+01  b2 =  1.615858368580409e+02  b3 = -1.556989798598866e+02
+b4 =  6.680131188771972e+01  b5 = -1.328068155288572e+01
+c1 = -7.784894002430293e-03  c2 = -3.223964580411365e-01  c3 = -2.400758277161838e+00
+c4 = -2.549732539343734e+00  c5 =  4.374664141464968e+00  c6 =  2.938163982698783e+00
+d1 =  7.784695709041462e-03  d2 =  3.224671290700398e-01  d3 =  2.445134137142996e+00
+d4 =  3.754408661907416e+00
+```
+
+```
+lower, 0 < p < p_low:       q = sqrt(−2 ln p)
+  x = (((((c1 q + c2) q + c3) q + c4) q + c5) q + c6) / ((((d1 q + d2) q + d3) q + d4) q + 1)
+central, p_low ≤ p ≤ p_high: q = p − 0.5;  r = q²
+  x = (((((a1 r + a2) r + a3) r + a4) r + a5) r + a6) q / (((((b1 r + b2) r + b3) r + b4) r + b5) r + 1)
+upper, p_high < p < 1:      q = sqrt(−2 ln(1 − p))
+  x = −(((((c1 q + c2) q + c3) q + c4) q + c5) q + c6) / ((((d1 q + d2) q + d3) q + d4) q + 1)
+```
+
+**Independent check.** The relative error of `probit` is at most 1.135e-9 over `[Φ(−3), Φ(3)]`, measured against an inverse refined by Newton's method
+(the test does the refinement itself; it does not use `probit`). Test quantiles, relative tolerance 1.2e-9 (absolute 1e-12 at 0.5):
+
+| p | probit(p) | branch |
+|---|---|---|
+| 0.975 | 1.959963984540054 | central |
+| 0.995 | 2.5758293035489004 | upper |
+| 0.9 | 1.2815515655446004 | central |
+| 0.01 | −2.3263478740408408 | lower (tail) |
+| 0.5 | 0 | central |
+
+Clamp check: `ttn(0)` and `ttn(1 − 2^-53)` stay within `±(3 − 1e-9)`.
 
 **The aim stays inside the target when it is at least 6 SD wide.** The aim is chosen relative to the target centre,
 and `|z| < 3`, so the aim differs from the centre by less than `3 SD` per axis. If `W ≥ 6 SD` on an axis, half the
@@ -472,14 +513,15 @@ Tremor is added to the base pose on one axis. For `t` in ms of simulated time si
 ```
 offset(t) = (a(t) / 2) × sin(2π f t / 1000 + φ)             // degrees, on yaw (default) or pitch
 a(t)      = a0 × (1 + driftFraction × d(t))                  // a0 = tremorPeakToPeakDeg, driftFraction = 0.2
-φ         = 2π × u01(tremorPhase, 0)                         // once per trial
+φ         = 2π × u01(tremorPhase, 0)                         // same key every call, so one value per trial
 d(t)      = lerp(U(j), U(j+1), smoothstep(x)),  j = floor(t / 5000),  x = t/5000 − j
-U(i)      = 2 × u01(drift, i) − 1                            // in [−1, 1], memoised per trial
+U(i)      = 2 × u01(drift, i) − 1                            // in [−1, 1], computed on every call
 smoothstep(x) = x² (3 − 2x)
 ```
 
 `d(t) ∈ [−1, 1]`, so `a(t)` stays within ±20 % of `a0`, and it changes over a period of about 5 s (Req 11 AC 5). Tremor is a
-pure function of `t`, the user and the stream: it holds no per-frame state, so 15 fps and 60 fps sample the same continuous
+pure function of `t`, the user and the stream: it holds no per-frame state and no cache. φ and the two drift knots `U(j)`, `U(j+1)` are
+computed directly from `u01` on every call (three hashes per call), so 15 fps and 60 fps sample the same continuous
 signal. Tremor is on during the warm-up (the centre step then measures a stillness window that contains tremor; if
 the peak-to-peak spread exceeds `calibrationStillnessThreshold` the step ends by timeout and the centre is the mean of
 all samples, as the engine specifies).
@@ -579,7 +621,9 @@ else:
 
 #### 4.8 Task expansion and validation (`task.ts`)
 
-`expandTask(layout, spec, seed)` returns the explicit list of ids, or a validation error. Let `S` be the selectable targets (role ≠ `rest-area`)
+`expandTask(layout, spec, seed)` returns the explicit list of ids, or a validation error. It uses
+`taskOrder = stream(seed, 0, 0, Purpose.TaskOrder)` (userKey 0, trialIndex 0). The task is built once per request, before any user is
+resolved, so no user key exists yet; and `compare` needs the same task in both configurations, which a per-user or per-trial stream would not give. Let `S` be the selectable targets (role ≠ `rest-area`)
 sorted by UTF-16 order of id.
 
 - **Explicit list.** For each index `i ≥ 1`, if `task[i] === task[i−1]` and the target does not have `autoRepeat`, return
@@ -1025,7 +1069,7 @@ step and two `CustomEvent` dispatches (`dwell-progress`, `pointer-move`) per fra
 
 Measures: no `await` per sample; a reused sample, face and one-element batch; `head(t)` with a forward cursor and no
 allocation (poses are written into a preallocated object); the listeners do no allocation except for the rare
-select and cancel records; the driver does not subscribe to `dwell-progress`; knots for tremor drift are memoised. If the
+select and cancel records; the driver does not subscribe to `dwell-progress`; tremor keeps no cache (three hashes per call). If the
 benchmark fails, users are independent and can be split across `worker_threads`; that is not designed in v1.
 
 **Verification.** `test/performance.test.ts` runs 6 presets × 10 trials × 20 entries at 30 fps on a fixed 9-target layout with a

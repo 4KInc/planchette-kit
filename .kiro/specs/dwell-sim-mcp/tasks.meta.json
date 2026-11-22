@@ -232,6 +232,192 @@
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795302036490
       }
+    ],
+    "5.1 Pixel and degree geometry.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795302869420
+      },
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304049169
+      }
+    ],
+    "5.4 Tremor and drift.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795302869502
+      },
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304049296
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795314607934
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315146967
+      }
+    ],
+    "5.5 Minimum-jerk path.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795302869548
+      },
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304049352
+      }
+    ],
+    "5.7 Task expansion.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795302869596
+      },
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304049456
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795314677210
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315259682
+      }
+    ],
+    "5.2 Reachable pixel rectangle.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304053974
+      },
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795305557744
+      }
+    ],
+    "5.3 Scatter sampler.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304054020
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795314607878
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315147445
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315490143
+      }
+    ],
+    "5.6 Fitts movement time.": [
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795304054104
+      },
+      {
+        "executionId": "55cf8e9f-ee2f-4a01-a510-ffc571da07da",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795305557819
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795314608013
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315147041
+      }
+    ],
+    "5.8 Task validation (`ADJACENT_REPEAT`).": [
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315265808
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315781138
+      }
+    ],
+    "6.1 Plan one task entry, with reading pauses.": [
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315493345
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795316257586
+      }
+    ],
+    "5. Movement primitives": [
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795315781213
+      }
+    ],
+    "6.2 The head function, a pure function of time.": [
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795316257641
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795316568476
+      }
+    ],
+    "6.3 Plan the start of session.": [
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795316257970
+      },
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795316796218
+      }
+    ],
+    "6. Head path planning and the head function": [
+      {
+        "executionId": "5416ef24-8dcb-42c9-9ee2-23a8ffb4aa0b",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795316796259
+      }
     ]
   }
 }

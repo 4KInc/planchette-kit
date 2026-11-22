@@ -122,66 +122,66 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 3 AC 2, 3, 6; Req 7 AC 1, 4.
 
-- [ ] 5. Movement primitives
+- [x] 5. Movement primitives
 
   - Each sub-task is a separate pure file with its own tests; they depend only on Tasks 3 and 4 and on the skeleton helpers from Task 1.
 
-  - [ ] 5.1 Pixel and degree geometry.
+  - [x] 5.1 Pixel and degree geometry.
     - Write `src/geometry.ts`: `toPx`, `toPose`, `poseAtPx`, `clampToHeadRange` and `angularWidth` through `pointToRotation` and `rotationToPoint` only (design §4.1).
     - Write `test/geometry.test.ts` and `test/geometry.props.test.ts`: head-range clamping per direction for any pose; `angularWidth` is positive for any rectangle; `toPx(toPose(p))` is within 1 px of `p` for reachable points.
     - _Requirements: 1.1, 2.4, 9.1_
 
-  - [ ] 5.2 Reachable pixel rectangle.
+  - [x] 5.2 Reachable pixel rectangle.
     - Write `src/reachable.ts`: the pixel rectangle `[xMin, xMax] × [yMin, yMax]` from `rotationToPoint` at the extreme head-range rotations with the effective profile, and `isTargetReachable(rect)`.
     - Write `test/reachable.test.ts` and `test/reachable.props.test.ts`: with no calibration range larger than the head range the reachable rectangle is the whole screen (Req 11 AC 12); with a larger calibration range a target beyond the rectangle is unreachable and a target inside it is reachable.
     - _Requirements: 6.3, 11.2, 11.12_
 
-  - [ ] 5.3 Scatter sampler.
-    - Write `src/scatter.ts`: `probit` (Acklam), truncated normal `ttn` on (−3, 3) and `sampleAim` with SD = min(W / 4.133, SDcap) per axis, exactly two uniforms per aim (design §4.4).
-    - Write `test/scatter.test.ts` (fixed values, `Φ(−3)` and `Φ(3)` constants, aim at the centre when u is 0.5) and `test/scatter.props.test.ts`: `|z| < 3` for every u in [0, 1); the draw count is always exactly 2 per aim (count keys read with a spy stream); aim offsets are independent between axes.
+  - [x] 5.3 Scatter sampler.
+    - Write `src/scatter.ts`: `probit` (Acklam), truncated normal `ttn` on (−3, 3) and `sampleAim` with SD = min(W / 4.133, SDcap) per axis, exactly two uniforms per aim (design §4.4). `probit` uses the Acklam breakpoints and coefficients exactly as listed in design §4.4 (`p_low = 0.02425`; lower, central and upper regions).
+    - Write `test/scatter.test.ts` (fixed values, `Φ(−3)` and `Φ(3)` constants, aim at the centre when u is 0.5; `probit` quantiles with relative tolerance 1.2e-9 and absolute 1e-12 at 0.5: 0.975 → 1.959963984540054, 0.995 → 2.5758293035489004, 0.9 → 1.2815515655446004, 0.01 → −2.3263478740408408 (lower tail branch), 0.5 → 0; clamp check: `ttn(0)` and `ttn(1 − 2^-53)` stay within ±(3 − 1e-9)) and `test/scatter.props.test.ts`: max relative error of `probit` is at most 1.135e-9 over [Φ(−3), Φ(3)] against an independent Newton-refined inverse (the test refines it itself and does not call `probit`); `|z| < 3` for every u in [0, 1); the draw count is always exactly 2 per aim (count keys read with a spy stream); aim offsets are independent between axes.
     - _Requirements: 2.1, 11.4_
 
-  - [ ] 5.4 Tremor and drift.
-    - Write `src/tremor.ts`: `tremorOffset(t, params, streams)` with the random phase and the smoothstep drift over 5 s knots, memoised per trial (design §4.5).
+  - [x] 5.4 Tremor and drift.
+    - Write `src/tremor.ts`: `tremorOffset(t, params, streams)` with the random phase and the smoothstep drift over 5 s knots (design §4.5). φ and the drift knots are computed directly from `u01` on every call (three hashes per call); the function is pure and keeps no cache.
     - Write `test/tremor.test.ts` and `test/tremor.props.test.ts`: `|offset| ≤ 0.6 × a0`; the size `a(t)` stays within [0.8, 1.2] × a0 for any t; tremor off (size 0 or frequency 0) gives exactly 0; the value at a given t is the same whatever sampling rate asks for it.
     - _Requirements: 2.3, 11.5_
 
-  - [ ] 5.5 Minimum-jerk path.
+  - [x] 5.5 Minimum-jerk path.
     - Write `src/min-jerk.ts`: `minJerk(τ)` and `poseOnSegment` (design §4.3).
     - Write `test/min-jerk.test.ts` and `test/min-jerk.props.test.ts`: `s(0) = 0`, `s(1) = 1`, `s(0.5) = 0.5`; `s` is monotone and in [0, 1] for τ in [0, 1] and clamped outside it; position equals start + (aim − start) × s.
     - _Requirements: 2.2_
 
-  - [ ] 5.6 Fitts movement time.
+  - [x] 5.6 Fitts movement time.
     - Write `src/fitts.ts`: `movementTimeMs(A, W, TP)` with Shannon ID, projected width along the movement direction and the `MT_MIN` of 150 ms (design §4.2).
     - Write `test/fitts.test.ts` and `test/fitts.props.test.ts`: the formula for fixed values (for example A = 400, W = 100, TP = 1.42); MT is non-decreasing in A and non-increasing in W and in TP; MT is never below `MT_MIN`; no movement (MT 0, no segment) when A < 0.5 px.
     - _Requirements: 2.1_
 
-  - [ ] 5.7 Task expansion.
-    - Write `src/task.ts` with `expandTask(layout, spec, seed)` (design §4.8). An explicit id list passes through. `{ eachTarget: n }` with more than one selectable target becomes n rounds over the selectable ids sorted by UTF-16 order, each round a Fisher–Yates shuffle with `j = floor(u01(taskOrder, r, i) × (i + 1))`, then repaired at round boundaries: when the first id of round r equals the last id of round r−1, swap the first two ids of round r (the repair draws nothing). With exactly one selectable target that has `autoRepeat`, the result is n copies, not shuffled. Rest-area targets are never selectable. Cases that cannot be expanded are reported by 5.8.
+  - [x] 5.7 Task expansion.
+    - Write `src/task.ts` with `expandTask(layout, spec, seed)` (design §4.8). An explicit id list passes through. `{ eachTarget: n }` with more than one selectable target becomes n rounds over the selectable ids sorted by UTF-16 order, each round a Fisher–Yates shuffle with `j = floor(u01(taskOrder, r, i) × (i + 1))` where `taskOrder = stream(seed, 0, 0, Purpose.TaskOrder)` (userKey 0, trialIndex 0: the task is built once per request, before any user is resolved, and `compare` needs the same task in both configurations), then repaired at round boundaries: when the first id of round r equals the last id of round r−1, swap the first two ids of round r (the repair draws nothing). With exactly one selectable target that has `autoRepeat`, the result is n copies, not shuffled. Rest-area targets are never selectable. Cases that cannot be expanded are reported by 5.8.
     - Write `test/task.test.ts` and `test/task.props.test.ts`: every selectable id appears exactly n times; the same id never appears twice in a row when more than one selectable target exists (include two selectable targets and many rounds, where the repair is used most); the same seed gives the same list and another seed a different one; the list does not depend on registration order; rest-area ids never appear; one selectable `autoRepeat` target gives n unshuffled copies.
     - _Requirements: 4.1, 4.27, 4.29, 7.1_
 
-  - [ ] 5.8 Task validation (`ADJACENT_REPEAT`).
+  - [x] 5.8 Task validation (`ADJACENT_REPEAT`).
     - Extend `src/task.ts` so `expandTask` returns either the list or an error `{ code: 'ADJACENT_REPEAT', index, targetId }` (design §4.8). An explicit list with the same id at positions i−1 and i, where the target has no `autoRepeat`, is an error naming i (the zero-based index of the second entry) and the id; the first such pair in list order is reported. The same pair on an `autoRepeat` target is allowed. `{ eachTarget: n }` with n > 1 and exactly one selectable target without `autoRepeat` is an error naming position 1 and the id; with n = 1 the list is that one id.
     - Write `test/task-validation.test.ts` and `test/task-validation.props.test.ts`: one example per case above; for any explicit list an error is returned exactly when an adjacent same-id pair on a non-`autoRepeat` target exists, and it names the second index of the first such pair; lists without such a pair expand without error.
     - _Requirements: 4.26, 4.28, 4.29_
 
   - **Covers:** Req 2 AC 1–4; Req 4 AC 26–29; Req 6 AC 3; Req 11 AC 2, 4, 5, 12.
 
-- [ ] 6. Head path planning and the head function
+- [x] 6. Head path planning and the head function
 
-  - [ ] 6.1 Plan one task entry, with reading pauses.
+  - [x] 6.1 Plan one task entry, with reading pauses.
     - Write `src/plan-entry.ts`: `planEntry(ctx, entry, tEntry, p0)` returning segments, pauses, aim and deadline: reaction wait, aim point, Fitts movement time, minimum-jerk pieces, reading pauses on crossed non-intended targets (never the aimed target, never a target containing the start point), final hold to the deadline (design §4.7).
     - Write `test/plan-entry.test.ts`: reaction wait is the first segment (Req 11 AC 3); a pause piece starts the next move from rest; start-on-aim gives a single hold; deadline equals `tMove0 + analysisWindow`; the aim is clamped to the head range.
     - Write `test/plan-entry.props.test.ts`: pauses occur only on crossed non-intended targets; there are none with chance 0 % and one on every crossed non-intended target at 100 %; each pause length is within [min, max]; no pause is on the intended target; the chance and length draws depend only on the entry index and layout target index, not on the profile.
     - _Requirements: 2.1, 2.2, 11.3, 11.6, 11.7, 11.13_
 
-  - [ ] 6.2 The head function, a pure function of time.
+  - [x] 6.2 The head function, a pure function of time.
     - Write `src/head-model.ts`: `head(plan, t)` (accepts any plan with `segments`: an entry plan or the start plan from 6.3) with a forward-only cursor over the segments, plus tremor, plus tracking noise (uniform in [−n, +n] per axis, keyed by `round(t × 1000)`), then `clampToHeadRange` (design §4.6). `basePose(plan, t)` returns the pose without tremor and noise. No allocation per call.
     - Write `test/head-model.test.ts` and `test/head-model.props.test.ts`: for any t the result is inside the head range; noise is within ±n per axis; the same t gives the same pose however the earlier t values were visited; with tremor and noise off the result equals `basePose`.
     - _Requirements: 2.2, 2.3, 2.4, 11.8_
 
-  - [ ] 6.3 Plan the start of session.
+  - [x] 6.3 Plan the start of session.
     - Write `src/plan-start.ts` (design §4.7a): `planStart(ctx, tBegin)` returns `StartPlan { tBegin, tEnd, segments, endPose, restId, clamped }`. With a rest-area target (the first in layout order): a reaction wait at the centre pose (phase `start-of-session`, sub `reaction`), an aim inside the rest area from the §4.4 sampler with the draws `u01(start, 0, 0)` and `u01(start, 0, 1)` (`Purpose.Start`), then a minimum-jerk move at the user's throughput (sub `moving`), with no reading pauses. `clamped` is true when the rest point is outside the head range. Without a rest area: no segments, `tEnd = tBegin`, `endPose` is the centre pose. It reuses `geometry.ts`, `scatter.ts`, `fitts.ts` and `min-jerk.ts`, so there is no start-only movement code.
     - Write `test/plan-start.test.ts` and `test/plan-start.props.test.ts`: reaction first, then the move; the end pose is inside the rest rectangle when the rest area is reachable; no reading pause even at a 100 % chance; no segments and `tEnd = tBegin` without a rest area; `clamped` when the rest point is out of range; the start draws use only `Purpose.Start` and do not change any entry's aim draws; entry 0 can start at `tEnd` (the start of session is in no time-to-select).
     - _Requirements: 4.11, 11.9, 11.10_
@@ -354,7 +354,8 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - [ ] 14.2 Request validation with stable error codes.
     - Write `src/validate-request.ts`: the checks in the fixed order mode → users count (≤ 12) → preset names and custom ranges → layout (≤ 100 targets, ids, rects, selectable targets) → task (≤ 500 entries, known ids, `ADJACENT_REPEAT` from `expandTask`, `eachTarget` range) → trials (≤ 50) → fps (15, 30, 60) → analysis window (2–120 s) → seed, returning `{ code, parameter, message, allowed? }` for every code in design §11 (`UNKNOWN_PRESET`, `OUT_OF_RANGE`, `CAP_EXCEEDED`, `NOT_ALLOWED_VALUE`, `UNSUPPORTED_MODE`, `NO_SELECTABLE_TARGETS`, `UNKNOWN_TARGET`, `INVALID_LAYOUT`, `ADJACENT_REPEAT`, `LAYOUT_MISMATCH`, `UNKNOWN_PARAMETER`); it resolves valid users with `resolve-user.ts`.
-    - Write `test/validate-request.test.ts`: one example per error code and message (`ADJACENT_REPEAT` names the zero-based index of the second entry and the id, for an explicit list and for a single non-`autoRepeat` target with `eachTarget` above 1, position 1); every cap boundary (accepted 12 users, 50 trials, 100 targets, 500 entries, fps 15/30/60, window 2 and 120; rejected 13, 51, 101, 501, fps 24, window 1 and 121); the unsupported modes `head + gesture`, `gesture scan`, `mouse` name the mode and list the supported ones; the first problem in the fixed order is the one reported.
+    - The simulator relies on `W > 0` and `TP > 0` (design §4.2), so this task enforces them: a target whose width or height is zero, negative or not finite is `INVALID_LAYOUT` with a message naming the target id and the field (for example `targets["menu"].rect.width`); a throughput (`throughputBitsPerS`) that is zero, negative or not finite is `OUT_OF_RANGE` with a message naming the parameter path and the allowed range.
+    - Write `test/validate-request.test.ts`: one example per error code and message (`ADJACENT_REPEAT` names the zero-based index of the second entry and the id, for an explicit list and for a single non-`autoRepeat` target with `eachTarget` above 1, position 1); every cap boundary (accepted 12 users, 50 trials, 100 targets, 500 entries, fps 15/30/60, window 2 and 120; rejected 13, 51, 101, 501, fps 24, window 1 and 121); the unsupported modes `head + gesture`, `gesture scan`, `mouse` name the mode and list the supported ones; the first problem in the fixed order is the one reported; a target with width 0, height 0, a negative side, `NaN` or `Infinity` gives `INVALID_LAYOUT` naming the target id and field; `throughputBitsPerS` of 0, a negative value, `NaN` and `Infinity` gives `OUT_OF_RANGE` naming the parameter.
     - Write `test/validate-request.props.test.ts`: every custom parameter inside its range is accepted and just outside it is rejected with the path and the range in the message; `readingPauseLengthMs.min > max` is `OUT_OF_RANGE`.
     - _Requirements: 3.2, 3.3, 3.6, 4.6, 4.17, 4.18, 4.19, 4.20, 4.21, 4.22, 4.23, 4.26, 4.28_
 
