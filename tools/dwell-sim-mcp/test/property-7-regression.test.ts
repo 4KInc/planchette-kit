@@ -22,7 +22,7 @@
 import { describe, expect, it } from "vitest";
 import { insideRect, type EntryPlan } from "../src/plan-entry.js";
 import { openTrial, runEntries, runStartOfSession, runWarmup, type TrialConfig } from "../src/run-trial.js";
-import { ANALYSIS_WINDOW_MS, aimsInside, sdCapPx } from "./p7-helpers.js";
+import { ANALYSIS_WINDOW_MS, aimsInside, b6Holds, expectIdentity, sdCapPx, traced } from "./p7-helpers.js";
 
 type CaseCfg = Omit<TrialConfig, "fps">;
 
@@ -209,6 +209,55 @@ const seed295: CaseCfg = {
   "trialIndex": 0
 };
 
+/**
+ * Seed 39595 (graceTime 497): the shrunk case that broke the first identity `tts - arrival = ceil(dwellTime / F) * F`.
+ * The pointer touches t1 for 83.33 ms during the start of session (60 fps), leaves, and comes back
+ * 483.33 ms later (a gap of at most graceTime, so the engine resumes the stay); the same gap sampled at
+ * 15 fps is 533.33 ms (more than graceTime), so the stay resets there.
+ */
+const seed39595: CaseCfg = {
+  layout: {
+    screen: { width: 1280, height: 1017 },
+    targets: [
+      { id: "t0", rect: { x: 855, y: 511, width: 292, height: 292 }, autoRepeat: false, role: "default" },
+      { id: "t1", rect: { x: 429, y: 511, width: 292, height: 292 }, autoRepeat: false, role: "default" },
+      { id: "rest", rect: { x: 109, y: 511, width: 292, height: 292 }, autoRepeat: false, role: "rest-area" },
+    ],
+  },
+  profile: {
+    headGain: 1,
+    dwellTime: 752,
+    graceTime: 497,
+    postSelectionPause: 202,
+    headDeadZone: 1.2482995551204282e-98,
+  },
+  user: {
+    name: "custom-791",
+    key: 2722684237,
+    params: {
+      throughputBitsPerS: 4,
+      tremorFrequencyHz: 1.0000000000000027,
+      tremorPeakToPeakDeg: 0,
+      tremorAxis: "pitch",
+      tremorDriftFraction: 0.2,
+      headRangeDeg: { left: 59.999999999999936, right: 6.460493132127271, up: 3.000000000000007, down: 25.229660391590173 },
+      reactionTimeMs: 211,
+      readingPauseChancePct: 0,
+      readingPauseLengthMs: { min: 2.7031912906704566e-285, max: 7.737517037186625e-161 },
+      trackingNoiseDeg: 0,
+      scatterCapDeg: 0.24510347346828484,
+      scanReactionTimeMs: 500,
+      scanLatePressChancePct: 10,
+      scanPressDurationMs: 150,
+    },
+  },
+  mode: "head + dwell",
+  task: ["t1"],
+  analysisWindowMs: ANALYSIS_WINDOW_MS,
+  requestSeed: 187234376,
+  trialIndex: 0,
+};
+
 /** The entry plans and the captured centre of a run at `fps`. */
 function runAt(cfg: CaseCfg, fps: 15 | 60): { plans: EntryPlan[]; centre: { yaw: number; pitch: number } } {
   const d = openTrial({ ...cfg, fps });
@@ -249,5 +298,32 @@ describe("Property 7 regression", () => {
   });
   it("seed 295: aim (996, 1066) is one pixel below t0 (y up to 1064); the new B2 sizing needs 3244 px", () => {
     check("seed295", seed295, { x: 996, y: 1066 }, 3244);
+  });
+
+  it("seed 39595: 60 fps chains the start-of-session run across a 483.33 ms gap, 15 fps resets on 533.33 ms; B6 rejects it", () => {
+    const t15 = traced({ ...seed39595, fps: 15 });
+    const t60 = traced({ ...seed39595, fps: 60 });
+    const grace = seed39595.profile.graceTime as number;
+    const [c15] = t15.checks;
+    const [c60] = t60.checks;
+    // 60 fps: the run during the start of session (1783.33 to 1866.67 ms, 83.33 ms) is chained through
+    // the 483.33 ms gap (<= graceTime), so the arrival is its first frame and the gap time is subtracted.
+    expect(c60.arrival).toBeCloseTo(1783.3333333, 5);
+    expect(c60.allGaps).toHaveLength(1);
+    expect(c60.allGaps[0]).toBeCloseTo(483.3333333, 5);
+    expect(c60.allGaps[0]).toBeLessThanOrEqual(grace);
+    expect(c60.gaps).toBeCloseTo(483.3333333, 5);
+    // 15 fps: the same gap is sampled as 533.33 ms (> graceTime), the stay resets, the arrival is the second run's first frame.
+    expect(c15.allGaps).toHaveLength(1);
+    expect(c15.allGaps[0]).toBeCloseTo(533.3333333, 5);
+    expect(c15.allGaps[0]).toBeGreaterThan(grace);
+    expect(c15.arrival).toBeCloseTo(2400, 5);
+    expect(c15.gaps).toBe(0);
+    // The new identity holds at both rates with the chain-aware arrival.
+    expectIdentity(seed39595, t15, t60);
+    // B6 rejects the case: |483.33 - 497| <= 66.67 (and |533.33 - 497| <= 66.67).
+    expect(Math.abs(c60.allGaps[0] - grace)).toBeLessThanOrEqual(1000 / 15);
+    expect(b6Holds(c60.allGaps, grace)).toBe(false);
+    expect(b6Holds(c15.allGaps, grace)).toBe(false);
   });
 });
