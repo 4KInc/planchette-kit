@@ -600,6 +600,16 @@
         "executionId": "a42c9b3c-c73a-4dce-ba26-2e641f2464fb",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795376725582
+      },
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387471405
+      },
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387609647
       }
     ],
     "8.8 Write property test for Property 8: each task entry resolves once.": [
@@ -783,6 +793,16 @@
         "executionId": "a42c9b3c-c73a-4dce-ba26-2e641f2464fb",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795376725673
+      },
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387470325
+      },
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387609514
       }
     ],
     "9.5 Write property test for Property 1: deterministic.": [
@@ -802,6 +822,100 @@
         "executionId": "a42c9b3c-c73a-4dce-ba26-2e641f2464fb",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795387209304
+      }
+    ],
+    "10.1 Suggestion rules.": [
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387472186
+      },
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387610527
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795388302445
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795405970764
+      }
+    ],
+    "11.1 Paired metrics and verdicts.": [
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387611049
+      },
+      {
+        "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795387694184
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407644762
+      }
+    ],
+    "11.0 observers.onSample hook.": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795388331933
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407297549
+      }
+    ],
+    "10.2 Follow-up runs.": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795405971721
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407295062
+      }
+    ],
+    "10.4 Suggest keeping the screen centre empty.": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795405972842
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407296107
+      }
+    ],
+    "10.3 Wire suggestions into `simulate`.": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407297967
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407624854
+      }
+    ],
+    "10. Suggestions and follow-up runs": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795407624929
       }
     ]
   }

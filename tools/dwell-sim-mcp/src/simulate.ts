@@ -5,10 +5,12 @@
  */
 import type { Profile } from "@planchette/skeleton";
 import { DISCLAIMER } from "./disclaimer.js";
+import { followUp, type FollowUpUser } from "./follow-up.js";
 import { round1, type TargetMetrics, type UserMetrics } from "./metrics.js";
-import { runUser } from "./run-user.js";
+import { runUser, type RunUserConfig } from "./run-user.js";
+import { suggest, type Suggestion, type SuggestUser } from "./suggest.js";
 import { expandTask, type TaskError } from "./task.js";
-import type { Activity, AccidentalCause, SimulateRequest, TaskSpec, UserParams } from "./types.js";
+import type { Activity, AccidentalCause, Layout, SimulateRequest, TaskSpec, UserParams } from "./types.js";
 import { buildWarnings } from "./warnings.js";
 
 /**
@@ -37,6 +39,7 @@ export interface SimulateUserOutput extends Omit<UserMetrics, "userName" | "perT
 export interface SimulateResult {
   seed: number;
   parameters: {
+    layout: Layout;
     mode: SimulateRequest["mode"];
     fps: SimulateRequest["fps"];
     analysisWindowS: number;
@@ -54,8 +57,8 @@ export interface SimulateResult {
     activity: Activity;
     cause: AccidentalCause;
   }[];
-  /** Always present; filled by Task 10.3. */
-  suggestions: never[];
+  /** Always present, in the order `suggest` returns (design section 8). */
+  suggestions: Suggestion[];
   warnings: string[];
   notes: string[];
   disclaimer: string;
@@ -89,10 +92,12 @@ export function simulate(request: SimulateRequest): SimulateResult {
   const paramUsers: SimulateResult["parameters"]["users"] = [];
   const users: SimulateUserOutput[] = [];
   const accidentalSelections: SimulateResult["accidentalSelections"] = [];
+  const suggestUsers: SuggestUser[] = [];
+  const followUpUsers: FollowUpUser[] = [];
   const warningInput: { user: SimulateRequest["users"][number]; trials: { warnings: string[] }[] }[] = [];
 
   for (const user of request.users) {
-    const run = runUser({
+    const config: RunUserConfig = {
       layout: request.layout,
       profile: request.profile,
       user,
@@ -102,7 +107,8 @@ export function simulate(request: SimulateRequest): SimulateResult {
       analysisWindowMs: request.analysisWindowS * 1000,
       requestSeed: request.seed,
       trials: request.trialsPerUser,
-    });
+    };
+    const run = runUser(config);
 
     paramUsers.push({ name: user.name, params: user.params, effectiveProfile: run.trials[0].effectiveProfile });
 
@@ -127,13 +133,30 @@ export function simulate(request: SimulateRequest): SimulateResult {
       }
     }
     warningInput.push({ user, trials: run.trials });
+    // The same geometry the trial driver builds (run-trial.ts openTrial): effective profile, screen, head range.
+    suggestUsers.push({
+      name: user.name,
+      trials: run.trials,
+      geometry: { profile: run.trials[0].effectiveProfile, screen: request.layout.screen, headRange: user.params.headRangeDeg },
+    });
+    followUpUsers.push({ name: user.name, trials: run.trials, config });
   }
 
   const { warnings, notes } = buildWarnings({ layout: request.layout, mode: request.mode, users: warningInput });
 
+  const suggestions = suggest({ mode: request.mode, users: suggestUsers, task: expanded.ids, layout: request.layout }).map(
+    (s): Suggestion => {
+      if (s.metric !== "tremor-at-edge share") return s;
+      const f = followUp({ layout: request.layout, targetId: s.targetId, users: followUpUsers, runner: runUser });
+      if (f.followUp === undefined) return f.text === "" ? s : { ...s, text: `${s.text} ${f.text}` };
+      return { ...s, text: f.text === "" ? s.text : `${s.text} ${f.text}`, followUp: f.followUp };
+    },
+  );
+
   return {
     seed: request.seed,
     parameters: {
+      layout: structuredClone(request.layout),
       mode: request.mode,
       fps: request.fps,
       analysisWindowS: request.analysisWindowS,
@@ -144,7 +167,7 @@ export function simulate(request: SimulateRequest): SimulateResult {
     },
     users,
     accidentalSelections,
-    suggestions: [],
+    suggestions,
     warnings,
     notes,
     disclaimer: DISCLAIMER,

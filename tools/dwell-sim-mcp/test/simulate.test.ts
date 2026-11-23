@@ -53,8 +53,13 @@ describe("simulate result shape (design 11 example)", () => {
 
   it("has the parameters of the example and no top-level effectiveProfile", () => {
     expect(sorted(result.parameters)).toEqual(
-      ["analysisWindowS", "fps", "mode", "profile", "task", "trialsPerUser", "users"],
+      ["analysisWindowS", "fps", "layout", "mode", "profile", "task", "trialsPerUser", "users"],
     );
+    expect(result.parameters.layout).toEqual(layout);
+    expect(result.parameters.layout).not.toBe(layout);
+    const copy = simulate(request({ trialsPerUser: 1 }));
+    copy.parameters.layout.targets[0].id = "changed";
+    expect(layout.targets[0].id).toBe("rest");
     expect(result.parameters).not.toHaveProperty("effectiveProfile");
     expect(result.parameters.profile).toEqual({ dwellTime: 400 });
     expect(result.parameters.task).toEqual(["a", "b"]);

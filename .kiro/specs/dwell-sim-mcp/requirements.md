@@ -357,7 +357,8 @@ same simulated users, so that I can see whether a change helps.
 6. IF no result in the run supports a suggestion, THEN THE simulator SHALL NOT make that
    suggestion.
 7. IF a target has fewer than 3 events (accidental selections or misses) in the run,
-   THEN THE simulator SHALL NOT make a suggestion for that target.
+   THEN THE simulator SHALL NOT make an event-based suggestion for that target.
+   Clarification: the unreachable rule (AC 3), like the centre rule (AC 10), comes from geometry, not events, so the 3-event minimum does not apply to it.
 8. WHEN a suggestion for a target is made under criterion 2, THE simulator SHALL make a
    follow-up run for that target.
 9. IF no follow-up run for a target has zero accidental selections and zero misses on

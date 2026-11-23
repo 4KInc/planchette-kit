@@ -16,7 +16,7 @@ import {
 } from "../src/run-trial.js";
 import { MT_MIN } from "../src/fitts.js";
 import type { Layout, RawEvent, ResolvedUser } from "../src/types.js";
-import { customUserArb } from "./arbitraries.js";
+import { customUserArb, layoutArb, taskArb } from "./arbitraries.js";
 
 /**
  * Feature: dwell-sim-mcp, Property 2: clean run, no accidents, no misses.
@@ -264,7 +264,35 @@ function longestNonIntendedStay(stays: readonly Stay[], task: readonly string[])
   return best;
 }
 
-const caseArb: fc.Arbitrary<Case> = fc
+type LayoutFor = (screen: { width: number; height: number }, minWidth: number, minHeight: number) => fc.Arbitrary<Layout>;
+type TaskFor = (layout: Layout) => fc.Arbitrary<readonly string[]>;
+
+/**
+ * General layouts: `layoutArb` with three selectable targets, no cancel target, no autoRepeat, the screen centre clear,
+ * 6 x SDcap sizing through `minWidth`/`minHeight`. In half of the runs `selectableBetweenCentreAndRest` puts a selectable
+ * target between the screen centre and the rest area, so start-of-session crossings happen.
+ */
+const generalLayoutFor: LayoutFor = (screen, minWidth, minHeight) =>
+  fc.boolean().chain((between) =>
+    layoutArb({
+      screen,
+      minTargets: 3,
+      maxTargets: 3,
+      cancelTarget: false,
+      includeAutoRepeat: false,
+      centreClear: true,
+      selectableBetweenCentreAndRest: between,
+      minWidth,
+      minHeight,
+    }),
+  );
+const generalTaskFor: TaskFor = (layout) =>
+  taskArb(layout, { form: "list", maxLength: 6 }).map((spec) => spec as readonly string[]);
+
+const rowLayoutFor: LayoutFor = rowLayoutArb;
+const rowTaskFor: TaskFor = crossingTaskArb;
+
+const makeCaseArb = (layoutFor: LayoutFor, taskFor: TaskFor): fc.Arbitrary<Case> => fc
   .record({
     cap: fc.double({ min: 0.1, max: 3, noNaN: true }),
     width: fc.integer({ min: 640, max: 1600 }),
@@ -306,13 +334,13 @@ const caseArb: fc.Arbitrary<Case> = fc
             if (!r.ok) throw new Error(`arbitrary produced an invalid user: ${r.error.message}`);
             return r.user;
           }),
-        layout: rowLayoutArb(screen, pxFor(width, 6 * cap), pxFor(height, 6 * cap)),
+        layout: layoutFor(screen, pxFor(width, 6 * cap), pxFor(height, 6 * cap)),
         fps: fc.constantFrom<15 | 30 | 60>(15, 30, 60),
         requestSeed: fc.integer({ min: 0, max: 0xffffffff }),
         trialIndex: fc.integer({ min: 0, max: 20 }),
       })
       .chain(({ user, layout, fps, requestSeed, trialIndex }) =>
-        crossingTaskArb(layout).map((task): Case => {
+        taskFor(layout).map((task): Case => {
           const built = buildCase({
             layout,
             profile: { headGain, headDeadZone, graceTime, postSelectionPause },
@@ -328,25 +356,7 @@ const caseArb: fc.Arbitrary<Case> = fc
       );
   });
 
-describe("Property 2: clean run, no accidents, no misses", () => {
-  it("builds targets of at least 6 SD on both axes, so SD equals the cap", () => {
-    fc.assert(
-      fc.property(caseArb, ({ cfg, cap }) => {
-        const d = openTrial(cfg);
-        try {
-          for (const t of cfg.layout.targets) {
-            expect(angularWidth(d.geometry, t.rect, "x")).toBeGreaterThanOrEqual(6 * cap);
-            expect(angularWidth(d.geometry, t.rect, "y")).toBeGreaterThanOrEqual(6 * cap);
-          }
-        } finally {
-          d.pl.destroy();
-        }
-      }),
-      { numRuns: 100 },
-    );
-  });
-
-  it("selects each intended target exactly once, with no accidental selection and no miss", () => {
+function checkProperty2(arb: fc.Arbitrary<Case>, label: string, requireShare: boolean): void {
     // **Validates: Requirements 4.2, 4.9, 4.10, 4.12, 11.3, 11.4**
     let calls = 0;
     let discarded = 0;
@@ -358,7 +368,7 @@ describe("Property 2: clean run, no accidents, no misses", () => {
     let smallestStartMargin = Number.POSITIVE_INFINITY;
     let startStays = 0;
     fc.assert(
-      fc.property(caseArb, ({ cfg, overClamp, crossing, margin }) => {
+      fc.property(arb, ({ cfg, overClamp, crossing, margin }) => {
         calls++;
         if (overClamp) discarded++;
         fc.pre(!overClamp);
@@ -418,13 +428,42 @@ describe("Property 2: clean run, no accidents, no misses", () => {
       { numRuns: 100, maxSkipsPerRun: 1000 },
     );
     console.log(
-      `Property 2: runs ${runs}, calls ${calls}, discarded ${discarded} (rate ${(discarded / calls).toFixed(4)}), ` +
+      `Property 2 [${label}]: runs ${runs}, calls ${calls}, discarded ${discarded} (rate ${(discarded / calls).toFixed(4)}), ` +
         `runs with an entry stay ${runsWithStay} (share ${(runsWithStay / runs).toFixed(4)}), ` +
         `entry stays in total ${totalStays}, longest entry stay ${longestSeen} ms, ` +
         `smallest margin over entry stays ${smallestMargin} ms; ` +
         `start-of-session stays ${startStays}, smallest start-of-session margin ${smallestStartMargin} ms`,
     );
-    expect(runsWithStay / runs).toBeGreaterThanOrEqual(0.5);
+    if (requireShare) expect(runsWithStay / runs).toBeGreaterThanOrEqual(0.5);
     expect(smallestMargin).toBeGreaterThan(0);
+}
+
+const caseArb = makeCaseArb(rowLayoutFor, rowTaskFor);
+const generalCaseArb = makeCaseArb(generalLayoutFor, generalTaskFor);
+
+describe("Property 2: clean run, no accidents, no misses", () => {
+  it("builds targets of at least 6 SD on both axes, so SD equals the cap", () => {
+    fc.assert(
+      fc.property(caseArb, ({ cfg, cap }) => {
+        const d = openTrial(cfg);
+        try {
+          for (const t of cfg.layout.targets) {
+            expect(angularWidth(d.geometry, t.rect, "x")).toBeGreaterThanOrEqual(6 * cap);
+            expect(angularWidth(d.geometry, t.rect, "y")).toBeGreaterThanOrEqual(6 * cap);
+          }
+        } finally {
+          d.pl.destroy();
+        }
+      }),
+      { numRuns: 100 },
+    );
+  });
+
+  it("selects each intended target exactly once, with no accidental selection and no miss (row layout)", () => {
+    checkProperty2(caseArb, "row", true);
+  });
+
+  it("selects each intended target exactly once, with no accidental selection and no miss (general layouts)", () => {
+    checkProperty2(generalCaseArb, "general", false);
   });
 });

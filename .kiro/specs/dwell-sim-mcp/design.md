@@ -647,7 +647,11 @@ export interface TrialConfig {
   layout: Layout; profile: Partial<Profile>; user: ResolvedUser; mode: 'head + dwell';
   task: readonly string[]; fps: 15 | 30 | 60; analysisWindowMs: number;
   requestSeed: number; trialIndex: number;
-  observers?: { onEvent?(e: RawEvent): void };       // tests count events independently of the classifier
+  observers?: {
+    onEvent?(e: RawEvent): void;                      // tests count events independently of the classifier
+    /** Called once per fed frame, from feedFrame, with the rotation exactly as fed to the engine. */
+    onSample?(now: number, rotation: Pose, phase: 'warmup' | 'start' | 'entry'): void;
+  };
 }
 export function runTrial(cfg: TrialConfig): TrialResult;
 ```
@@ -670,7 +674,10 @@ function runTrial(cfg):
 
   frameMs = 1000 / fps;  k = 0;  face = { bbox:{cx:.5,cy:.5,w:.3,h:.4}, rotation:{yaw:0,pitch:0} }
   sample = { now:0, source:'camera', faces:[face] };  batch = [sample]            // reused, mutated in place
-  feed(pose, now): face.rotation.yaw = pose.yaw; face.rotation.pitch = pose.pitch; sample.now = now; pl.feedSamples(batch)
+  feedFrame(pose, now, phase):                                  // `feed` below is this function; phase is 'warmup' | 'start' | 'entry'
+    face.rotation.yaw = pose.yaw; face.rotation.pitch = pose.pitch; sample.now = now
+    if (onSample) onSample(now, face.rotation, phase)           // after the rotation is set, before the engine sees it; no call when undefined
+    pl.feedSamples(batch)
 
   // 1. warm-up (Req 1 AC 3, 5): still at the centre pose, tremor and noise on
   cap = eff.calibrationStepTimeout + 1000
@@ -719,6 +726,10 @@ Choices:
 - **Feeding.** One `feedSamples` call per frame with a reused one-element array and a mutated sample object, so
   nothing is allocated per frame in the driver. The engine does not keep the sample (`feedOne` reads fields and
   `sanitizeFaces` copies). There is no `await` anywhere in a trial: all of it is synchronous.
+- **`observers.onSample(now, rotation, phase)`.** An optional hook, called from `feedFrame` once per fed frame with the rotation exactly as fed to the engine
+  (after tremor, noise and clamping) and the phase `'warmup'`, `'start'` or `'entry'`. When it is `undefined` there is no call and no allocation; the driver resolves
+  `const onSample = cfg.observers?.onSample` once per trial. The hook only reads; the trial result is identical with and without it. `rotation` is the reused face
+  rotation object, so a recorder must copy the two numbers. Property 5 uses it to compare head samples between configurations.
 - **Warm-up events.** Events from the warm-up are start-of-session events by definition (§6), so the driver records them directly as start events (activity `waiting`, cause `start`) and does not call `classify` for them. The code carries a comment citing design §5/§6. `classify.ts` is unchanged: it needs no context copy with `tEnd = +Infinity`.
 - **When entry k+1 starts.** At the frame time `now` of the sample whose events resolved entry `k` (`tEntry = now`), from `basePose(plan, now)`.
   The plan switch happens inside the drain loop, right after the first intended event (§6 wins): the remaining events of that frame are classified under
@@ -891,7 +902,7 @@ export function aggregateUser(userName: string, trials: readonly TrialResult[], 
     `"TREMOR_ABOVE_TUNED: user strong-head-tremor has tremor 1.6° peak to peak, above the 1° the smoothing is tuned for."`
   - Trial warnings are aggregated to one entry per user and warning code, with the number of trials that raised it, for example
     `"start-clamped: user small-range, 10 of 10 trials"`. Entries are in first-occurrence order: users in request order and, for each user, codes in the order `start-clamped`, `centre-step-cap`.
-- Echo (AC 4): `seed`, the full request parameters after defaults, and the resolved users. `parameters.profile` is the request profile as given. Each entry of `parameters.users[]` is
+- Echo (AC 4): `seed`, the full request parameters after defaults, and the resolved users. `parameters.layout` is the request's layout as given (screen and targets, deep-equal to the request's), so the run can be repeated exactly. `parameters.profile` is the request profile as given. Each entry of `parameters.users[]` is
   `{ name, params, effectiveProfile }`, where `effectiveProfile` is that user's `getProfile()` after the per-user calibration-range fill (§5) and clamping; it is identical across that user's trials.
   There is no top-level `parameters.effectiveProfile`: the driver fills each user's calibration ranges from that user's head range, so the profiles differ between users, and the echo must show what each trial actually ran.
 - The result has no wall-clock or random-id field (property 1).
@@ -900,35 +911,48 @@ export function aggregateUser(userName: string, trials: readonly TrialResult[], 
 
 ### 8. Suggestions and follow-up runs (`suggest.ts`)
 
-Inputs: the aggregated per-target data over all users, the pooled task list, the layout. For each selectable target `T`:
+Inputs: the aggregated per-target data over all users, the expanded task list (§4.8, the same in every trial), the layout, the mode, and the users in request order.
+`suggest` takes the mode (`head + dwell` or `scan`). Output order is fixed: targets by id in UTF-16 order, and for each target the rules in the order reading-pause,
+tremor-at-edge, unreachable; the centre-hit suggestions come last, also by target id. Every rule below applies to every target except rest areas (role `rest-area`).
 
 ```
-centre-hit rule (below) first: it does not use events(T) and is not limited by the threshold      // Req 6 AC 10
-events(T)  = accidental records on T + misses whose aimed target is T                           // start-of-session events are not accidental records
-if |events(T)| < 3: no event-based suggestion for T                      // AC 7
-reading(T) = count(accidental on T with cause 'reading-pause') / count(accidental on T)
-edge(T)    = count(events on T with cause/missCause 'tremor-at-edge') / |events(T)|
-if reading(T) > 0.5 -> suggestion "longer dwell time"
-     and, if T is on the path of a commonly used target, "or move T away from the path"
-if edge(T)    > 0.5 -> suggestion "larger target or more spacing", then the follow-up run below
-if T is unreachable for user U (outside U's reachable pixel rectangle) -> "outside U's head range; higher head gain or move T"
+for T of selectable targets sorted by id (UTF-16):                          // rest areas excluded from every rule
+  events(T)  = accidental records on T + misses whose aimed target is T     // start-of-session events are not accidental records
+  if mode is 'head + dwell' and |events(T)| >= 3:                           // AC 7 applies to the two event-based rules only
+     reading(T) = count(accidental on T) = 0 ? 0 : count(accidental on T with cause 'reading-pause') / count(accidental on T)
+     edge(T)    = count(events on T with cause/missCause 'tremor-at-edge') / |events(T)|
+     if reading(T) > 0.5 -> metric 'reading-pause share', value reading(T): "longer dwell time", plus the path text below
+     if edge(T)    > 0.5 -> metric 'tremor-at-edge share', value edge(T): "larger target or more spacing", then the follow-up run below
+  if some user cannot reach T (T outside that user's reachable pixel rectangle):   // no event minimum (AC 7 clarification)
+     one suggestion, metric 'unreachable', value null, users = every such user: "outside the head range; higher head gain or move T"
+then for T of selectable targets sorted by id: centre-hit rule, metric 'screen-centre-hit', value null, users []
 ```
 
-- **Centre-hit rule (Req 6 AC 10).** Let `C = (floor(screen.width / 2), floor(screen.height / 2))` be the screen centre pixel (the pixel the engine
+- **Event-based rules (AC 1, 2, 7).** In scan mode the reading-pause and tremor-at-edge rules are skipped (they need head movement). `reading(T)` is 0 when `T` has no
+  accidental selections (all its events are misses), so there is no reading-pause suggestion for it. Thresholds use the unrounded share.
+- **Metric and value.** `metric` is the bare name: `reading-pause share`, `tremor-at-edge share`, `unreachable`, `screen-centre-hit`. The share is a separate numeric field
+  `value`, rounded to two decimals (`Math.round(x × 100) / 100`); `value` is `null` for `unreachable` and `screen-centre-hit`.
+- **Users.** Reading-pause and tremor-at-edge suggestions name the users with at least one event of that cause on `T` (an accidental record with that cause, or, for tremor-at-edge,
+  a miss with that miss cause), in request order. An unreachable suggestion is one per target and lists every user who cannot reach it, in request order.
+- **Unreachable (AC 3).** Reachability per user is the pixel rectangle `[xMin, xMax] × [yMin, yMax]` from `rotationToPoint` at the extreme head-range rotations with the
+  effective profile (§1.2). `T` is outside when no pixel of its rectangle `[x, x + w) × [y, y + h)` is inside. It comes from geometry, not events, so the 3-event minimum does not apply.
+  The rule is not limited by the mode.
+- **Centre-hit rule (AC 10).** Let `C = (floor(screen.width / 2), floor(screen.height / 2))` be the screen centre pixel (the pixel the engine
   maps a centred head to). For each selectable target `T` (role ≠ `rest-area`; rest areas are excluded from the hit-test) with `T.rect` containing `C`
   (`x ≤ C.x < x + width` and `y ≤ C.y < y + height`), add one suggestion naming `T`: keep the screen centre empty, or put the rest area there. The
-  suggestion is made whether or not the layout has a rest-area target, and without regard to the 3-event threshold of AC 7 and to any events.
-  Its metric is `screen-centre-hit` and its `users` list is empty (it comes from the layout, not from a simulated user).
+  suggestion is made whether or not the layout has a rest-area target, and without regard to the 3-event minimum of AC 7 and to any events.
+  Its `users` list is empty (it comes from the layout, not from a simulated user).
 - Start-of-session events are not accidental selections, so they are in none of the reading-pause, tremor-at-edge and threshold counts: they say where the start path went, not how `T` is used.
-
-- **Commonly used target:** at least 20 % of all task entries pooled over every trial of the run.
-- **On the path:** for some pair of consecutive intended entries `(i → j)` where `j` is a commonly used target and `T` is
-  neither, the straight segment between the two target centres passes within one target width (`T.rect.width`) of `T.rect`
-  (segment-to-rectangle distance: zero if they intersect, else the least distance between the segment and the four edges).
-- **Unreachable (Req 6.3):** reachability per user is the pixel rectangle `[xMin, xMax] × [yMin, yMax]` from
-  `rotationToPoint` at the extreme head-range rotations with the effective profile (§1.2). `T` is outside when no pixel of its
-  rectangle `[x, x + w) × [y, y + h)` is inside. Each suggestion lists the metric (`reading-pause share`, `tremor-at-edge share`,
-  `unreachable`) and the user names that produced the events (AC 4).
+- **Commonly used target:** a target that makes up at least 20 % of the entries of the expanded task, counted by id (the task is the same in every trial, so one count is enough).
+- **On the path:** for some pair of consecutive entries `(i → j)` of the expanded task, where `j` is a commonly used target and `T` is
+  neither `i` nor `j`, the straight segment between the two target centres passes within one target width (`T.rect.width`) of `T.rect`, that is, the
+  segment-to-rectangle distance is at most `T.rect.width` (it is zero if they intersect, else the least distance between the segment and the four edges).
+  Pairs are consecutive entries within one trial's task and never span two trials. A pair with `i = j` (a self-pair, possible on an `autoRepeat` target) does not count.
+- **One suggestion per rule.** A reading-pause suggestion on a target that is also on the path of a commonly used target is still one suggestion: its text adds
+  "or move T away from the path to {target}", where `{target}` is the id of the commonly used target (ids joined with ", ", in UTF-16 order, when there are several). Two different rules on one
+  target (for example reading-pause and tremor-at-edge) give two suggestions.
+- **Text.** The text of every suggestion comes from fixed templates in one file, `src/suggestion-text.ts`, which holds the phrases used in this section ("longer dwell time", "or move T away from the path to {target}",
+  "larger target or more spacing", the unreachable text, the centre-hit text, and the follow-up wording). Tests check `metric`, `targetId`, `users` and `value`, not the sentence.
 - **Follow-up run (AC 5, 8, 9).** For a tremor-at-edge suggestion on `T`, for `s` in `[1.25, 1.5, 2]` in order: scale `T.rect`
   about its centre by `s`, intersect with the screen rectangle, run again only the users that had events on `T`, with the same
   request seed and the same task; stop at the first run with zero accidental selections and zero misses on `T`.
@@ -938,7 +962,7 @@ if T is unreachable for user U (outside U's reachable pixel rectangle) -> "outsi
   suggestion text says "this size overlaps X". At most 3 extra runs per suggested target.
 - Nothing is suggested when no result supports it (AC 6).
 
-The suggestion record in the output has `{ targetId, metric, users, text, followUp? }`; the centre-hit suggestion has `metric: "screen-centre-hit"`, `users: []` and no `followUp`.
+The suggestion record in the output has `{ targetId, metric, value, users, text, followUp? }`; the centre-hit suggestion has `metric: "screen-centre-hit"`, `value: null`, `users: []` and no `followUp`.
 
 ### 9. `compare` (`compare.ts`)
 
@@ -948,18 +972,44 @@ interface CompareRequest {
   b: { layout?: Layout; profile?: Partial<Profile>; label?: string };   // b.layout defaults to a.layout
   mode, users, task, trialsPerUser, fps, analysisWindowS, seed;
 }
+interface PairSide { accidental: number; misses: number; medianTimeMs: number | null }
+interface ComparePair { user: string; trial: number; a: PairSide; b: PairSide }
+interface MetricVerdict { aWins: number; bWins: number; ties: number; verdict: 'a did better' | 'b did better' | 'tie' }
+interface CompareResult {
+  seed: number;
+  parameters: {
+    shared: { mode; fps; analysisWindowS; trialsPerUser; task: TaskSpec; users: { name: string; params: UserParams }[] };
+    a: { label?: string; layout: Layout; profile: Partial<Profile>; effectiveProfiles: { user: string; effectiveProfile: Profile }[] };
+    b: { /* same as a; layout is a's layout when the request had none */ };
+  };
+  metrics: { accidental: MetricVerdict; misses: MetricVerdict; timeToSelect: MetricVerdict & { pairedTrials: number } };
+  pairs: ComparePair[]; statement: string; warnings: string[]; notes: string[]; disclaimer: string;
+}
+export function checkSameTargetIds(a: Layout, b: Layout): SimulateError | null;   // LAYOUT_MISMATCH, ids only
 ```
 
 Both configurations must have the same set of target ids (`LAYOUT_MISMATCH` otherwise). Everything outside `a`/`b` is
-shared. The `eachTarget` task is built from the ids sorted by UTF-16 order and the `TaskOrder` stream, so it is the same
-in both. The 'layout target index' in draw keys is the index in that sorted order, not the registration order.
+shared. The task is expanded once (§4.8, from the ids sorted by UTF-16 order and the `TaskOrder` stream) and the same list is used by both configurations.
+The 'layout target index' in draw keys is the index in that sorted order, not the registration order.
 
-For each `(user, trial)` both configurations run with the same user key, request seed and trial index. Paired metrics:
-accidental count and miss count per trial (fewer wins); time-to-select per trial is the median over entries selected in both
-configurations (entry `k` paired with entry `k`), counted only when at least one entry was selected in both (lower wins). Equal values are
-ties. The output has, per metric, `{ aWins, bWins, ties, verdict }` where `verdict` is `"a did better"`, `"b did better"`
-(more wins) or `"tie"` (equal wins; AC 3, 4), plus the per-trial pairs and the sentence "These counts are not a test of
-statistical significance." (AC 6).
+For each `(user, trial)` both configurations run with the same user key, request seed and trial index. Decisions:
+
+- **Pairs.** One pair per user and trial, users in request order and then trial order. For `accidental` and `misses`, `aWins + bWins + ties` equals the number of pairs.
+  For `timeToSelect`, `aWins + bWins + ties = pairedTrials`, the number of pairs with a time (below).
+- **Values.** `accidental` is `trial.accidental.length` (start-of-session events are excluded). `misses` is the number of entries with outcome `miss`.
+- **Median time-to-select.** Per side, the nearest-rank p50 (§7) of `timeToSelectMs` over the entries selected in both configurations (entry `k` paired with entry `k`), so both sides use the same entries.
+- **Win and tie.** Lower is better for all three metrics. Equal is a tie, compared exactly (both runs use the same frame grid, so equal times are bit-equal).
+- **No paired time.** A trial with no entry selected in both configurations is skipped for time-to-select only: it is listed in `pairs` with `medianTimeMs: null` on both sides and is counted
+  neither as a tie nor in `pairedTrials`. It still counts for `accidental` and `misses`.
+- **Verdict.** One verdict per metric, pooled over all users and trials: `"a did better"` or `"b did better"` (more wins; AC 3), or `"tie"` (equal wins; AC 4). The three strings are fixed.
+  The result also has the sentence "These counts are not a test of statistical significance." (AC 6).
+- **Labels.** The optional labels are echoed in `parameters.a.label` and `parameters.b.label`; the verdict strings stay `"a did better"` / `"b did better"` whatever the labels.
+- **Output.** `compare` returns only the compare shape above (no two full `simulate` results). `parameters` is as typed: `shared` holds the common fields and `a` and `b` each hold the label, the layout,
+  the profile as given and the effective profile of each user (§7); b's layout is echoed after defaulting to a's.
+- **Errors.** `compare` reuses `SimulateError` (§11) and adds `LAYOUT_MISMATCH`. `checkSameTargetIds` is exported from `compare.ts` and compares ids only. Its message lists the differing ids
+  (the symmetric difference of the two id sets), sorted in UTF-16 order and joined with ", ". Task 14 calls it from request validation.
+- **Warnings and notes.** `buildWarnings` runs per side and each string is prefixed "A: " or "B: ". A string identical on both sides appears once, without a prefix.
+- **Mode.** Until Task 12, `compare` throws `UNSUPPORTED_MODE` for `scan`.
 
 **Same head samples (AC 7).** The selection-timing fields are exactly `dwellTime`, `graceTime`, `postSelectionPause`,
 `autoRepeatInterval` and `smoothingStrength`. `head(t)` depends on: the user, the stream draws (entry/time keys),
@@ -1082,6 +1132,9 @@ a test checks that.
 ```json
 { "seed": 1, "parameters": { "mode": "head + dwell", "fps": 30, "analysisWindowS": 10, "trialsPerUser": 10,
     "task": { "eachTarget": 2 }, "profile": { "dwellTime": 1000 },
+    "layout": { "screen": { "width": 1280, "height": 720 },
+                "targets": [ { "id": "menu", "rect": { "x": 40, "y": 40, "width": 200, "height": 120 } },
+                             { "id": "rest", "rect": { "x": 540, "y": 600, "width": 200, "height": 80 }, "role": "rest-area" } ] },
     "users": [ { "name": "steady", "params": { "…": "all values" },
                  "effectiveProfile": { "…": "all 30 fields, after this user's calibration-range fill and clamping" } } ] },
   "users": [ { "name": "head-tremor", "trials": 10, "intended": 38, "accidental": 4, "accidentalPer100Intended": 10.5,
@@ -1097,30 +1150,43 @@ a test checks that.
                        "activities": { "waiting": 0, "moving": 0, "reading pause": 0, "holding on the aim point": 3 } } ] } ],
   "accidentalSelections": [ { "user": "head-tremor", "trial": 3, "targetId": "ghost", "timeMs": 18420,
                               "activity": "holding on the aim point", "cause": "tremor-at-edge" } ],
-  "suggestions": [ { "targetId": "ghost", "metric": "tremor-at-edge share 0.75", "users": ["head-tremor"],
+  "suggestions": [ { "targetId": "ghost", "metric": "tremor-at-edge share", "value": 0.75, "users": ["head-tremor"],
                      "text": "…larger target (1.5 times the current size had no accidental selections and no misses)…" },
-                   { "targetId": "menu", "metric": "screen-centre-hit", "users": [],
+                   { "targetId": "menu", "metric": "screen-centre-hit", "value": null, "users": [],
                      "text": "The screen centre lies inside target \"menu\". Keep the centre empty or put the rest area there." } ],
   "warnings": [ "NO_REST_AREA: the layout has no rest-area target. Accessibility rule: every layout has a rest area." ],
   "notes": [ "TREMOR_ABOVE_TUNED: user strong-head-tremor has tremor 1.6° peak to peak, above the 1° the smoothing is tuned for." ],
   "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings." }
 ```
-With no data the rate and percentiles are `null`. The rate is rounded to one decimal in the output (`round1`, §7): 4 / 38 × 100 = 10.526…, shown as 10.5. The "ghost" row shows 75 because 3 / 4 × 100 is exactly 75. `causes` and `activities` always list all
+`parameters.layout` echoes the request's layout exactly as given (the example is shortened to two targets). With no data the rate and percentiles are `null`. The rate is rounded to one decimal in the output (`round1`, §7): 4 / 38 × 100 = 10.526…, shown as 10.5. The "ghost" row shows 75 because 3 / 4 × 100 is exactly 75. `causes` and `activities` always list all
 seven causes and all four labels, zeros included, on users and on per-target rows. `perTarget` is ordered by id (UTF-16) with the `null` bucket last, and has a row for every selectable target. The one start-of-session event is only in
 `startOfSession.count` (and the target's `startCount`); it is not in `accidental`, the rate, `causes`, `activities` or `accidentalSelections`. The `outputSchema` of `simulate` (zod) declares, per user, `startCount`-bearing metrics and
 `startOfSession: { count: number, byTarget: { targetId: string | null, count: number }[] }`; `causes` and each record's `cause` use the
-seven-value enum (no `start`); a suggestion is `{ targetId: string, metric: string, users: string[], text: string, followUp?: { factor: number, overlaps: string[] } }`.
+seven-value enum (no `start`); a suggestion is `{ targetId: string, metric: 'reading-pause share' | 'tremor-at-edge share' | 'unreachable' | 'screen-centre-hit', value: number | null, users: string[], text: string, followUp?: { factor: number, overlaps: string[] } }`
+(`value` is the share rounded to two decimals for the two share metrics, `null` for the other two; suggestions are ordered as in §8).
 `compare` pairs count accidental selections only, as in the user's `accidental` field; start-of-session events are not paired.
+In the `compare` example, 14 + 22 + 24 = 60 pairs for `accidental` and 3 + 3 + 54 = 60 for `misses`; `timeToSelect` has 20 + 31 + 5 = 56 = `pairedTrials`, so 4 pairs had no entry selected in both
+(like the second pair shown, with `medianTimeMs: null`). A warning string identical on both sides would appear once without a prefix; one only on side A is prefixed "A: ".
+
 
 `compare`:
 ```json
-{ "seed": 1, "parameters": { "…": "both configurations" },
+{ "seed": 1,
+  "parameters": {
+    "shared": { "mode": "head + dwell", "fps": 30, "analysisWindowS": 10, "trialsPerUser": 10, "task": { "eachTarget": 2 },
+                "users": [ { "name": "steady", "params": { "…": "all values" } } ] },
+    "a": { "label": "dwell 1000", "layout": { "…": "as given" }, "profile": { "dwellTime": 1000 },
+           "effectiveProfiles": [ { "user": "steady", "effectiveProfile": { "…": "all 30 fields" } } ] },
+    "b": { "label": "dwell 1400", "layout": { "…": "a's layout, because the request gave none" }, "profile": { "dwellTime": 1400 },
+           "effectiveProfiles": [ { "user": "steady", "effectiveProfile": { "…": "all 30 fields" } } ] } },
   "metrics": { "accidental": { "aWins": 14, "bWins": 22, "ties": 24, "verdict": "b did better" },
                "misses": { "aWins": 3, "bWins": 3, "ties": 54, "verdict": "tie" },
                "timeToSelect": { "aWins": 20, "bWins": 31, "ties": 5, "verdict": "b did better", "pairedTrials": 56 } },
   "pairs": [ { "user": "steady", "trial": 0, "a": { "accidental": 1, "misses": 0, "medianTimeMs": 2200 },
-               "b": { "accidental": 0, "misses": 0, "medianTimeMs": 2050 } } ],
-  "statement": "These counts are not a test of statistical significance.", "warnings": [], "notes": [],
+               "b": { "accidental": 0, "misses": 0, "medianTimeMs": 2050 } },
+             { "user": "steady", "trial": 1, "a": { "accidental": 0, "misses": 2, "medianTimeMs": null },
+               "b": { "accidental": 0, "misses": 2, "medianTimeMs": null } } ],
+  "statement": "These counts are not a test of statistical significance.", "warnings": [ "A: NO_CANCEL_TARGET: …" ], "notes": [],
   "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings." }
 ```
 
@@ -1373,6 +1439,7 @@ Where a property touches only pure code (planning, classification, metrics) it r
    `dwellTime − (longest actual pointer stay on a non-intended target)`, with the stays taken from the `pointer-move` events, and asserts it is positive. The window is
    `RT + MT + dwell + pause + 1000 ms` capped at 120 s (and the MT bound uses the slowest throughput in the range); all targets reachable (head range ≥ profile
    ranges). Tasks use targets in the layout. Assertion: `intended = task length`, `accidental = 0`, `misses = 0`, and each target selected once per entry.
+   Two tests in `test/property-2-clean-run.props.test.ts` share the margin rule and these assertions. (a) The row-layout generator: three selectable targets in one row, with a task that starts at one end and goes to the other, so the path always crosses the middle target; it asserts that at least 50 % of the runs have an entry stay (a non-intended stay on a selectable target during an entry). (b) The general `layoutArb`/`taskArb` generator with the same margin rule and the same Property 2 assertions but no share assertion, so arbitrary layouts and start-of-session crossings are still covered. Both print the share of runs with an entry stay and the start-of-session stay count.
 3. *Unreachable means miss.* Users with `headRangeDeg` 3–10° and profile ranges 1.5–3× larger. The test computes the reachable pixel rectangle with the helpers and places one target
    fully outside it (when none exists in the generated screen the case is built by moving the target, not discarded). Assertion on the event stream of a listener attached through `observers`:
    no select or cancel for that id; every entry for it is a miss.
@@ -1381,10 +1448,15 @@ Where a property touches only pure code (planning, classification, metrics) it r
    start-of-session events occur; the test also asserts that every event with `now` before the start plan's end is a start-of-session event (activity `waiting`, cause `start`) and appears in no accidental record, that
    `startOfSession.byTarget` counts sum to `startOfSession.count`, and that `accidentalPer100Intended = accidental / intended × 100` (`null` for `intended = 0`). A classifier-level property feeds random
    events and plans (including unattributed cancels) and asserts totality.
-5. *Same random draws.* Run both configurations with only timing fields differing (generator picks any subset of the five fields with different values). Both runs record
-   the head samples (a recording hook in `observers.onSample`). Assertion: the sample sequences are equal element by element until the sample after the first event whose
-   `(kind, targetId, now)` differs between the runs, and both runs' aim offsets `(zx, zy)` per entry are equal. A second arbitrary changes other fields (gain, dead zone, layout size)
-   and asserts the draw keys and `(zx, zy)` are equal, without asserting the samples.
+5. *Same random draws.* Part 1 (timing fields only): the generator draws any non-empty subset of the five timing fields (`dwellTime`, `graceTime`, `postSelectionPause`, `autoRepeatInterval`,
+   `smoothingStrength`), each value drawn from the skeleton's clamp range for that field; a value equal to the default is allowed. Both runs record the head samples through the real
+   `observers.onSample(now, rotation, phase)` hook of `run-trial.ts` (§5; warm-up samples are included) and the events through `observers.onEvent`. Assertions:
+   (a) cut-off: the first event, in `onEvent` order, whose `(kind, targetId, now)` differs between A and B (if one list is a prefix of the other, the first extra event); the two sample
+   sequences are equal element by element up to and including the frame after that event (all frames when no event differs);
+   (b) aim: for every entry `k` the test recomputes `(zx, zy)` from `ttn(u01(stream(seed, userKey, trial, Aim), k, 0|1))` and compares `plans[k].aim` between A and B, where the test builds
+   `plans[k]` with `planEntry(ctx, k, 0, ZERO)` for each side's context (the aim does not depend on `tEntry` or `p0`); no other `src/` change is needed.
+   Part 2 (other fields): the generator changes gain, dead zone or the screen size. A new screen size is drawn with the rects kept as they are, and only screens that contain every rect are used.
+   It asserts only that the draw keys and `(zx, zy)` are equal, not the samples.
 6. *Longer dwell.* Part (a) is generated from `stayArb`: a target, a stay duration below `dwellTime`, a profile; the stream is built with camera samples through the real engine, with a lost-face frame
    before each stay and each gap so the filter resets and the pointer jumps exactly onto the pose (the input-core B3 technique), no `autoRepeat`. Part (b) generates stays with
    start-to-start gaps `≥ d_new + postSelectionPause` for non-intended stays by construction (each gap is drawn as that bound plus a non-negative offset), runs the same stream under `d_old < d_new`,
