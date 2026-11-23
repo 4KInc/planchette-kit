@@ -540,6 +540,16 @@
         "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795326264458
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795412833188
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795419121618
       }
     ],
     "8.5 Write property test for Property 4: every event is accounted for.": [
@@ -670,6 +680,16 @@
         "executionId": "9388db06-df0b-4ac6-aeb0-45547a34586f",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795371286993
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795419121711
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795454691192
       }
     ],
     "8.10 Write property test for Property 6: longer dwell, fewer reading-pause accidents.": [
@@ -978,6 +998,81 @@
         "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795409428219
+      }
+    ],
+    "13. Checkpoint - core model complete": [
+      {
+        "executionId": "a59582d9-d5b7-4de5-8dc5-d01efe5beb93",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410137796
+      },
+      {
+        "executionId": "a59582d9-d5b7-4de5-8dc5-d01efe5beb93",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410162608
+      }
+    ],
+    "14.1 Tool input schemas.": [
+      {
+        "executionId": "a59582d9-d5b7-4de5-8dc5-d01efe5beb93",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410163617
+      },
+      {
+        "executionId": "a59582d9-d5b7-4de5-8dc5-d01efe5beb93",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410683443
+      }
+    ],
+    "14.2 Request validation with stable error codes.": [
+      {
+        "executionId": "a59582d9-d5b7-4de5-8dc5-d01efe5beb93",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410164012
+      },
+      {
+        "executionId": "a59582d9-d5b7-4de5-8dc5-d01efe5beb93",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410747743
+      },
+      {
+        "executionId": "01e66a5e-6e92-436d-a1f9-4c2ddb4fe522",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795410843004
+      },
+      {
+        "executionId": "01e66a5e-6e92-436d-a1f9-4c2ddb4fe522",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795411635419
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795419121760
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795463329340
+      }
+    ],
+    "14. Input validation and error codes": [
+      {
+        "executionId": "01e66a5e-6e92-436d-a1f9-4c2ddb4fe522",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795411635484
+      }
+    ],
+    "15.1 Tool handlers.": [
+      {
+        "executionId": "01e66a5e-6e92-436d-a1f9-4c2ddb4fe522",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795411776097
+      },
+      {
+        "executionId": "01e66a5e-6e92-436d-a1f9-4c2ddb4fe522",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795412550471
       }
     ]
   }

@@ -201,7 +201,8 @@ describe("custom ranges", () => {
   it("matches the Custom ranges paragraph", () => {
     const text = section("## Chosen values").replace(/\s+/g, " ");
     expect(text).toContain("throughput 0.3–4 bits/s");
-    expect(text).toContain("tremor 0–15 Hz and 0–5° peak to peak");
+    expect(text).toContain("tremor frequency 0 (tremor off) or 1–15 Hz");
+    expect(text).toContain("size 0–5° peak to peak");
     expect(text).toContain("head range 3–60° per direction");
     expect(text).toContain("reaction time 150–1500 ms");
     expect(text).toContain("reading-pause chance 0–100 %, length 0–3000 ms");
@@ -210,7 +211,7 @@ describe("custom ranges", () => {
     expect(text).toContain("analysis window 2–120 s");
     const r = CUSTOM_RANGES;
     expect([r.throughputBitsPerS.min, r.throughputBitsPerS.max]).toEqual([0.3, 4]);
-    expect([r.tremorFrequencyHz.min, r.tremorFrequencyHz.max]).toEqual([0, 15]);
+    expect([r.tremorFrequencyHz.min, r.tremorFrequencyHz.max]).toEqual([1, 15]);
     expect([r.tremorPeakToPeakDeg.min, r.tremorPeakToPeakDeg.max]).toEqual([0, 5]);
     expect([r.headRangeDeg.min, r.headRangeDeg.max]).toEqual([3, 60]);
     expect([r.reactionTimeMs.min, r.reactionTimeMs.max]).toEqual([150, 1500]);
@@ -232,6 +233,8 @@ describe("custom ranges", () => {
   it("contains every preset value", () => {
     const check = (label: string, v: number, key: CustomParamName): void => {
       const { min, max } = CUSTOM_RANGES[key];
+      // tremorFrequencyHz also admits exactly 0 (tremor off).
+      if (key === "tremorFrequencyHz" && v === 0) return;
       expect(v, label).toBeGreaterThanOrEqual(min);
       expect(v, label).toBeLessThanOrEqual(max);
     };

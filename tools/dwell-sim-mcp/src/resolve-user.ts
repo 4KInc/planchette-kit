@@ -14,7 +14,7 @@
  * Keys depend on the user only, never on its position in a list.
  */
 
-import { CUSTOM_RANGES, ENUM_PARAMS, type CustomParamName } from "./custom-ranges.js";
+import { CUSTOM_RANGES, ENUM_PARAMS, TREMOR_OFF_HINT, ZERO_ALLOWED_PARAMS, type CustomParamName } from "./custom-ranges.js";
 import { PRESET_NAMES, PRESETS, type PresetName } from "./presets.js";
 import { hash32 } from "./rng.js";
 import type { ResolvedUser, UserParams } from "./types.js";
@@ -116,7 +116,9 @@ function checkNumber(parameter: string, value: unknown, name: CustomParamName): 
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return { code: "INVALID_VALUE", parameter, value, message: `${parameter} must be a finite number` };
   }
+  if (ZERO_ALLOWED_PARAMS.includes(name) && value === 0) return undefined;
   if (value < r.min || value > r.max) {
+    const zeroNote = ZERO_ALLOWED_PARAMS.includes(name) ? `; ${TREMOR_OFF_HINT}` : "";
     return {
       code: "OUT_OF_RANGE",
       parameter,
@@ -124,7 +126,7 @@ function checkNumber(parameter: string, value: unknown, name: CustomParamName): 
       min: r.min,
       max: r.max,
       unit: r.unit,
-      message: `${parameter} = ${value} is outside ${r.min}..${r.max} ${r.unit}`,
+      message: `${parameter} = ${value} is outside ${r.min}..${r.max} ${r.unit}${zeroNote}`,
     };
   }
   return undefined;

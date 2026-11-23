@@ -11,9 +11,15 @@
  *   (see `reactionArb` for the bug of the earlier version). The test asserts B4 for every request.
  * - Tremor, noise, reading pauses: pinned to 0 through `customUserArb({ fixed })`.
  * - B2: the profile, user and screen are drawn first. The scatter cap is converted to px with the
- *   skeleton's own mapping (`toPx`, larger of the two axes) and `layoutArb` gets
+ *   skeleton's own mapping (`sdCapPx` in p7-helpers.ts: largest of the four directions +-yaw, +-pitch,
+ *   measured from the head centre and from the dead-zone edge, so the dead zone is included, with the
+ *   centre (0, 0) that the engine captures when tremor and noise are 0) and `layoutArb` gets
  *   `minSide = ceil(6 * SDcap_px + 40)`; a precondition then rejects the (rare) layouts whose grid
  *   cells were too small to give every target (rest area and cancel target included) that size.
+ * - D4 (aim assumption): the planned aim of each entry (`plans[k].aimPx`, both runs) lies inside its
+ *   intended target (half-open). The truncated scatter can put the aim up to about 0.73 W from the
+ *   centre, so a missed aim is a legitimate miss, not a frame-rate effect. Enforced with `fc.pre`
+ *   inside the property; the discard rate is printed.
  * - B1: the stay on the intended target is the hold until selection, so it is not constrained. Every
  *   other stay is measured on the plans the trial itself used (the `EntryPlan`s `planEntry` made,
  *   read from the 60 fps driver): the base pose (no tremor, no noise, so it is the pointer path) is
@@ -30,12 +36,13 @@
  *
  * **Validates: Requirements 2.2, 2.3, 7.4**
  */
+import { appendFileSync } from "node:fs";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Profile, ScreenSize } from "@planchette/skeleton";
 import { layoutArb, profileArb, customUserArb, taskArb } from "./arbitraries.js";
 import { toPx } from "../src/geometry.js";
-import { insideRect } from "../src/plan-entry.js";
+import { ANALYSIS_WINDOW_MS, aimsInside, sdCapPx } from "./p7-helpers.js";
+import { insideRect, type EntryPlan } from "../src/plan-entry.js";
 import { resolveUser } from "../src/resolve-user.js";
 import {
   openTrial,
@@ -45,9 +52,8 @@ import {
   type TrialConfig,
   type TrialEntryResult,
 } from "../src/run-trial.js";
-import type { Layout, ResolvedUser } from "../src/types.js";
+import type { Layout } from "../src/types.js";
 
-const ANALYSIS_WINDOW_MS = 60_000;
 const B1_LOW = 67;
 const B1_HIGH = 134;
 const IDENTITY_TOL_MS = 1e-6;
@@ -56,6 +62,8 @@ type CaseCfg = Omit<TrialConfig, "fps">;
 
 interface Traced {
   entries: TrialEntryResult[];
+  /** The plans the run used, in entry order. */
+  plans: EntryPlan[];
   /** One record per selected entry. `holdT0` is the start of the plan's final `holding` segment. */
   checks: {
     entry: number;
@@ -77,6 +85,7 @@ function traced(cfg: TrialConfig): Traced {
       moves.push({ t: d.k * d.frameMs, x: e.detail.x, y: e.detail.y });
     });
     runWarmup(d);
+    expect(d.centre, "the captured centre is (0, 0), as sdCapPx assumes").toEqual({ yaw: 0, pitch: 0 });
     const s = runStartOfSession(d);
     runEntries(d, s);
     const checks: Traced["checks"] = [];
@@ -110,31 +119,7 @@ function traced(cfg: TrialConfig): Traced {
         holdT0: hold ? hold.t0 : Number.POSITIVE_INFINITY,
       });
     });
-    return { entries: d.entries, checks };
-  } finally {
-    d.pl.destroy();
-  }
-}
-
-/** The larger of the two axes' px reach of the scatter cap. */
-function sdCapPx(screen: ScreenSize, profile: Partial<Profile>, user: ResolvedUser): number {
-  const d = openTrial({
-    layout: { screen, targets: [] },
-    profile,
-    user,
-    mode: "head + dwell",
-    task: [],
-    fps: 60,
-    analysisWindowMs: ANALYSIS_WINDOW_MS,
-    requestSeed: 0,
-    trialIndex: 0,
-  });
-  try {
-    const o = toPx(d.geometry, { yaw: 0, pitch: 0 });
-    const cap = user.params.scatterCapDeg;
-    const a = toPx(d.geometry, { yaw: cap, pitch: 0 });
-    const b = toPx(d.geometry, { yaw: 0, pitch: cap });
-    return Math.max(Math.hypot(a.x - o.x, a.y - o.y), Math.hypot(b.x - o.x, b.y - o.y));
+    return { entries: d.entries, plans: d.plans, checks };
   } finally {
     d.pl.destroy();
   }
@@ -273,13 +258,27 @@ function diffs(t15: Traced, t60: Traced): { entry: number; targetId: string; dif
 describe("Property 7: frame rate", () => {
   it("15 fps and 60 fps give the same intended selections and tts - arrival = ceil(dwellTime / F) * F", () => {
     let executions = 0;
+    let calls = 0;
+    let discardedB1B2 = 0;
+    let discardedAim = 0;
     let largestTts = 0;
     let largestD = 0;
     const result = fc.check(
       fc.property(baseCaseArb, (c) => {
-        preconditions(c);
+        calls++;
+        try {
+          preconditions(c);
+        } catch (e) {
+          if (String((e as Error)?.constructor?.name) === "PreconditionFailure") discardedB1B2++;
+          throw e;
+        }
         const t15 = traced({ ...c.cfg, fps: 15 });
         const t60 = traced({ ...c.cfg, fps: 60 });
+        // D4 assumption: the planned aim of each entry (both runs) lies inside its intended target.
+        if (!(aimsInside(c.cfg, t15.plans) && aimsInside(c.cfg, t60.plans))) {
+          discardedAim++;
+          fc.pre(false);
+        }
         executions++;
         // Assertion 1.
         expect(selected(t15).map((e) => [e.entry, e.targetId])).toEqual(selected(t60).map((e) => [e.entry, e.targetId]));
@@ -295,11 +294,15 @@ describe("Property 7: frame rate", () => {
       }),
       { numRuns: 100, maxSkipsPerRun: 1000, ...(process.env.P7_SEED ? { seed: Number(process.env.P7_SEED) } : {}) },
     );
-    console.log(
+    const line =
       `[property 7] runs = ${result.numRuns}, executions = ${executions}, largest |tts15 - tts60| = ${largestTts.toFixed(3)} ms, ` +
-        `largest single-entry D = ${largestD.toFixed(3)} ms, failed = ${result.failed}` +
-        (result.failed ? `\n  counterexample: ${JSON.stringify(result.counterexample?.[0])}\n  ${String(result.errorInstance)}` : ""),
-    );
+        `largest single-entry D = ${largestD.toFixed(3)} ms, ` +
+        `calls = ${calls}, discarded by B1/B2 = ${discardedB1B2}, discarded by the aim assumption = ${discardedAim} ` +
+        `(${((100 * discardedAim) / Math.max(1, calls - discardedB1B2)).toFixed(1)}% of the cases that passed B1/B2; ` +
+        `${((100 * (discardedB1B2 + discardedAim)) / Math.max(1, calls)).toFixed(1)}% of all calls), failed = ${result.failed}` +
+        (result.failed ? `\n  counterexample: ${JSON.stringify(result.counterexample?.[0])}\n  ${String(result.errorInstance)}` : "");
+    console.log(line);
+    if (process.env.P7_LOG_FILE) appendFileSync(process.env.P7_LOG_FILE, `seed=${process.env.P7_SEED ?? "random"} ${line}\n`);
     expect(result.failed, String(result.errorInstance)).toBe(false);
   }, 900_000);
 });

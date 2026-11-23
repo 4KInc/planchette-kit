@@ -48,6 +48,18 @@ describe("resolveUser", () => {
     expect(resolveUser({ name: "hi", overrides: { throughputBitsPerS: r.max } }).ok).toBe(true);
   });
 
+  it("tremorFrequencyHz: 0 and [1, 15] are accepted, (0, 1) and above 15 are out of range", () => {
+    const tf = (v: number) => resolveUser({ name: "x", overrides: { tremorFrequencyHz: v } });
+    for (const v of [0, 1, 15]) expect(tf(v).ok, String(v)).toBe(true);
+    for (const v of [0.5, 15.1]) {
+      expect(tf(v), String(v)).toMatchObject({
+        ok: false,
+        error: { code: "OUT_OF_RANGE", parameter: "tremorFrequencyHz", value: v, min: 1, max: 15, unit: "Hz" },
+      });
+    }
+    const r = tf(0.5);
+    expect(!r.ok && r.error.message).toContain("0 means off");
+  });
   it("reports an unknown preset name", () => {
     const r = resolveUser("sleepy");
     expect(r).toMatchObject({ ok: false, error: { code: "UNKNOWN_PRESET", parameter: "sleepy" } });

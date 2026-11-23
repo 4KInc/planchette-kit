@@ -215,7 +215,7 @@ profile accepted by `clampProfile`, `D ≤ 0.5 × minRange`, so `rEff ≥ 0.5 ×
 rectangle can be reached with a rotation inside the calibrated ranges (design §1 of input-core, Property 11).
 For a head range smaller than the calibrated range (Requirement 11), the reachable pixels are
 `xMin..xMax` and `yMin..yMax`, computed by `rotationToPoint` at the extreme rotations
-(`yaw = −left`, `+right`, `pitch = −down`, `+up`). The mapping is separable per axis and monotone, so
+(`yaw = −left`, `+right`, `pitch = −down`, `+up`, absolute limits, mapped through the captured centre of the trial, §4.1). The mapping is separable per axis and monotone, so
 the reachable set is exactly that axis-aligned pixel rectangle.
 
 **Rounding and the 1 px tolerance.** The forward mapping returns `round(u × (W'−1))`. For a real point
@@ -312,7 +312,7 @@ Preset values (identical to the Presets section; every entry carries its `source
 ```ts
 export interface CustomRange { path: string; min: number; max: number; unit: string; }
 export const CUSTOM_RANGES: Readonly<Record<CustomParamName, CustomRange>> = {
-  throughputBitsPerS: { min: 0.3, max: 4 }, tremorFrequencyHz: { min: 0, max: 15 },
+  throughputBitsPerS: { min: 0.3, max: 4 }, tremorFrequencyHz: { min: 1, max: 15 /* 0 also allowed: tremor off; (0, 1) rejected, a tiny frequency is a constant tilt, not tremor */ },
   tremorPeakToPeakDeg: { min: 0, max: 5 }, headRangeDeg: { min: 3, max: 60 /* each direction */ },
   reactionTimeMs: { min: 150, max: 1500 }, readingPauseChancePct: { min: 0, max: 100 },
   readingPauseLengthMs: { min: 0, max: 3000 /* min and max, min <= max */ },
@@ -389,18 +389,21 @@ How draws are keyed:
 ### 4. Head model (`head-model.ts`, `geometry.ts`, `plan-entry.ts`)
 
 All head angles are degrees, relative to the user's true centre pose `(0, 0)` (yaw right, pitch up). The simulator
-uses the nominal centre `(0, 0)` in `pointToRotation` and `rotationToPoint`. The engine measures its own centre
-in the warm-up (the mean over the stillness window), which differs from `(0, 0)` by about a tenth of a
-degree at most with tremor on (`≈ a / (2π f T)` = 0.04° for 0.46° at 4.25 Hz over 1.5 s). That difference is a real effect
-of the engine and is left in.
+maps pixels and angles through the centre the engine captured at warm-up, not through `(0, 0)` (D2). The engine measures
+its own centre in the warm-up (the mean over the stillness window), and with tremor or any offset during the warm-up that centre is not zero;
+planning with zero made unreachable targets reachable (Property 3 counterexample, seed −1448156187). The simulator reads the centre from the
+`calibration-step` `done` event's `result.centre` (public API); if the step ended without a centre (null), the centre is `(0, 0)`.
+`headRangeDeg` stays absolute (anatomical) and the clamp stays on the absolute pose; only the pixel mapping uses the captured centre.
 
 #### 4.1 Pixels and degrees (`geometry.ts`)
 
-With `eff` the effective profile (`pl.getProfile()` after `setProfile`) and `screen`:
+With `eff` the effective profile (`pl.getProfile()` after `setProfile`), `screen` and `c` the centre captured by the engine at warm-up
+(`result.centre` of the `calibration-step` `done` event; `(0, 0)` when null). The geometry context is built once per trial, after the warm-up,
+and every consumer below (aims, reachable rectangle, start plan, classification: `Q(t)`, `ampPx`, `edgeDist` inputs) uses it:
 
 ```
-toPx(pose)   = rotationToPoint(eff, screen, ZERO, pose)       // ZERO = { yaw: 0, pitch: 0 }
-toPose(px)   = pointToRotation(eff, screen, ZERO, px)
+toPx(pose)   = rotationToPoint(eff, screen, c, pose)          // c = captured centre; pose is absolute
+toPose(px)   = pointToRotation(eff, screen, c, px)
 poseAtPx(px) = clampToHeadRange(toPose(px))                   // head range clamp, per direction
 angularWidth(rect, axis) = |toPose({ x: rect.x + rect.width, y: cy }).yaw − toPose({ x: rect.x, y: cy }).yaw|   // axis 'x'; 'y' likewise with pitch
 ```
@@ -609,6 +612,8 @@ else:
   4. tEnd = end of the move; endPose = aim.
 ```
 
+- **Mapping (D2).** `planStart` uses the geometry built from the captured centre (§4.1). During the warm-up the head rests at the absolute pose `ZERO = (0, 0)`, so
+  the start point is `toPx(ZERO)`, which is near the screen centre and equals it only when the captured centre is `(0, 0)`.
 - **Same model as any aim.** Aim scatter, Fitts' law and the minimum-jerk path are the functions of §4.2 to §4.4, so no start-only movement code exists.
 - **No reading pauses.** Step 4 of `planEntry` is not run for the start path: the start of session crosses any target between the centre and
   the rest area without stopping. Tremor (§4.5) and tracking noise (§4.6) are applied exactly as in an entry, because they are added
@@ -669,7 +674,9 @@ function runTrial(cfg):
   pl.addEventListener('cancel', e => queue.push({ kind:'cancel', targetId:e.detail.targetId, now:e.detail.now }))
   pl.addEventListener('pointer-move', e => lastPointer = e.detail)       // updates two numbers, no allocation
   let centreDone = false
-  pl.addEventListener('calibration-step', e => { if (e.detail.run==='centre' && e.detail.step==='done') centreDone = true })
+  capturedCentre = { yaw: 0, pitch: 0 }
+  pl.addEventListener('calibration-step', e => { if (e.detail.run==='centre' && e.detail.step==='done') {
+      centreDone = true;  capturedCentre = e.detail.result?.centre ?? { yaw: 0, pitch: 0 } } })   // D2; null -> (0, 0)
   // all listeners are attached before the first sample
 
   frameMs = 1000 / fps;  k = 0;  face = { bbox:{cx:.5,cy:.5,w:.3,h:.4}, rotation:{yaw:0,pitch:0} }
@@ -687,6 +694,7 @@ function runTrial(cfg):
   // definition (design §5/§6): the driver records it directly as a start event (activity 'waiting', cause 'start'). It is not
   // passed to classify(): without a rest area startPlan.tEnd = tDone, so an event at now == tDone is not before tEnd and classify would not treat it as one.
   // 2. start of session (Req 11 AC 9, 10): the head is at the screen centre; with a rest area it moves there as a normal movement
+  geo = buildGeometry(eff, screen, capturedCentre); ctx.geo = geo   // D2: once per trial, after the warm-up; used by planStart, planEntry, reachable and classify
   startPlan = planStart(ctx, tDone)                         // §4.7a; no segments and tEnd = tDone without a rest area
   while (k*frameMs < startPlan.tEnd): now = k*frameMs; feed(head(startPlan, now), now); k++
       for ev of drain(queue): record(classify(ev, startPlan, lastPointer, state))     // always a start-of-session event, cause 'start'
@@ -721,6 +729,8 @@ Choices:
   are not hidden: they are start-of-session events with activity `waiting` and cause `start` (Req 4 AC 11), a third category next to intended and accidental, so property 4 holds. Their count is
   reported per user as `startOfSession` and is in neither the accidental count nor the rate per 100 (§7). WHERE there is no rest area, the user stays at the screen
   centre, the start of session has zero length, and the first entry starts at the `calibration-step` event. The time spent here is in no time-to-select.
+- **Captured centre (D2).** The geometry is built after the warm-up from the `done` event's `result.centre`, so pixel positions follow the engine's own mapping. The warm-up itself needs no
+  geometry (the head holds the absolute pose `(0, 0)`). The reachable rectangle is computed from the absolute head-range limits mapped through the captured centre.
 - **Time origin.** Frame `k` has `now = k × (1000 / fps)`, starting at `k = 0`. The trial ends when the last entry resolves
   (no frames after it).
 - **Feeding.** One `feedSamples` call per frame with a reused one-element array and a mutated sample object, so
@@ -797,7 +807,7 @@ ampPx(base) = 1 + max over sy, sp in {−1, +1} of
 
 - **Why degrees first.** Tremor and noise add to the head pose in degrees (§4.5, §4.6) before the mapping, so the pixel reach is the mapping of the summed degrees, not a sum of two pixel amounts.
 - **Why the four corners.** The mapping is not symmetric near the dead zone and near the screen edge, so the offset in `+` and `−` can differ; the maximum over the four sign corners covers both. The Euclidean length matches `edgeDist`.
-- **`toPx`** is the geometry helper of §4.1 (through `rotationToPoint`, so it includes the clamp to the screen). Near the screen edge the clamp makes `ampPx` smaller, which is correct: the pointer cannot move further than the edge. The `+ 1` is 1 px of rounding.
+- **`toPx`** is the geometry helper of §4.1 with the captured centre (D2; through `rotationToPoint`, so it includes the clamp to the screen). `Q(t)`, `ampPx` and the `edgeDist` inputs all use it. Near the screen edge the clamp makes `ampPx` smaller, which is correct: the pointer cannot move further than the edge. The `+ 1` is 1 px of rounding.
 - **Base pose.** For cause 4 the base is `base(e.now)`, the planned pose without tremor and noise at the event time (`basePose`). For the miss cause it is the aim pose.
 - **"Tremor or noise is on"** means `tremorOrNoiseOn` above. `aT` uses only the tremor part: it is 0 when `a0 = 0` or `f = 0`.
 - **`edgeDist(Z, R)`** is the distance from point `Z` to the boundary of rectangle `R`: 0 on the boundary, the distance to the rectangle outside it, and for a point inside the least distance to the four edges. It is continuous across the boundary, so it needs no inside test.
@@ -936,7 +946,7 @@ then for T of selectable targets sorted by id: centre-hit rule, metric 'screen-c
 - **Users.** Reading-pause and tremor-at-edge suggestions name the users with at least one event of that cause on `T` (an accidental record with that cause, or, for tremor-at-edge,
   a miss with that miss cause), in request order. An unreachable suggestion is one per target and lists every user who cannot reach it, in request order.
 - **Unreachable (AC 3).** Reachability per user is the pixel rectangle `[xMin, xMax] × [yMin, yMax]` from `rotationToPoint` at the extreme head-range rotations with the
-  effective profile (§1.2). `T` is outside when no pixel of its rectangle `[x, x + w) × [y, y + h)` is inside. It comes from geometry, not events, so the 3-event minimum does not apply.
+  effective profile (§1.2), mapped through the centre the engine captured in each trial (D2, §4.1). A target is outside a user's reach when it is outside that rectangle in every trial of that user. `T` is outside when no pixel of its rectangle `[x, x + w) × [y, y + h)` is inside. It comes from geometry, not events, so the 3-event minimum does not apply.
   The rule applies only in modes that use the head pointer (`head + dwell`), like the tremor note, and is skipped in `scan`: a switch highlights targets
   in turn, so head range does not decide reachability.
 - **Centre-hit rule (AC 10).** Let `C = (floor(screen.width / 2), floor(screen.height / 2))` be the screen centre pixel (the pixel the engine
@@ -1029,6 +1039,8 @@ samples may differ.
 
 Implemented after the head + dwell path, and only against the requirements the head path leaves open (AC 4.7, 4.8, 4.24, 1.6).
 
+> Deferred: scan mode is Task 12 and not in this release. Until then a `scan` request is rejected by validation with `UNSUPPORTED_MODE`, listing the supported modes (`head + dwell` only). The temporary `scan` throw in `simulate` (Task 9.4) and `compare` (§9) stays as a second line of defence.
+
 - **Setup.** Profile `mode: 'scan'`. No warm-up and no centre step (Req 1 AC 6). The trial starts at `t = 0`; entry 0 starts at `tEntry = 0`. Every frame
   sends `{ now, source: 'synthetic', signal: down }` (a tick) with `down` from the user's press plan.
 - **Watching.** The user listens to `highlight` events and tracks the current one. The *right highlight* for aimed target `A` is
@@ -1086,6 +1098,10 @@ const CustomUser = z.object({
     scatterCapDeg: z.number().optional(), trackingNoiseDeg: z.number().optional(),
   }).strict() });
 const Task = z.union([z.array(z.string()), z.object({ eachTarget: z.number() })]);
+// The enum accepts every mode name so validation, not zod, returns UNSUPPORTED_MODE.
+// Deferred: scan mode is Task 12 and not in this release. Until then `scan` is rejected by
+// validation with UNSUPPORTED_MODE, listing the supported modes (`head + dwell` only). The temporary
+// throw for `scan` in `simulate` and `compare` stays as a second line of defence.
 const Mode = z.enum(['head + dwell','scan','head + gesture','gesture scan','mouse']);
 export const SimulateInput = {
   layout: Layout, profile: z.record(z.string(), z.unknown()).optional(), mode: Mode.default('head + dwell'),
@@ -1098,9 +1114,44 @@ export const SimulateInput = {
 The `profile` object is passed to the skeleton, which clamps it (Req 4 AC 1). Unknown keys are ignored by the skeleton's
 `clampProfile`. `compare` has `a`, `b`, and the shared fields. `list_users` has an empty input shape.
 
-**Caps, ranges and the checks (in this order):** mode → users count (≤ 12) → each preset name / custom range → layout (targets
-≤ 100, ids, rects, selectable targets exist) → task (entries ≤ 500, ids known (`UNKNOWN_TARGET`), no adjacent repeat on a non-`autoRepeat`
-target (`ADJACENT_REPEAT`, §4.8); `eachTarget` an integer 1–100 and n × selectable ≤ 500) → trialsPerUser (integer 1–50) → fps ∈ {15, 30, 60} → analysisWindowS 2–120 → seed integer.
+**Tremor frequency (D3).** A custom `tremorFrequencyHz` must be 0 (tremor off) or in [1, 15] Hz. A value in (0, 1) is `OUT_OF_RANGE` with `allowed` `{ min: 1, max: 15 }` and a message saying that 0 means off (a tiny non-zero frequency is a constant tilt over a trial, not tremor).
+
+**Rest area in an explicit task.** An id of a rest-area target in an explicit task is `UNKNOWN_TARGET`, with a message saying the target is a rest area and cannot be selected.
+
+**Caps, ranges and the checks (in this order):** mode → users count (1–12) → each preset name / custom range → layout (screen, then target count 1–100, then per target in array order: id, then rect fields x, y, width, height; then at least one selectable target) → task (entries 1–500; in an explicit task all ids are checked for `UNKNOWN_TARGET` before any `ADJACENT_REPEAT` check, §4.8; `eachTarget` an integer 1–100 and n × selectable ≤ 500) → trialsPerUser (integer 1–50) → fps ∈ {15, 30, 60} → analysisWindowS 2–120 → seed (integer −2147483648 to 2147483647).
+
+**Parameter paths (V1).** `parameter` is a JavaScript-style path from the request root: `mode`, `users`, `users[2]`, `users[2].overrides.throughputBitsPerS`, `users[2].overrides.readingPauseLengthMs.min`, `layout.screen.width`, `layout.targets`, `layout.targets[3].id`, `layout.targets["menu"].rect.width`, `task`, `task[4]`, `task.eachTarget`, `trialsPerUser`, `fps`, `analysisWindowS`, `seed`. For `compare`, side-specific fields are prefixed `a.` or `b.` (for example `b.layout.targets["menu"].rect.width`, and `b.layout` for `LAYOUT_MISMATCH`); shared fields (`users`, `task`, `trialsPerUser`, `fps`, `analysisWindowS`, `seed`, `mode`) are unprefixed. Names returned by `resolveUser` get the `users[i].overrides.` prefix.
+
+**Compare order (V2).** Both layouts get the full layout checks, A then B, with `a.` / `b.` paths. `LAYOUT_MISMATCH` comes right after B's layout checks and before the task checks. Task ids are checked against layout A (the layout `compare` uses for the shared task).
+
+**Count rule.** For users, trials, targets and task entries alike: below the minimum is `OUT_OF_RANGE`, above the cap is `CAP_EXCEEDED`; both carry `allowed` = the count's real range (users 1–12, trials 1–50, targets 1–100, task entries 1–500). So empty `users` is `OUT_OF_RANGE` on `users` with `{ min: 1, max: 12 }`; an empty explicit task is `OUT_OF_RANGE` on `task` with `{ min: 1, max: 500 }`; a layout with no targets is `OUT_OF_RANGE` on `layout.targets` with `{ min: 1, max: 100 }`. A layout with at least one target but none selectable stays `NO_SELECTABLE_TARGETS`. `{ eachTarget: n }` with n × selectable targets > 500 is `CAP_EXCEEDED` on `task.eachTarget` with value n × count and `allowed` `{ min: 1, max: 500 }` (task entries).
+
+**Other decisions.**
+- `allowed` (V3): `UNKNOWN_PRESET`: the preset names; `NOT_ALLOWED_VALUE`: the allowed values (for example `["15","30","60"]`, `["yaw","pitch"]`); `UNSUPPORTED_MODE`: `["head + dwell"]`; `OUT_OF_RANGE`: `{ min, max }`; `UNKNOWN_PARAMETER`: the overridable parameter names; `CAP_EXCEEDED`: the count's real range (above). All other codes carry no `allowed`.
+- `INVALID_LAYOUT` reasons (V4a), fixed wording: `duplicate id`, `empty id` (path `layout.targets[i].id`), `not finite` (x, y, width or height), `width must be > 0` / `height must be > 0`, `screen size must be finite and ≥ 1` (path `layout.screen.width` / `.height`).
+- `OUT_OF_RANGE` messages omit the unit when the parameter has none (trials, eachTarget, seed, counts) (V4b).
+- `seed` is an integer from −2147483648 to 2147483647; outside is `OUT_OF_RANGE` (V4c).
+- A non-integer `trialsPerUser`, `eachTarget` or `seed` is `NOT_ALLOWED_VALUE` with the message "must be an integer" and no `allowed` (V4d).
+- `UNKNOWN_PARAMETER` lists the names sorted (UTF-16) and joined with ", " (V4e).
+- Errors from `resolveUser` (V5a): `INVALID_VALUE` for NaN or Infinity becomes `OUT_OF_RANGE` with the parameter's range; a bad enum, or a non-object where an object is required, becomes `NOT_ALLOWED_VALUE` with `allowed` listing the options (`["yaw","pitch"]` for `tremorAxis`; for a non-object `headRangeDeg` no `allowed` and the message "must be an object with left, right, up, down").
+- Duplicate user names (V5e): `NOT_ALLOWED_VALUE` on `users[i]` (the second occurrence), message "duplicate user name", no `allowed`.
+
+**Code → parameter path example → allowed (V3).**
+
+| Code | Parameter path example | `allowed` |
+|---|---|---|
+| `UNKNOWN_PRESET` | `users[1]` | preset names |
+| `OUT_OF_RANGE` | `users[2].overrides.throughputBitsPerS`, `users`, `task`, `layout.targets`, `seed` | `{ min, max }` |
+| `CAP_EXCEEDED` | `users`, `trialsPerUser`, `layout.targets`, `task`, `task.eachTarget` | `{ min: 1, max: 12 }` / `{1, 50}` / `{1, 100}` / `{1, 500}` |
+| `NOT_ALLOWED_VALUE` | `fps`, `users[2].overrides.tremorAxis`, `trialsPerUser` (non-integer), `users[1]` (duplicate name) | allowed values (`["15","30","60"]`, `["yaw","pitch"]`); none for "must be an integer", "duplicate user name" and non-object `headRangeDeg` |
+| `UNSUPPORTED_MODE` | `mode` | `["head + dwell"]` |
+| `NO_SELECTABLE_TARGETS` | `layout.targets` | none |
+| `UNKNOWN_TARGET` | `task[4]` | none |
+| `ADJACENT_REPEAT` | `task[4]` (or `task.eachTarget`) | none |
+| `INVALID_LAYOUT` | `layout.targets["menu"].rect.width`, `layout.targets[3].id`, `layout.screen.width` | none |
+| `LAYOUT_MISMATCH` | `b.layout` | none |
+| `UNKNOWN_PARAMETER` | `users[2].overrides.colour` | overridable parameter names |
+| `INTERNAL_ERROR` | none | none |
 
 **Result shape.** On success: `structuredContent` (validated by `outputSchema`) and one text content item holding the same JSON.
 On a validation error: `{ isError: true, content: [{ type: 'text', text: JSON.stringify(err) }], structuredContent: err }` where
@@ -1110,16 +1161,16 @@ a test checks that.
 | Code | Trigger | Message template |
 |---|---|---|
 | `UNKNOWN_PRESET` | a user string is not a preset | `Unknown preset "{name}". Valid presets: {list}.` |
-| `OUT_OF_RANGE` | a custom parameter, `analysisWindowS`, `seed`, `trialsPerUser`, `eachTarget` outside its range | `Parameter {path} must be between {min} and {max} {unit}; got {value}.` |
-| `CAP_EXCEEDED` | users > 12, trialsPerUser > 50, targets > 100, task entries > 500 | `Parameter {path} allows at most {cap}; got {value}.` |
-| `NOT_ALLOWED_VALUE` | `fps` not 15/30/60 | `Parameter fps must be one of 15, 30, 60; got {value}.` |
-| `UNSUPPORTED_MODE` | mode is `head + gesture`, `gesture scan` or `mouse` | `Input mode "{mode}" is not supported. Supported modes: head + dwell, scan.` |
+| `OUT_OF_RANGE` | a custom parameter, `analysisWindowS`, `seed`, `trialsPerUser`, `eachTarget` outside its range; a count (users, trials, targets, task entries) below its minimum; NaN or Infinity from `resolveUser` | `Parameter {path} must be between {min} and {max}{ unit}; got {value}.` (unit omitted when the parameter has none) |
+| `CAP_EXCEEDED` | users > 12, trialsPerUser > 50, targets > 100, task entries > 500 (including n × selectable for `eachTarget`) | `Parameter {path} allows at most {cap}; got {value}.` |
+| `NOT_ALLOWED_VALUE` | `fps` not 15/30/60; a bad enum or non-object from `resolveUser`; a non-integer `trialsPerUser`, `eachTarget` or `seed` ("must be an integer"); a duplicate user name ("duplicate user name") | `Parameter fps must be one of 15, 30, 60; got {value}.` |
+| `UNSUPPORTED_MODE` | mode is `head + gesture`, `gesture scan` or `mouse`, and, in this release, `scan` (deferred to Task 12) | `Input mode "{mode}" is not supported. Supported modes: head + dwell.` |
 | `NO_SELECTABLE_TARGETS` | no targets, or only `rest-area` targets | `The layout has no selectable targets (no targets, or only rest-area targets).` |
-| `UNKNOWN_TARGET` | a task id is not in the layout | `Task entry {index} names target "{id}", which is not in the layout.` |
+| `UNKNOWN_TARGET` | a task id is not in the layout, or names a rest-area target | `Task entry {index} names target "{id}", which is not in the layout.` or, for a rest area, `Task entry {index} names target "{id}", which is a rest area and cannot be selected.` |
 | `ADJACENT_REPEAT` | an explicit task lists the same non-`autoRepeat` target twice in a row; or `{ eachTarget: n }`, n > 1, with one selectable target that is not `autoRepeat` (position 1) | `Task entry {index} repeats target "{id}" directly after entry {index-1}, and the target has no autoRepeat. Entries are numbered from zero.` |
-| `INVALID_LAYOUT` | duplicate or empty id, non-finite or non-positive rect or screen | `Layout problem at {path}: {reason}.` |
-| `LAYOUT_MISMATCH` | `compare` layouts have different id sets | `The two layouts must have the same target ids; differing: {ids}.` |
-| `UNKNOWN_PARAMETER` | an override key is not customisable | `Parameter {path} cannot be overridden. Customisable: {list}.` |
+| `INVALID_LAYOUT` | duplicate or empty id, non-finite or non-positive rect or screen | `Layout problem at {path}: {reason}.` with the fixed reasons listed above |
+| `LAYOUT_MISMATCH` | `compare` layouts have different id sets (path `b.layout`) | `The two layouts must have the same target ids; differing: {ids}.` |
+| `UNKNOWN_PARAMETER` | an override key is not customisable | `Parameter {path} cannot be overridden. Customisable: {list}.` (names sorted, joined with ", ") |
 | `INTERNAL_ERROR` | an exception in a run | `The simulation failed: {message}.` (also written to stderr) |
 
 **Output examples** (shortened).
@@ -1220,7 +1271,7 @@ a script, checked by the golden test); (4) derived values worked out: scatter ca
 `2.5° / 4.133 = 0.6°`; tremor size `peak-to-peak = (deg/s between extrema) / (2π f)` giving 12.3 / (2π × 4.25) = 0.46° and
 7.77 / (2π × 4.37) = 0.28°; the "ET mean + 2 SD = 1.6°" value as chosen, not a percentile; (5) chosen values with reasons (reading pause
 numbers, reaction time, noise 0, drift, `MT_MIN`, `READING_DEPTH`, `LAG_ALLOWANCE_MS`, noise as uniform peak, scan parameters);
-(6) limits: tremor is a pure sinusoid and real tremor is less regular, the model is open loop, no dropouts, engine-level
+(6) limits: "The simulator plans with the centre the engine captured, as a real user's pointer does."; tremor is a pure sinusoid and real tremor is less regular, the model is open loop, no dropouts, engine-level
 rotation (the camera adapter's maths is not modelled), the scatter cap comes from head pointing in a head-mounted display,
 all the Out of scope items, and the frame-rate note ("Frame rate: at 15 fps the smoothed pointer arrives later than at 60 fps (median +70 ms, up to about 270 ms in the measured sample); time-to-select at low fps includes this."); (7) how determinism works (seed derivation).
 
@@ -1370,7 +1421,7 @@ that the restriction in (b) excludes (d1 = 1000 ms, d2 = 1200 ms, `postSelection
 
 ### Property 7: Frame rate
 
-*For any* trial with tremor, tracking noise, reading pauses and `autoRepeat` targets off, meeting input-core P15's boundary conditions B1, B2, B4 and B5 (B3 is replaced by the assertions below), `smoothingStrength` at the default 0.5 and B4 generated by construction (`postSelectionPause` drawn first, `reactionTimeMs` in `[max(150, postSelectionPause), 1500]`):
+*For any* trial with tremor, tracking noise, reading pauses and `autoRepeat` targets off, meeting input-core P15's boundary conditions B1, B2, B4 and B5 (B3 is replaced by the assertions below), `smoothingStrength` at the default 0.5 and B4 generated by construction (`postSelectionPause` drawn first, `reactionTimeMs` in `[max(150, postSelectionPause), 1500]`), and the planned aim of each entry lies inside its intended target (the truncated scatter can put the aim up to about 0.73 W from the centre, so a missed aim is a legitimate miss, not a frame-rate effect):
 
 1. 15 fps and 60 fps give the same ordered list of `(entry, targetId)` intended selections.
 2. For every selected entry at both frame rates, `tts − arrival = ceil(dwellTime / F) × F` within 1e-6 ms, with `F = 1000 / fps` and `arrival = max(first frame on which the pointer is inside the target in the unbroken run ending at the select, first frame at or after the end of the preceding post-selection pause)`.
@@ -1472,7 +1523,7 @@ Where a property touches only pure code (planning, classification, metrics) it r
    The fixed example test `props6.counterexample.test` replays d1 = 1000, d2 = 1200, `postSelectionPause` 500, S1 [0, 1000], S2 [1100, 2400] and records that the restriction excludes it.
 7. *Frame rate.* The generator builds B1 by choosing stays shorter than `dwellTime − 67 ms` or longer than `dwellTime + postSelectionPause + 134 ms`: the layout puts targets on a line with the
    rest area apart, so non-intended crossings are shorter than `dwellTime − 67 ms`; B2 by making each target at least `6 SDcap_px + 40 px` wide so every aim (resting pointer) is more than 20 px from the edge; B4 by
-   drawing `postSelectionPause` first and then `reactionTimeMs` from `[max(150, postSelectionPause), 1500]` in the custom user (so `postSelectionPause` is at most 1500 ms in this generator), and the test asserts B4 for every generated request; B5 by `autoRepeat` false. The same request runs at 15 and 60 fps, 100 runs.
+   drawing `postSelectionPause` first and then `reactionTimeMs` from `[max(150, postSelectionPause), 1500]` in the custom user (so `postSelectionPause` is at most 1500 ms in this generator), and the test asserts B4 for every generated request; B5 by `autoRepeat` false. The generator measures the scatter cap `SDcap_px` in all four directions, including across the dead zone, for B2, and enforces the aim assumption (the planned aim of every entry, from `planEntry`, lies inside its intended target) with `fc.pre`; the test prints the discard rate. Seeds 199 and 295 are pinned as named regression tests (`test/property-7-regression.test.ts`). The same request runs at 15 and 60 fps, 100 runs.
    `smoothingStrength` is not varied (default 0.5). Assertion 1: same ordered list of `(entry, targetId)` intended selections. Assertion 2, for every selected entry, at both fps: `tts − arrival = ceil(dwellTime / F) × F` within 1e-6 ms, with `arrival = max(first frame of the unbroken run inside the target that ends at the select (from `pointer-move`), first frame at or after the end of the preceding post-selection pause)`.
    Not asserted, printed: the largest `|tts15 − tts60|` and the largest single-entry `D = |(arrival15 − tMove0_15) − (arrival60 − tMove0_60)|`. There is no bound on them (see Property 7). Because tremor is a pure function of `t`, and noise is off, the two runs sample the same head path.
 8. *Each entry resolves once.* Any request from the shared arbitraries, with a mix of reachable and unreachable targets and a short window (2–10 s) so misses are common. Assertion per trial:

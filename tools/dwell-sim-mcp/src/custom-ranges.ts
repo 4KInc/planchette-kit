@@ -22,7 +22,8 @@ export interface CustomRange {
 
 export const CUSTOM_RANGES: Readonly<Record<CustomParamName, CustomRange>> = {
   throughputBitsPerS: { path: "throughputBitsPerS", min: 0.3, max: 4, unit: "bits/s" },
-  tremorFrequencyHz: { path: "tremorFrequencyHz", min: 0, max: 15, unit: "Hz" },
+  // 0 is also allowed (tremor off); (0, 1) is rejected: a tiny frequency is a constant tilt, not tremor.
+  tremorFrequencyHz: { path: "tremorFrequencyHz", min: 1, max: 15, unit: "Hz" },
   tremorPeakToPeakDeg: { path: "tremorPeakToPeakDeg", min: 0, max: 5, unit: "degrees peak to peak" },
   headRangeDeg: { path: "headRangeDeg", min: 3, max: 60, unit: "degrees per direction" },
   reactionTimeMs: { path: "reactionTimeMs", min: 150, max: 1500, unit: "ms" },
@@ -43,3 +44,7 @@ export const NON_CUSTOMISABLE_PARAMS = [
 
 /** Enumerated parameter: overridable, but has no numeric range. */
 export const ENUM_PARAMS = ["tremorAxis"] as const;
+/** Parameters whose range also admits exactly 0 (tremor off). */
+export const ZERO_ALLOWED_PARAMS: readonly CustomParamName[] = ["tremorFrequencyHz"];
+/** Message tail for a tremor frequency in (0, 1). */
+export const TREMOR_OFF_HINT = "0 means off";
