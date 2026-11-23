@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 interface PackageJson {
+  private?: boolean;
   engines?: { node?: string };
   bin?: Record<string, string>;
   dependencies?: Record<string, string>;
@@ -48,6 +49,10 @@ describe("dwell-sim-mcp package.json", () => {
     const match = /^>=\s*(\d+)/.exec(range);
     expect(match, range).not.toBeNull();
     expect(Number(match?.[1])).toBeGreaterThanOrEqual(20);
+  });
+
+  it("is private (not publishable)", () => {
+    expect(pkg.private).toBe(true);
   });
 
   it("exposes the server through bin", () => {

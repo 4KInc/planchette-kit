@@ -690,6 +690,16 @@
         "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795454691192
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795472758587
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795474887635
       }
     ],
     "8.10 Write property test for Property 6: longer dwell, fewer reading-pause accidents.": [
@@ -1073,6 +1083,65 @@
         "executionId": "01e66a5e-6e92-436d-a1f9-4c2ddb4fe522",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795412550471
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795463386698
+      },
+      {
+        "executionId": "169f0605-33b8-4e1d-bf19-9f512e9b5bdc",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795463438895
+      },
+      {
+        "executionId": "5885d5d5-fc8f-4e6a-99a4-a11149477cb2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795464048151
+      },
+      {
+        "executionId": "5885d5d5-fc8f-4e6a-99a4-a11149477cb2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795464349452
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795472758668
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795474889048
+      }
+    ],
+    "15.2 Server entry and build check.": [
+      {
+        "executionId": "5885d5d5-fc8f-4e6a-99a4-a11149477cb2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795464348712
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795472758523
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795474889326
+      },
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795476095260
+      }
+    ],
+    "15. MCP tools and server entry": [
+      {
+        "executionId": "dec5b41c-c033-4adb-a2ed-a9b7f24b28a2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795476095313
       }
     ]
   }
