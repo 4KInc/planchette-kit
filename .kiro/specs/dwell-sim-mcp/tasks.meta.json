@@ -1,5 +1,11 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "11.3 Write property test for Property 5: same random draws when comparing.": {
+      "status": "failed",
+      "failingExample": "Part 1 fails (part 2 passes, 100/100). Shrunk counterexample: user small-range (key 3660953912, head range ±3), layout 993x480 with t0 {853,326,41,40} autoRepeat, t1 {946,2,42,234} autoRepeat, rest {183,328,40,83}; task [t1,t0], fps 15, analysisWindowMs 3164, requestSeed -1000062012, trialIndex 2; profile headGain 1, headDeadZone 0, dwellTime 400, graceTime 0, postSelectionPause 200, autoRepeatInterval 1000; A smoothingStrength 0, B smoothingStrength 0.5. Events A: select t1 @8466.67, select t1 @9466.67, select t0 @11866.67; B: select t1 @8600, ... Cut-off = event 0, now 8466.67 (frame 127). Sample 128 (now 8533.33, phase entry): A yaw 2.944067742053661 pitch 2.368099435991259; B yaw 2.945503784388291 pitch 2.3692866723538475. Cause: A resolves entry 0 at 8466.67 while plan 0's move (5303-8572) is still running, so entry 1 holds at basePose(plan0, 8466.67); B is still on plan 0's move at 8533.33 (then misses at the deadline 8467.32 on frame 8533.33). The frame after the cut-off cannot be equal when the entry resolves mid-move.",
+      "lastRunTimestamp": 1795408685921
+    }
+  },
   "executionHistory": {
     "1.1 Extract the one mapping function.": [
       {
@@ -844,6 +850,16 @@
         "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795405970764
+      },
+      {
+        "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795408966128
+      },
+      {
+        "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795409323987
       }
     ],
     "11.1 Paired metrics and verdicts.": [
@@ -861,6 +877,11 @@
         "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795407644762
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795408383123
       }
     ],
     "11.0 observers.onSample hook.": [
@@ -916,6 +937,47 @@
         "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795407624929
+      }
+    ],
+    "11.2 The `compare` core function.": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795408200815
+      },
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795408381410
+      }
+    ],
+    "11.3 Write property test for Property 5: same random draws when comparing.": [
+      {
+        "executionId": "857ed0ea-5d5b-4016-b7a3-4867b95a6396",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795408382901
+      },
+      {
+        "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795408966043
+      },
+      {
+        "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795409323290
+      },
+      {
+        "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795409428177
+      }
+    ],
+    "11. Compare": [
+      {
+        "executionId": "659e0fb2-6235-44a0-a36a-69fb80a52642",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795409428219
       }
     ]
   }

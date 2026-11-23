@@ -924,6 +924,7 @@ for T of selectable targets sorted by id (UTF-16):                          // r
      if reading(T) > 0.5 -> metric 'reading-pause share', value reading(T): "longer dwell time", plus the path text below
      if edge(T)    > 0.5 -> metric 'tremor-at-edge share', value edge(T): "larger target or more spacing", then the follow-up run below
   if some user cannot reach T (T outside that user's reachable pixel rectangle):   // no event minimum (AC 7 clarification)
+     (only when mode is 'head + dwell'; skipped in 'scan')
      one suggestion, metric 'unreachable', value null, users = every such user: "outside the head range; higher head gain or move T"
 then for T of selectable targets sorted by id: centre-hit rule, metric 'screen-centre-hit', value null, users []
 ```
@@ -936,7 +937,8 @@ then for T of selectable targets sorted by id: centre-hit rule, metric 'screen-c
   a miss with that miss cause), in request order. An unreachable suggestion is one per target and lists every user who cannot reach it, in request order.
 - **Unreachable (AC 3).** Reachability per user is the pixel rectangle `[xMin, xMax] × [yMin, yMax]` from `rotationToPoint` at the extreme head-range rotations with the
   effective profile (§1.2). `T` is outside when no pixel of its rectangle `[x, x + w) × [y, y + h)` is inside. It comes from geometry, not events, so the 3-event minimum does not apply.
-  The rule is not limited by the mode.
+  The rule applies only in modes that use the head pointer (`head + dwell`), like the tremor note, and is skipped in `scan`: a switch highlights targets
+  in turn, so head range does not decide reachability.
 - **Centre-hit rule (AC 10).** Let `C = (floor(screen.width / 2), floor(screen.height / 2))` be the screen centre pixel (the pixel the engine
   maps a centred head to). For each selectable target `T` (role ≠ `rest-area`; rest areas are excluded from the hit-test) with `T.rect` containing `C`
   (`x ≤ C.x < x + width` and `y ≤ C.y < y + height`), add one suggestion naming `T`: keep the screen centre empty, or put the rest area there. The
@@ -1017,7 +1019,10 @@ the layout, the mapping fields (gain, dead zone, ranges), `fps`, `tEntry` and `p
 warm-up end `tDone` depends on `calibration*` fields and the head samples, not on the five fields (calibration reads the
 unsmoothed rotation). So the plan of entry 0 is identical in both runs, and every later plan is identical until
 the first entry whose resolving event time differs; its `tEntry` is the only input that can differ. That is the "first
-differing select or cancel" of property 5. For other differences (gain, ranges, layout, AC 8) the draws are the same but head
+differing select or cancel" of property 5. The samples are compared for every frame with `now` ≤ the `now` of that event (the cut-off
+frame, inclusive), not for "the frame after". The cut-off frame is fed before its event exists, so it is the same in both runs. The next frame
+is not safe: an entry may resolve before its move ends (§5), so in one run the next frame can already be under entry k+1, planned from
+`basePose(plan, now)` at the resolving frame, while in the other run it is still under entry k. For other differences (gain, ranges, layout, AC 8) the draws are the same but head
 samples may differ.
 
 ### 10. Scan mode (`run-scan-trial.ts`) — lower priority
@@ -1346,8 +1351,10 @@ intended selections is accidental / intended × 100.
 ### Property 5: Same random draws when comparing
 
 *For any* two configurations in `compare` run with the same users, seed and trials, both consume the same random draws. If they differ only in
-`dwellTime`, `graceTime`, `postSelectionPause`, `autoRepeatInterval` or `smoothingStrength`, the head-angle samples are identical up to the first
-differing `select` or `cancel` event (`dwell-progress` events are not compared).
+`dwellTime`, `graceTime`, `postSelectionPause`, `autoRepeatInterval` or `smoothingStrength`, the head-angle samples are identical for every frame with `now` less than or equal to the `now` of the first
+differing `select` or `cancel` event (the cut-off frame, inclusive; `dwell-progress` events are not compared). Frames after the cut-off frame
+are not compared: the cut-off frame is fed before its event exists, but the next frame can already be under a different entry in one run,
+because an entry may resolve before its move ends (§5).
 
 **Validates: Requirements 5.1, 5.7, 5.8**
 
@@ -1452,7 +1459,8 @@ Where a property touches only pure code (planning, classification, metrics) it r
    `smoothingStrength`), each value drawn from the skeleton's clamp range for that field; a value equal to the default is allowed. Both runs record the head samples through the real
    `observers.onSample(now, rotation, phase)` hook of `run-trial.ts` (§5; warm-up samples are included) and the events through `observers.onEvent`. Assertions:
    (a) cut-off: the first event, in `onEvent` order, whose `(kind, targetId, now)` differs between A and B (if one list is a prefix of the other, the first extra event); the two sample
-   sequences are equal element by element up to and including the frame after that event (all frames when no event differs);
+   sequences are equal for every frame with `now` ≤ the `now` of that event (the cut-off frame, inclusive; not "the frame after": the next frame can already be under a different entry in one run, because an entry may resolve before its move ends, §5) (all frames when no event differs);
+   the counterexample found for the earlier "frame after" wording is pinned as `test/property-5-counterexample.test.ts` (task 11.3);
    (b) aim: for every entry `k` the test recomputes `(zx, zy)` from `ttn(u01(stream(seed, userKey, trial, Aim), k, 0|1))` and compares `plans[k].aim` between A and B, where the test builds
    `plans[k]` with `planEntry(ctx, k, 0, ZERO)` for each side's context (the aim does not depend on `tEntry` or `p0`); no other `src/` change is needed.
    Part 2 (other fields): the generator changes gain, dead zone or the screen size. A new screen size is drawn with the rects kept as they are, and only screens that contain every rect are used.

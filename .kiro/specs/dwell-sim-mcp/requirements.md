@@ -347,7 +347,9 @@ same simulated users, so that I can see whether a change helps.
    cause `tremor-at-edge`, THE simulator SHALL suggest a larger target or more spacing.
 3. WHEN a target is outside the reach of a simulated user's head range, THE simulator
    SHALL state that the target is outside that user's head range and SHALL suggest a
-   higher head gain or moving the target.
+   higher head gain or moving the target. This applies only in modes that use the head
+   pointer (`head + dwell`), not in `scan`: in scan mode a switch highlights targets in
+   turn, so head range does not decide reachability.
 4. THE simulator SHALL name, in each suggestion, the metric and the simulated users that
    triggered it.
 5. WHERE a follow-up run was made for a target, THE simulator SHALL include in the
@@ -548,8 +550,12 @@ so that the results are on record.
 5. **Same random draws when comparing**: in `compare`, both configurations consume the
    same random draws. If they differ only in `dwellTime`, `graceTime`,
    `postSelectionPause`, `autoRepeatInterval` or `smoothingStrength`, the head-angle
-   samples are identical up to the first differing `select` or `cancel` event
-   (`dwell-progress` events are not compared).
+   samples are identical for every frame with `now` less than or equal to the `now` of
+   the first differing `select` or `cancel` event (the cut-off frame, inclusive;
+   `dwell-progress` events are not compared). Frames after the cut-off frame are not
+   compared: the cut-off frame is fed before its event exists, but the next frame can
+   already be under a different entry in one run, because an entry may resolve before
+   its move ends.
 6. **Longer dwell, fewer reading-pause accidents** (two parts):
    (a) a stay on a target shorter than `dwellTime` never produces a `select` on it;
    (b) for a fixed (open-loop) sample stream with no `autoRepeat` targets, where

@@ -260,7 +260,12 @@ export function suggest(input: SuggestInput): Suggestion[] {
         }
       }
     }
-    const cannotReach = users.filter((u) => !isTargetReachable(u.geometry, t.rect)).map((u) => u.name);
+    // Only in head + dwell: in scan a switch highlights targets in turn, so head range does not
+    // decide whether a target can be reached (design section 8, Req 6 AC 3).
+    const cannotReach =
+      mode === "head + dwell"
+        ? users.filter((u) => !isTargetReachable(u.geometry, t.rect)).map((u) => u.name)
+        : [];
     if (cannotReach.length > 0) {
       out.push({
         targetId: t.id,

@@ -18,7 +18,7 @@ import { buildWarnings } from "./warnings.js";
  * `ADJACENT_REPEAT` (with `taskError`) to the tool error of the same name and treats the other
  * codes as INTERNAL_ERROR.
  */
-export type SimulateErrorCode = "ADJACENT_REPEAT" | "UNSUPPORTED_MODE" | "NO_TRIALS";
+export type SimulateErrorCode = "ADJACENT_REPEAT" | "UNSUPPORTED_MODE" | "NO_TRIALS" | "LAYOUT_MISMATCH";
 
 export class SimulateError extends Error {
   readonly code: SimulateErrorCode;

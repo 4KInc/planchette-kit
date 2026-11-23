@@ -117,10 +117,13 @@ describe("scan mode", () => {
     expect(s).toEqual([]);
   });
 
-  it("still gives the unreachable rule", () => {
+  it("gives no unreachable suggestion, while head + dwell gives one for the same layout and user", () => {
     const users = [user("u", [trial("u", {})], SMALL)];
-    const s = suggest({ mode: "scan", users, task: ["far"], layout: layoutOf(target("far", 0, 0)) });
-    expect(s.map((x) => x.metric)).toEqual(["unreachable"]);
+    const layout = layoutOf(target("far", 0, 0));
+    const scan = suggest({ mode: "scan", users, task: ["far"], layout });
+    const head = suggest({ mode: "head + dwell", users, task: ["far"], layout });
+    expect(scan).toEqual([]);
+    expect(head.map((x) => x.metric)).toEqual(["unreachable"]);
   });
 });
 

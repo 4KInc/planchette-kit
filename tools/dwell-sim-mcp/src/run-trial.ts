@@ -32,6 +32,9 @@ import type {
   ResolvedUser,
 } from "./types.js";
 
+/** The part of the trial a frame belongs to. */
+export type FramePhase = "warmup" | "start" | "entry";
+
 export interface TrialConfig {
   layout: Layout;
   profile: Partial<Profile>;
@@ -43,7 +46,14 @@ export interface TrialConfig {
   requestSeed: number;
   trialIndex: number;
   /** Tests count events independently of the classifier. */
-  observers?: { onEvent?(e: RawEvent): void };
+  observers?: {
+    onEvent?(e: RawEvent): void;
+    /**
+     * Called once per fed frame, from feedFrame, with the rotation exactly as fed to the engine.
+     * `rotation` is the reused face rotation object: the observer must copy the two numbers.
+     */
+    onSample?(now: number, rotation: Pose, phase: FramePhase): void;
+  };
 }
 
 import type { AccidentalRecord, StartEventRecord, TrialEntryResult, TrialResult } from "./metrics.js";
@@ -153,6 +163,8 @@ export interface TrialDriver {
   batch: TimestampedSample[];
   /** The face inside `sample`, mutated in place. */
   face: { bbox: { cx: number; cy: number; w: number; h: number }; rotation: { yaw: number; pitch: number } };
+  /** `cfg.observers?.onSample`, resolved once per trial. */
+  onSample: ((now: number, rotation: Pose, phase: FramePhase) => void) | undefined;
 }
 
 /** The pose plan of the warm-up: no segments, so the base pose is the centre. */
@@ -216,6 +228,7 @@ export function openTrial(cfg: TrialConfig): TrialDriver {
     sample,
     batch: [sample],
     face,
+    onSample: cfg.observers?.onSample,
   };
 
   pl.addEventListener("select", (e) => {
@@ -236,10 +249,12 @@ export function openTrial(cfg: TrialConfig): TrialDriver {
 }
 
 /** Feeds the sample for `pose` at time `now`: one `feedSamples` call, no allocation. */
-export function feedFrame(d: TrialDriver, pose: Pose, now: number): void {
+export function feedFrame(d: TrialDriver, pose: Pose, now: number, phase: FramePhase): void {
   d.face.rotation.yaw = pose.yaw;
   d.face.rotation.pitch = pose.pitch;
   d.sample.now = now;
+  // After the rotation is set, before the engine sees it (design section 5).
+  if (d.onSample !== undefined) d.onSample(now, d.face.rotation, phase);
   d.pl.feedSamples(d.batch);
 }
 
@@ -253,7 +268,7 @@ export function runWarmup(d: TrialDriver): void {
   const cap = warmupCapMs(d.eff);
   while (!d.centreDone && d.k * d.frameMs <= cap) {
     const now = d.k * d.frameMs;
-    feedFrame(d, d.head.head(WARMUP_PLAN, now), now);
+    feedFrame(d, d.head.head(WARMUP_PLAN, now), now, "warmup");
     d.k++;
   }
   if (d.centreDone) {
@@ -326,7 +341,7 @@ export function runStartOfSession(d: TrialDriver): StartOfSession {
   drainQueue(d.queue, recordWarmup);
   while (d.k * d.frameMs < startPlan.tEnd) {
     const now = d.k * d.frameMs;
-    feedFrame(d, d.head.head(startPlan, now), now);
+    feedFrame(d, d.head.head(startPlan, now), now, "start");
     d.k++;
     drainQueue(d.queue, recordStart);
   }
@@ -365,7 +380,7 @@ export function runEntries(d: TrialDriver, s: StartOfSession): void {
 
   while (!finished) {
     const now = d.k * d.frameMs;
-    feedFrame(d, d.head.head(plan, now), now);
+    feedFrame(d, d.head.head(plan, now), now, "entry");
     d.k++;
     let advanced = false;
     const n = q.length;
