@@ -4,7 +4,7 @@
  * applied by `simulate` to the output only.
  */
 import type { Profile } from "@planchette/skeleton";
-import type { AccidentalCause, Activity, Layout } from "./types.js";
+import type { AccidentalCause, Activity, Layout, Pose } from "./types.js";
 
 /** Result of one task entry. */
 export interface TrialEntryResult {
@@ -40,6 +40,11 @@ export interface TrialResult {
   startEvents: StartEventRecord[];
   warnings: string[];
   effectiveProfile: Profile;
+  /**
+   * The centre the engine captured at warm-up in this trial (design section 4.1, D2); (0, 0) when
+   * null. Optional: absent means (0, 0). The unreachable suggestion rule maps through it.
+   */
+  centre?: Pose;
 }
 
 export interface TargetMetrics {

@@ -20,18 +20,23 @@ export interface GeometryContext {
   profile: MappingProfile;
   screen: ScreenSize;
   headRange: HeadRange;
+  /**
+   * The centre the engine captured at warm-up (`result.centre` of the `calibration-step` done
+   * event; (0, 0) when null). Pixels and angles map through it (design section 4.1, D2); poses
+   * and the head range stay absolute.
+   */
+  centre: Pose;
 }
 
-const ZERO: Pose = { yaw: 0, pitch: 0 };
 
-/** The pixel the pointer is at for a head pose (relative to the centre pose). */
+/** The pixel the pointer is at for an absolute head pose, through the captured centre. */
 export function toPx(ctx: GeometryContext, pose: Pose): Point {
-  return rotationToPoint(ctx.profile, ctx.screen, ZERO, pose);
+  return rotationToPoint(ctx.profile, ctx.screen, ctx.centre, pose);
 }
 
-/** The head pose that puts the pointer at a pixel. Not clamped to the head range. */
+/** The absolute head pose that puts the pointer at a pixel. Not clamped to the head range. */
 export function toPose(ctx: GeometryContext, px: Point): Pose {
-  return pointToRotation(ctx.profile, ctx.screen, ZERO, px);
+  return pointToRotation(ctx.profile, ctx.screen, ctx.centre, px);
 }
 
 /** Clamps yaw to [-left, +right] and pitch to [-down, +up]. */

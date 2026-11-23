@@ -48,6 +48,7 @@ function build(c: Case, startSeed = c.seed, aimSeed = c.seed): { ctx: PlanContex
     },
     screen: SCREEN,
     headRange: HEAD,
+    centre: { yaw: 0, pitch: 0 },
   };
   const targets: LayoutTarget[] = [0, 1, 2, 3].map((i) => ({
     id: `t${i}`,

@@ -8,6 +8,7 @@ const wide: GeometryContext = {
   profile,
   screen: { width: 1001, height: 501 },
   headRange: { left: 20, right: 20, up: 20, down: 20 },
+  centre: { yaw: 0, pitch: 0 },
 };
 const off: AmpUser = {
   tremorFrequencyHz: 0,

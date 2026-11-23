@@ -18,6 +18,7 @@ const geometry: GeometryContext = {
   profile,
   screen: { width: 1200, height: 900 },
   headRange: { left: 20, right: 25, up: 15, down: 18 },
+  centre: { yaw: 0, pitch: 0 },
 };
 const rest: LayoutTarget = {
   id: "rest",

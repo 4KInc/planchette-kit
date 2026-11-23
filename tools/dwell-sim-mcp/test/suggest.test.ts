@@ -143,6 +143,29 @@ describe("unreachable rule", () => {
   });
 });
 
+describe("unreachable rule with a captured centre per trial (D2)", () => {
+  // SMALL: 50 px per degree, head range 5 degrees. Centre yaw +1 reaches x 200..700, centre yaw -1 reaches x 300..800.
+  const withCentre = (name: string, yaw: number, i: number) => ({ ...trial(name, {}, i), centre: { yaw, pitch: 0 } });
+  const mk = (id: string, x: number) => target(id, x, 250, 40, 40);
+  const run2 = (id: string, x: number) =>
+    suggest({
+      mode: "head + dwell",
+      users: [user("u", [withCentre("u", 1, 0), withCentre("u", -1, 1)], SMALL)],
+      task: [id],
+      layout: layoutOf(mk(id, x)),
+    });
+  it("is not unreachable when some trial reaches the target", () => {
+    expect(run2("edge", 710)).toEqual([]); // x 710..749: inside 300..800 of the second trial only
+  });
+  it("is unreachable when every trial's rectangle misses the target", () => {
+    expect(run2("out", 810)).toMatchObject([{ targetId: "out", metric: "unreachable", users: ["u"] }]);
+  });
+  it("is unreachable when the trial centre moves the reachable rectangle off a target the zero centre reaches", () => {
+    const u = user("u", [withCentre("u", 1, 0)], SMALL);
+    const s = suggest({ mode: "head + dwell", users: [u], task: ["e"], layout: layoutOf(mk("e", 710)) });
+    expect(s).toMatchObject([{ targetId: "e", metric: "unreachable" }]); // zero centre reaches 250..750
+  });
+});
 describe("rest areas", () => {
   it("get no suggestion from any rule", () => {
     const rest = target("rest", 0, 0, 100, 50, "rest-area");

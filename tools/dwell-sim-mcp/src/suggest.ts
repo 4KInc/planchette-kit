@@ -39,8 +39,19 @@ export interface Suggestion {
 export interface SuggestUser {
   name: string;
   trials: readonly TrialResult[];
-  /** Effective profile, screen and head range of this user (for the unreachable rule). */
+  /**
+   * Effective profile, screen and head range of this user (for the unreachable rule). Its `centre`
+   * is used only for a trial without `TrialResult.centre`; each trial otherwise has its own.
+   */
   geometry: GeometryContext;
+}
+/**
+ * True when `rect` is outside the user's reachable rectangle in every trial of the user (design
+ * section 8, D2): each trial maps the head-range limits through its own captured centre.
+ */
+export function isUnreachableForUser(u: SuggestUser, rect: Rect): boolean {
+  if (u.trials.length === 0) return !isTargetReachable(u.geometry, rect);
+  return u.trials.every((t) => !isTargetReachable(t.centre === undefined ? u.geometry : { ...u.geometry, centre: t.centre }, rect));
 }
 
 export interface SuggestInput {
@@ -264,7 +275,7 @@ export function suggest(input: SuggestInput): Suggestion[] {
     // decide whether a target can be reached (design section 8, Req 6 AC 3).
     const cannotReach =
       mode === "head + dwell"
-        ? users.filter((u) => !isTargetReachable(u.geometry, t.rect)).map((u) => u.name)
+        ? users.filter((u) => isUnreachableForUser(u, t.rect)).map((u) => u.name)
         : [];
     if (cannotReach.length > 0) {
       out.push({

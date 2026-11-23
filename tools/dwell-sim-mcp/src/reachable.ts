@@ -15,7 +15,7 @@ export interface ReachableRect {
 }
 
 /**
- * The pixels the user's head can reach: x from yaw = -left to +right, y from pitch = +up (top)
+ * The pixels the user's head can reach (absolute head-range limits mapped through the captured centre): x from yaw = -left to +right, y from pitch = +up (top)
  * to -down (bottom). The mapping is separable and monotone per axis, so the extreme rotations
  * give the exact rectangle.
  */

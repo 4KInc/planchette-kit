@@ -23,6 +23,7 @@ const ctx: GeometryContext = {
   },
   screen: { width: 1000, height: 800 },
   headRange: { left: 60, right: 60, up: 60, down: 60 },
+  centre: { yaw: 0, pitch: 0 },
 };
 const rect = { x: 400, y: 300, width: 200, height: 200 };
 

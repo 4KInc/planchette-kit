@@ -14,6 +14,7 @@ function ctx(headRange: number, calibration: number): GeometryContext {
     },
     screen: { width: 1001, height: 601 },
     headRange: { left: headRange, right: headRange, up: headRange, down: headRange },
+    centre: { yaw: 0, pitch: 0 },
   };
 }
 
@@ -61,5 +62,16 @@ describe("isTargetReachable", () => {
   it("accepts every on-screen target when nothing is clipped", () => {
     expect(isTargetReachable(ctx(10, 10), { x: 0, y: 0, width: 1, height: 1 })).toBe(true);
     expect(isTargetReachable(ctx(10, 10), { x: 1000, y: 600, width: 1, height: 1 })).toBe(true);
+  });
+});
+
+describe("reachableRect with a captured centre (D2)", () => {
+  it("maps the absolute head-range limits through the centre", () => {
+    const base = ctx(5, 10);
+    const shifted: GeometryContext = { ...base, centre: { yaw: 2, pitch: 0 } };
+    // 1000 px over 20 degrees of calibrated range (gain 1, no dead zone): 50 px per degree.
+    expect(reachableRect(shifted)).toEqual({ xMin: 150, xMax: 650, yMin: 150, yMax: 450 });
+    expect(isTargetReachable(shifted, { x: 700, y: 250, width: 50, height: 50 })).toBe(false);
+    expect(isTargetReachable(base, { x: 700, y: 250, width: 50, height: 50 })).toBe(true);
   });
 });

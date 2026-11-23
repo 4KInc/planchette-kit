@@ -47,7 +47,8 @@ const screen = { width: 800, height: 600 };
 
 // Found by a one-off search (seed 7, dwell 400 ms, strong-head-tremor, 4 trials, task a b a b):
 // two square targets of this size give a tremor-at-edge suggestion on "a". At 24 px the 1.25 multiple reaches
-// zero events; at 16 px none of 1.25, 1.5 and 2 does.
+// zero events; at 18 px none of 1.25, 1.5 and 2 does (re-searched after D2: planning through the captured centre
+// changed the draws).
 const small = (size: number): Layout => ({
   screen,
   targets: [target("a", 100, 100, size, size), target("b", 600, 400, size, size)],
@@ -73,7 +74,7 @@ describe("simulate suggestions", () => {
   });
 
   it("leaves followUp unset and the text unchanged when no multiple reaches zero", () => {
-    const s = simulate(request(small(16))).suggestions.find((x) => x.metric === "tremor-at-edge share");
+    const s = simulate(request(small(18))).suggestions.find((x) => x.metric === "tremor-at-edge share");
     expect(s).toBeDefined();
     expect(s?.followUp).toBeUndefined();
     expect(s?.text).not.toContain("times the current size");

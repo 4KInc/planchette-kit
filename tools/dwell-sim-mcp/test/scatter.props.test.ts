@@ -59,6 +59,7 @@ const ctx: GeometryContext = {
   },
   screen: { width: 1200, height: 900 },
   headRange: { left: 90, right: 90, up: 90, down: 90 },
+  centre: { yaw: 0, pitch: 0 },
 };
 
 const seedArb = fc.integer({ min: -2147483648, max: 2147483647 });

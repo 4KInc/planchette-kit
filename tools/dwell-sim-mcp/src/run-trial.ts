@@ -140,7 +140,13 @@ export interface TrialDriver {
   queue: EventQueue;
   classifyState: ClassifyState;
   head: HeadModel;
+  /**
+   * Built once, after the warm-up, from the centre the engine captured (design section 4.1, D2).
+   * Before `runWarmup` returns it holds the zero-centre placeholder.
+   */
   geometry: GeometryContext;
+  /** `result.centre` of the centre step's done event; (0, 0) when null or when the step never finished. */
+  centre: Pose;
   streams: PlanStreams;
   frameMs: number;
   /** The next frame index; frame `k` has `now = k * frameMs`. */
@@ -209,7 +215,8 @@ export function openTrial(cfg: TrialConfig): TrialDriver {
       drift: stream(cfg.requestSeed, user.key, cfg.trialIndex, Purpose.TremorDriftKnot),
       noise: stream(cfg.requestSeed, user.key, cfg.trialIndex, Purpose.TrackingNoise),
     }),
-    geometry: { profile: eff, screen: layout.screen, headRange: user.params.headRangeDeg },
+    geometry: { profile: eff, screen: layout.screen, headRange: user.params.headRangeDeg, centre: { yaw: 0, pitch: 0 } },
+    centre: { yaw: 0, pitch: 0 },
     streams: {
       aim: stream(cfg.requestSeed, user.key, cfg.trialIndex, Purpose.Aim),
       readingChance: stream(cfg.requestSeed, user.key, cfg.trialIndex, Purpose.ReadingPauseChance),
@@ -243,7 +250,11 @@ export function openTrial(cfg: TrialConfig): TrialDriver {
     notePointerMove(classifyState, e.detail.x, e.detail.y);
   });
   pl.addEventListener("calibration-step", (e) => {
-    if (e.detail.run === "centre" && e.detail.step === "done") driver.centreDone = true;
+    if (e.detail.run === "centre" && e.detail.step === "done") {
+      driver.centreDone = true;
+      const c = e.detail.result?.centre;
+      driver.centre = c === null || c === undefined ? { yaw: 0, pitch: 0 } : { yaw: c.yaw, pitch: c.pitch };
+    }
   });
   return driver;
 }
@@ -277,6 +288,9 @@ export function runWarmup(d: TrialDriver): void {
     d.tDone = cap;
     d.warnings.push(WARNING_CENTRE_STEP_CAP);
   }
+  // D2: the geometry is built once, here, with the captured centre. Every later consumer (start
+  // plan, entry plans, aims, reachable rectangle, classification) reads `d.geometry`.
+  d.geometry = { ...d.geometry, centre: d.centre };
 }
 
 /** What the entry loop (part 3) needs from the start of session. */
@@ -466,6 +480,7 @@ export function runTrial(cfg: TrialConfig): TrialResult {
       startEvents: d.startEvents,
       warnings: d.warnings,
       effectiveProfile: d.eff,
+      centre: d.centre,
     };
   } finally {
     d.pl.destroy();

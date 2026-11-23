@@ -14,7 +14,7 @@ import { describe, expect, it } from "vitest";
 import type { Rect } from "@planchette/skeleton";
 import { isTargetReachable, reachableRect } from "../src/reachable.js";
 import { resolveUser } from "../src/resolve-user.js";
-import { openTrial, runTrial, type TrialConfig } from "../src/run-trial.js";
+import { openTrial, runTrial, runWarmup, type TrialConfig } from "../src/run-trial.js";
 import type { Layout, RawEvent, ResolvedUser } from "../src/types.js";
 import { customUserArb, layoutArb, profileArb, selectableIds, taskArb } from "./arbitraries.js";
 
@@ -83,8 +83,10 @@ const caseArb: fc.Arbitrary<Case> = fc
       calibrationRangeUp: range.up * f[2],
       calibrationRangeDown: range.down * f[3],
     };
-    // The effective profile (as the skeleton clamps it) fixes the reachable rectangle.
+    // The effective profile (as the skeleton clamps it) and the captured centre fix the reachable rectangle.
     const probe = openTrial({ layout, profile, user, mode: "head + dwell", task: [], fps, analysisWindowMs: 1000, requestSeed, trialIndex });
+    // The warm-up is independent of the layout; it fixes the centre the engine captures (D2).
+    runWarmup(probe);
     const geometry = probe.geometry;
     probe.pl.destroy();
     const reach = reachableRect(geometry);

@@ -133,11 +133,12 @@ export function simulate(request: SimulateRequest): SimulateResult {
       }
     }
     warningInput.push({ user, trials: run.trials });
-    // The same geometry the trial driver builds (run-trial.ts openTrial): effective profile, screen, head range.
+    // The geometry the trial driver builds (run-trial.ts): effective profile, screen, head range. Each
+    // trial carries its own captured centre (TrialResult.centre), which `suggest` applies (D2).
     suggestUsers.push({
       name: user.name,
       trials: run.trials,
-      geometry: { profile: run.trials[0].effectiveProfile, screen: request.layout.screen, headRange: user.params.headRangeDeg },
+      geometry: { profile: run.trials[0].effectiveProfile, screen: request.layout.screen, headRange: user.params.headRangeDeg, centre: { yaw: 0, pitch: 0 } },
     });
     followUpUsers.push({ name: user.name, trials: run.trials, config });
   }

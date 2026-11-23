@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   openTrial,
   runTrial,
+  runEntries,
+  runStartOfSession,
   runWarmup,
   warmupCapMs,
   WARNING_CENTRE_STEP_CAP,
@@ -156,6 +158,37 @@ describe("trial warm-up", () => {
     expect(d.warnings).toEqual([WARNING_CENTRE_STEP_CAP]);
     expect((d.k - 1) * d.frameMs).toBeLessThanOrEqual(cap);
     expect(d.k * d.frameMs).toBeGreaterThan(cap);
+    d.pl.destroy();
+  });
+  it("passes the centre the engine captured to the geometry of the plan and classify contexts (D2)", () => {
+    // Near-zero frequency: the 5 degree tremor is a constant offset during the warm-up, so the captured centre is not (0, 0).
+    const tilted: ResolvedUser = {
+      ...user,
+      params: { ...user.params, tremorFrequencyHz: 1e-6, tremorPeakToPeakDeg: 5, trackingNoiseDeg: 0 },
+    };
+    const d = openTrial(cfg({ user: tilted }));
+    const events: { yaw: number; pitch: number }[] = [];
+    d.pl.addEventListener("calibration-step", (e) => {
+      if (e.detail.run === "centre" && e.detail.step === "done" && e.detail.result?.centre) events.push({ ...e.detail.result.centre });
+    });
+    runWarmup(d);
+    expect(events).toHaveLength(1);
+    expect(Math.abs(events[0].yaw) + Math.abs(events[0].pitch)).toBeGreaterThan(0.01);
+    expect(d.centre).toEqual(events[0]);
+    expect(d.geometry.centre).toEqual(events[0]);
+    const s = runStartOfSession(d);
+    expect(s.planCtx.geometry.centre).toEqual(events[0]);
+    expect(s.classifyCtx.geometry.centre).toEqual(events[0]);
+    runEntries(d, s);
+    expect(d.plans.length).toBeGreaterThan(0);
+    d.pl.destroy();
+    expect(runTrial(cfg({ user: tilted })).centre).toEqual(events[0]);
+  });
+  it("uses (0, 0) when the step ended without a centre", () => {
+    const d = openTrial(cfg());
+    d.pl.feedSamples = () => undefined;
+    runWarmup(d);
+    expect(d.geometry.centre).toEqual({ yaw: 0, pitch: 0 });
     d.pl.destroy();
   });
 });

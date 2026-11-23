@@ -56,6 +56,7 @@ function build(c: Case, gain = c.gain, deadZone = c.deadZone, reverse = false) {
     },
     screen: SCREEN,
     headRange: HEAD,
+    centre: { yaw: 0, pitch: 0 },
   };
   const targets: LayoutTarget[] = c.perm.map((p, i) => ({
     id: `id-${p}`,

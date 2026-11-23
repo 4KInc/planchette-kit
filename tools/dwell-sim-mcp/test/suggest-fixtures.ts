@@ -18,6 +18,7 @@ export function geometry(headRange: number, calibration = 10): GeometryContext {
     },
     screen: SCREEN,
     headRange: { left: headRange, right: headRange, up: headRange, down: headRange },
+    centre: { yaw: 0, pitch: 0 },
   };
 }
 

@@ -37,6 +37,7 @@ const contextArb: fc.Arbitrary<GeometryContext> = fc
     },
     screen: { width: v.width, height: v.height },
     headRange: { left: v.hl, right: v.hr, up: v.hu, down: v.hd },
+    centre: { yaw: 0, pitch: 0 },
   }));
 
 const pose = fc.record({

@@ -19,6 +19,7 @@ const ctx: GeometryContext = {
   },
   screen: { width: 1000, height: 800 },
   headRange: { left: 10, right: 12, up: 8, down: 6 },
+  centre: { yaw: 0, pitch: 0 },
 };
 
 describe("geometry", () => {
@@ -62,5 +63,36 @@ describe("geometry", () => {
     const spanning = angularWidth(ctx, { x: 400, y: 100, width: 199, height: 50 }, "x");
     const linear = angularWidth(ctx, { x: 700, y: 100, width: 199, height: 50 }, "x");
     expect(spanning).toBeCloseTo(linear + 1, 6);
+  });
+});
+
+describe("geometry with a captured centre (D2)", () => {
+  const off: GeometryContext = { ...ctx, centre: { yaw: 2.5, pitch: -1.5 } };
+  it("toPx and toPose round-trip through the centre", () => {
+    for (const px of [{ x: 100, y: 700 }, { x: 500, y: 400 }, { x: 900, y: 50 }]) {
+      const back = toPx(off, toPose(off, px));
+      expect(Math.abs(back.x - px.x)).toBeLessThanOrEqual(1);
+      expect(Math.abs(back.y - px.y)).toBeLessThanOrEqual(1);
+    }
+  });
+  it("the centre pose maps to the pixel the zero pose maps to without a centre", () => {
+    expect(toPx(off, off.centre)).toEqual(toPx(ctx, { yaw: 0, pitch: 0 }));
+  });
+  it("the pixel of the absolute head-range limit moves by the centre offset", () => {
+    const limit = { yaw: off.headRange.right, pitch: off.headRange.up };
+    const zero = toPx(ctx, limit);
+    const moved = toPx(off, limit);
+    // The same as the limit seen from the centre: (12 - 2.5, 8 + 1.5) degrees from it.
+    expect(moved).toEqual(toPx(ctx, { yaw: limit.yaw - 2.5, pitch: limit.pitch + 1.5 }));
+    // 2.5 degrees left and 1.5 degrees up of where it was; the mapping is 999 px / 29 degrees in x, 799 px / 29 in y (30 degrees minus the 1 degree dead zone).
+    expect(moved.x).toBeLessThan(zero.x);
+    expect(Math.abs(zero.x - moved.x - 2.5 * (999 / 29))).toBeLessThanOrEqual(1);
+    expect(moved.y).toBeLessThan(zero.y);
+    expect(Math.abs(zero.y - moved.y - 1.5 * (799 / 29))).toBeLessThanOrEqual(1);
+  });
+  it("poseAtPx clamps the absolute pose, not the pose relative to the centre", () => {
+    const pose = poseAtPx(off, { x: 999, y: 0 });
+    expect(pose.yaw).toBe(12);
+    expect(pose.pitch).toBe(8);
   });
 });
