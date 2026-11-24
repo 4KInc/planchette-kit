@@ -981,6 +981,7 @@ then for T of selectable targets sorted by id: centre-hit rule, metric 'screen-c
   asked for; the follow-up record lists the ids it overlaps (the engine's first-in-list rule decides overlaps) and the
   suggestion text says "this size overlaps X". At most 3 extra runs per suggested target.
 - Nothing is suggested when no result supports it (AC 6).
+- **Open question (behaviour unchanged for now).** Misses with miss cause `aim-outside-target` are now separate from `tremor-at-edge` and feed no suggestion: they count in `|events(T)|` only. A "larger target" suggestion for targets whose misses are mostly `aim-outside-target` may be wanted. The demo run's head-tremor suggestions fell from 5 to 1 at 1920×1080 when these misses were relabelled, so the change is visible in real output. To be decided with the user.
 
 The suggestion record in the output has `{ targetId, metric, value, users, text, followUp? }`; the centre-hit suggestion has `metric: "screen-centre-hit"`, `value: null`, `users: []` and no `followUp`.
 
