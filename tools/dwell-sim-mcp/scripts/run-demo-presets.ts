@@ -46,9 +46,15 @@ export interface PresetEntryInput {
 }
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-/** Journal date, for example `23 Nov 2026`. */
+/** Local calendar day as `YYYY-MM-DD` (what `date +%F` prints), from the local getters, never from toISOString (UTC). */
+export function formatLocalDate(d: Date): string {
+  const p2 = (n: number): string => String(n).padStart(2, "0");
+  return `${String(d.getFullYear())}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}`;
+}
+/** Journal date in the local calendar day, for example `23 Nov 2026`. */
 export function journalDate(d: Date): string {
-  return `${String(d.getDate())} ${MONTHS[d.getMonth()] ?? ""} ${String(d.getFullYear())}`;
+  const [y, m, day] = formatLocalDate(d).split("-").map(Number);
+  return `${String(day)} ${MONTHS[(m ?? 1) - 1] ?? ""} ${String(y)}`;
 }
 
 function num(v: unknown): string {
@@ -89,7 +95,11 @@ function describeRun(run: DemoRun, notes: string[]): string {
   }
   return (
     `intended ${num(u.intended)}, accidental ${num(u.accidental)} (per 100 intended: ${num(u.accidentalPer100Intended)}), ` +
-    `start-of-session ${num(start.count ?? u.startCount)}, misses ${num(u.misses)}, ` +
+    `start-of-session ${num(start.count ?? u.startCount)}, misses ${num(u.misses)}` +
+    (typeof u.missCauses === "object" && u.missCauses !== null
+      ? ` (miss causes: ${topCauses(asRecord(u.missCauses))})`
+      : "") +
+    ", " +
     `time-to-select median ${num(tts.median)} ms and p90 ${num(tts.p90)} ms, ` +
     `top causes: ${topCauses(asRecord(u.causes))}, ` +
     `suggestions: ${suggestions.length > 0 ? suggestions.join(" ") : "none"}`

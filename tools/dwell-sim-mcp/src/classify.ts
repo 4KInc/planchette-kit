@@ -15,7 +15,7 @@ import type { AccidentalCause, Activity, Layout, Point, RawEvent } from "./types
 /** Allowance for the smoother lag after a reading pause (chosen: above 400 ms at smoothing 0.9). */
 export const LAG_ALLOWANCE_MS = 500;
 
-export type MissCause = "unreachable" | "tremor-at-edge" | "other";
+export type MissCause = "unreachable" | "aim-outside-target" | "tremor-at-edge" | "other";
 
 export type Classification =
   | { category: "start-of-session"; activity: "waiting"; cause: "start" }
@@ -197,6 +197,7 @@ export function classifyMiss(ctx: ClassifyContext, plan: EntryPlan): MissCause {
   const target = ctx.layout.targets.find((t) => t.id === plan.targetId);
   if (target === undefined) return "other";
   if (!isTargetReachable(ctx.geometry, target.rect)) return "unreachable";
+  if (!insideRect(target.rect, plan.aimPx)) return "aim-outside-target";
   if (
     tremorOrNoiseOn(ctx.user) &&
     edgeDist(plan.aimPx, target.rect) <= ampPx(ctx.geometry, ctx.user, plan.aim)

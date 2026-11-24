@@ -60,6 +60,14 @@ simulated user does not react to what the screen shows.
   `start`.
 - **Miss**: a task entry whose intended target is not selected within the analysis
   window.
+- **Miss cause** (post-release fix): why a miss happened. One of `unreachable`,
+  `aim-outside-target`, `tremor-at-edge`, `other`, chosen in this order of precedence
+  (first match wins). `unreachable`: the target is outside the user's reachable pixel
+  rectangle. `aim-outside-target`: the planned aim point (`aimPx`) lies outside the
+  intended target's rectangle (half-open test). With the endpoint model and no corrective
+  submovement, an aim outside the target is a guaranteed miss. `tremor-at-edge`: tremor or
+  tracking noise is on and the aim lies within the tremor and noise reach of the target
+  edge. `other`: none of the above.
 - **Analysis window**: the time, from the moment the simulated user starts moving
   towards a target, within which the intended selection must happen, else it is a miss.
   It is a measurement horizon, not a limit on the person. After a miss the simulated
@@ -315,6 +323,13 @@ to select by accident.
 29. WHERE the task is "each target N times in random order" and the layout has exactly
     one selectable target that has `autoRepeat`, THE simulator SHALL use N entries of
     that target without shuffling.
+
+30. (Post-release fix.) THE `simulate` tool SHALL report, per simulated user and per
+    target, a `missCauses` record that counts the misses by miss cause (Glossary). The
+    record SHALL always contain all four keys (`unreachable`, `aim-outside-target`,
+    `tremor-at-edge`, `other`), zeros included, and its values SHALL sum to the `misses`
+    count of the same row. Each miss SHALL have exactly one miss cause, chosen in the
+    precedence order given in the Glossary.
 
 ### Requirement 5: Compare two settings
 

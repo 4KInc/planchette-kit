@@ -834,8 +834,12 @@ The state `repeat` uses (the previous event and the "left its rect" flag) is res
 unconditional `other`. Hence each event gets exactly one category, one label and (if accidental) one cause
 (property 4). The classifier is a pure function of its inputs; it is called once per drained event.
 
-**Miss causes** (used by suggestions): `unreachable` (target outside the user's reachable pixel rectangle), else
-`tremor-at-edge` (tremor or noise is on, as defined above, and `edgeDist(aimPx, rect) ≤ ampPx(aim pose)`), else `other`.
+**Miss causes** (used by metrics and suggestions; post-release fix adds `aim-outside-target`). Precedence, first match wins:
+1. `unreachable`: target outside the user's reachable pixel rectangle.
+2. `aim-outside-target`: the planned aim point `aimPx` lies outside the intended target's rect, by the half-open test `[x, x + w) × [y, y + h)` (the same helper as `plan-entry.ts`). With the endpoint model and no corrective submovement, an aim outside the target is a guaranteed miss (the demo run showed all 45 `steady` misses were this and were labelled `other`).
+3. `tremor-at-edge`: tremor or noise is on, as defined above, and `edgeDist(aimPx, rect) ≤ ampPx(aim pose)`.
+4. `other`.
+
 For a miss the base pose in `ampPx` is the entry's aim pose (`E.aim`), because no event exists to give an event time; the
 aim is where the user was trying to hold, so it is the position that tremor and noise push across the edge.
 
@@ -845,8 +849,9 @@ aim is where the user was trying to hold, so it is the position that tremor and 
 export interface TrialEntryResult {
   entry: number; targetId: string; outcome: 'selected' | 'miss';
   timeToSelectMs: number | null;                 // eventNow − tMove0
-  missCause: 'unreachable' | 'tremor-at-edge' | 'other' | null;
+  missCause: MissCause | null;                   // post-release fix: adds 'aim-outside-target'
 }
+export type MissCause = 'unreachable' | 'aim-outside-target' | 'tremor-at-edge' | 'other';
 export interface AccidentalRecord {
   targetId: string | null;                       // null for a cancel without a target
   timeMs: number; activity: Activity; cause: AccidentalCause; entry: number;
@@ -866,6 +871,7 @@ export interface TargetMetrics {
   startCount: number;                            // start-of-session events on this target, separate from `accidental`
   accidentalPer100Intended: number | null;       // accidental / intended × 100, see the formula below
   misses: number;
+  missCauses: Record<MissCause, number>;         // post-release fix: all four keys, zeros included; values sum to `misses`
   timeToSelectMs: { median: number | null; p90: number | null };
   causes: Record<AccidentalCause, number>; activities: Record<Activity, number>;   // accidental selections only
 }
@@ -880,7 +886,7 @@ export function aggregateUser(userName: string, trials: readonly TrialResult[], 
 **Counting rules of `aggregateUser`.**
 
 - A `selected` entry counts as one intended selection on its aimed target.
-- A `miss` entry counts toward `misses` on its aimed target; the miss cause stays on the trial entry, where the suggestion rules (§8) read it.
+- A `miss` entry counts toward `misses` on its aimed target, and adds one to `missCauses[entry.missCause]` on that target and on the user. The miss cause also stays on the trial entry, where the suggestion rules (§8) read it. `missCauses` always contains all four keys, zeros included, like `causes`; its values sum to `misses`.
 - A time-to-select sample is taken only from an entry whose `timeToSelectMs` is non-null.
 - An accidental record counts on its `targetId` (the `null` bucket when it is absent), and adds to `causes` and `activities`.
 - A start event counts as `startCount` on its `targetId` (the `null` bucket when absent) and in the user's `startOfSession`.
@@ -901,7 +907,7 @@ export function aggregateUser(userName: string, trials: readonly TrialResult[], 
 - **`perTarget` order.** By target id in UTF-16 order, with the `null` bucket last, the same as `startOfSession.byTarget`.
 - **`perTarget` membership.** One row for every selectable layout target (any role except `rest-area`), even when all its counts are zero. A `rest-area` target gets a row only if it
   has events (it is not selectable). The `null` bucket appears only when it has events. "Has events" means any non-zero count in that row (`intended`, `misses`, `accidental` or `startCount`).
-- **`causes` and `activities`.** Always contain all keys, zeros included: the seven accidental causes and the four activity labels, on users and on targets.
+- **`causes`, `activities` and `missCauses`.** Always contain all keys, zeros included: the seven accidental causes, the four activity labels and the four miss causes, on users and on targets.
 - **Notes and warnings (top level of the result).** Both are `string[]`. Every string starts with its code and a colon. The codes are exported constants: `NO_REST_AREA`,
   `NO_CANCEL_TARGET`, `TREMOR_ABOVE_TUNED` (in `src/warnings.ts`) and the trial warnings `start-clamped` and `centre-step-cap` (`WARNING_START_CLAMPED`,
   `WARNING_CENTRE_STEP_CAP` in `src/run-trial.ts`, values unchanged). Tests check the code prefix and the facts in the string, not the full sentence.
@@ -931,6 +937,8 @@ for T of selectable targets sorted by id (UTF-16):                          // r
   if mode is 'head + dwell' and |events(T)| >= 3:                           // AC 7 applies to the two event-based rules only
      reading(T) = count(accidental on T) = 0 ? 0 : count(accidental on T with cause 'reading-pause') / count(accidental on T)
      edge(T)    = count(events on T with cause/missCause 'tremor-at-edge') / |events(T)|
+                  // behaviour unchanged by the post-release fix: only accidental cause 'tremor-at-edge' and miss cause
+                  // 'tremor-at-edge' count in the numerator; 'aim-outside-target' misses count in |events(T)| only
      if reading(T) > 0.5 -> metric 'reading-pause share', value reading(T): "longer dwell time", plus the path text below
      if edge(T)    > 0.5 -> metric 'tremor-at-edge share', value edge(T): "larger target or more spacing", then the follow-up run below
   if some user cannot reach T (T outside that user's reachable pixel rectangle):   // no event minimum (AC 7 clarification)
@@ -1201,12 +1209,14 @@ a test checks that.
                  "effectiveProfile": { "…": "all 30 fields, after this user's calibration-range fill and clamping" } } ] },
   "users": [ { "name": "head-tremor", "trials": 10, "intended": 38, "accidental": 4, "accidentalPer100Intended": 10.5,
       "startOfSession": { "count": 1, "byTarget": [ { "targetId": "menu", "count": 1 } ] },
-      "misses": 2, "timeToSelectMs": { "median": 2310, "p90": 3590 },
+      "misses": 2, "missCauses": { "unreachable": 0, "aim-outside-target": 1, "tremor-at-edge": 1, "other": 0 },
+      "timeToSelectMs": { "median": 2310, "p90": 3590 },
       "causes": { "reading-pause": 0, "pass-over": 1, "tremor-at-edge": 3, "repeat": 0, "waiting": 0,
                   "early-on-intended-target": 0, "other": 0 },
       "activities": { "waiting": 0, "moving": 1, "reading pause": 0, "holding on the aim point": 3 },
       "perTarget": [ { "targetId": "ghost", "intended": 4, "accidental": 3, "startCount": 0, "accidentalPer100Intended": 75,
-                       "misses": 1, "timeToSelectMs": { "median": 2100, "p90": 2900 },
+                       "misses": 1, "missCauses": { "unreachable": 0, "aim-outside-target": 0, "tremor-at-edge": 1, "other": 0 },
+                       "timeToSelectMs": { "median": 2100, "p90": 2900 },
                        "causes": { "reading-pause": 0, "pass-over": 0, "tremor-at-edge": 3, "repeat": 0, "waiting": 0,
                                    "early-on-intended-target": 0, "other": 0 },
                        "activities": { "waiting": 0, "moving": 0, "reading pause": 0, "holding on the aim point": 3 } } ] } ],
@@ -1221,7 +1231,7 @@ a test checks that.
   "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings." }
 ```
 `parameters.layout` echoes the request's layout exactly as given (the example is shortened to two targets). With no data the rate and percentiles are `null`. The rate is rounded to one decimal in the output (`round1`, §7): 4 / 38 × 100 = 10.526…, shown as 10.5. The "ghost" row shows 75 because 3 / 4 × 100 is exactly 75. `causes` and `activities` always list all
-seven causes and all four labels, zeros included, on users and on per-target rows. `perTarget` is ordered by id (UTF-16) with the `null` bucket last, and has a row for every selectable target. The one start-of-session event is only in
+seven causes and all four labels, zeros included, on users and on per-target rows; `missCauses` always lists all four miss causes (`unreachable`, `aim-outside-target`, `tremor-at-edge`, `other`), zeros included, on users and on per-target rows, and its values sum to `misses`. The `outputSchema` declares `missCauses` as an object with those four required integer keys on both user and per-target rows. `perTarget` is ordered by id (UTF-16) with the `null` bucket last, and has a row for every selectable target. The one start-of-session event is only in
 `startOfSession.count` (and the target's `startCount`); it is not in `accidental`, the rate, `causes`, `activities` or `accidentalSelections`. The `outputSchema` of `simulate` (zod) declares, per user, `startCount`-bearing metrics and
 `startOfSession: { count: number, byTarget: { targetId: string | null, count: number }[] }`; `causes` and each record's `cause` use the
 seven-value enum (no `start`); a suggestion is `{ targetId: string, metric: 'reading-pause share' | 'tremor-at-edge share' | 'unreachable' | 'screen-centre-hit', value: number | null, users: string[], text: string, followUp?: { factor: number, overlaps: string[] } }`
@@ -1301,6 +1311,7 @@ built simulator from `../dist/*.js`, so `tsconfig.scripts.json` needs no `paths`
 Node's TypeScript stripping: `node tools/dwell-sim-mcp/dist-scripts/export-demo-layout.js` and `node tools/dwell-sim-mcp/dist-scripts/run-demo-presets.js`, exposed as the
 workspace scripts `demo:export` and `demo:run` (both run `build` first; `build:sim` builds the skeleton before it). Relative imports in `src` and `scripts` carry the `.js` extension
 (the repo's ESM convention), and the root `@playwright/test` is resolved from the repo root `node_modules`. The typecheck `tsconfig.json` includes `scripts/`, so `npm test` type-checks them. `dist-scripts/` is git-ignored like `dist/`.
+Post-release fix: the journal date is the local calendar day (as `date +%F` gives), formatted with `formatLocalDate` from `getFullYear()`, `getMonth()` and `getDate()`, never from `toISOString()` (UTC); the date is injected into the formatter, so tests can pin it.
 `scripts/run-demo-presets.ts` calls `simulate` in-process with the six preset names (each exactly once) on that file,
 default profile, `{ eachTarget: 3 }`, seed 1, and appends to `docs/kiro-journal.md` six entries, one per preset:
 

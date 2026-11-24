@@ -9,6 +9,7 @@ import {
   type TrialEntryResult,
   type TrialResult,
 } from "../src/metrics.js";
+import type { MissCause } from "../src/classify.js";
 import type { AccidentalCause, Activity, Layout } from "../src/types.js";
 
 const CAUSES: readonly AccidentalCause[] = [
@@ -40,7 +41,7 @@ const layout: Layout = {
 function sel(entry: number, targetId: string, t: number): TrialEntryResult {
   return { entry, targetId, outcome: "selected", timeToSelectMs: t, missCause: null };
 }
-function miss(entry: number, targetId: string, cause: "unreachable" | "tremor-at-edge" | "other" = "other"): TrialEntryResult {
+function miss(entry: number, targetId: string, cause: MissCause = "other"): TrialEntryResult {
   return { entry, targetId, outcome: "miss", timeToSelectMs: null, missCause: cause };
 }
 function acc(targetId: string | null, cause: AccidentalCause = "other", activity: Activity = "moving"): AccidentalRecord {
@@ -261,6 +262,34 @@ describe("causes and activities keys", () => {
   });
 });
 
+describe("missCauses", () => {
+  const MISS: readonly MissCause[] = ["unreachable", "aim-outside-target", "tremor-at-edge", "other"];
+  it("has all four keys with zeros on users and on every target row, including empty ones", () => {
+    for (const m of [aggregateUser("u", [], layout), aggregateUser("u", [trial({ entries: [sel(0, "a", 1)] })], layout)]) {
+      for (const x of [m, ...m.perTarget]) {
+        expect(Object.keys(x.missCauses).sort()).toEqual([...MISS].sort());
+        expect(Object.values(x.missCauses).every((v) => v === 0)).toBe(true);
+      }
+    }
+  });
+  it("counts one miss of each cause on its target and the user, summing to misses", () => {
+    const m = aggregateUser(
+      "u",
+      [
+        trial({
+          entries: [miss(0, "a", "unreachable"), miss(1, "a", "aim-outside-target"), miss(2, "b", "tremor-at-edge"), miss(3, "b", "other")],
+        }),
+        trial({ trialIndex: 1, entries: [miss(0, "b", "aim-outside-target")] }),
+      ],
+      layout,
+    );
+    expect(m.missCauses).toEqual({ unreachable: 1, "aim-outside-target": 2, "tremor-at-edge": 1, other: 1 });
+    expect(m.misses).toBe(5);
+    expect(row(m, "a")?.missCauses).toEqual({ unreachable: 1, "aim-outside-target": 1, "tremor-at-edge": 0, other: 0 });
+    expect(row(m, "b")?.missCauses).toEqual({ unreachable: 0, "aim-outside-target": 1, "tremor-at-edge": 1, other: 1 });
+    for (const x of [m, ...m.perTarget]) expect(Object.values(x.missCauses).reduce((p, q) => p + q, 0)).toBe(x.misses);
+  });
+});
 describe("no NaN or Infinity", () => {
   it("every number in the output is finite", () => {
     const outputs = [

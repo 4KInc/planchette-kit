@@ -75,6 +75,18 @@ describe("README examples", () => {
     expect(cmp.success, cmp.success ? "" : z.prettifyError(cmp.error)).toBe(true);
   });
 
+  it("simulate example has missCauses with all four keys on a user row and a per-target row, and the README explains them", () => {
+    const keys = ["aim-outside-target", "other", "tremor-at-edge", "unreachable"];
+    const sim = jsonAfter("simulate-output") as {
+      users: { missCauses: Record<string, number>; perTarget: { missCauses: Record<string, number> }[] }[];
+    };
+    const user = sim.users[0]!;
+    expect(Object.keys(user.missCauses).sort()).toEqual(keys);
+    expect(user.perTarget.length).toBeGreaterThan(0);
+    for (const row of user.perTarget) expect(Object.keys(row.missCauses).sort()).toEqual(keys);
+    for (const k of keys) expect(readme).toContain(`\`${k}\``);
+    expect(readme).toContain("planned aim point lies outside the target's rectangle");
+  });
   it("includes the request examples and an error with the documented shape", () => {
     expect(jsonAfter("simulate-input")).toHaveProperty("layout");
     expect(jsonAfter("compare-input")).toHaveProperty("a");

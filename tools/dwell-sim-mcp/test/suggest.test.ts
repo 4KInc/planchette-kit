@@ -82,6 +82,22 @@ describe("tremor-at-edge rule", () => {
     expect(run({ u: { misses: repeat(2, { target: "t1", cause: "tremor-at-edge" as const }) } })).toEqual([]);
   });
 
+  it("counts aim-outside-target misses in the event total only, never in the edge share or the users", () => {
+    const edge = repeat(2, { target: "t1", cause: "tremor-at-edge" as const });
+    const aim = (n: number) => repeat(n, { target: "t1", cause: "aim-outside-target" as const });
+    // 2 edge + 2 aim-outside: share 2/4 = 0.5, not above 50 %: none (it would be 1 if aim-outside counted as edge).
+    expect(run({ u: { misses: [...edge, ...aim(2)] } })).toEqual([]);
+    // 2 edge + 1 aim-outside: 3 events (the aim-outside miss counts toward the minimum), share 2/3.
+    const s = run({ u: { misses: [...edge, ...aim(1)] } });
+    expect(s).toHaveLength(1);
+    expect(s[0]).toMatchObject({ metric: "tremor-at-edge share", value: 0.67, users: ["u"] });
+    // A user with only aim-outside misses is not named.
+    const named = run({ u: { misses: edge }, v: { misses: aim(1) } });
+    expect(named).toHaveLength(1);
+    expect(named[0]).toMatchObject({ value: 0.67, users: ["u"] });
+    // Aim-outside misses alone never give a tremor-at-edge suggestion.
+    expect(run({ u: { misses: aim(5) } })).toEqual([]);
+  });
   it("names only users with an event of that cause, in request order", () => {
     const edge = { misses: repeat(2, { target: "t1", cause: "tremor-at-edge" as const }) };
     const s = run({ zed: edge, mid: { misses: [{ target: "t1", cause: "other" }] }, alpha: edge });

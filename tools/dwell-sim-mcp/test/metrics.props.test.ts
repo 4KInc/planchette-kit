@@ -21,6 +21,7 @@ const CAUSES: readonly AccidentalCause[] = [
   "early-on-intended-target",
   "other",
 ];
+const MISS_CAUSES = ["unreachable", "aim-outside-target", "tremor-at-edge", "other"] as const;
 const ACTIVITY_LABELS: readonly Activity[] = ["waiting", "moving", "reading pause", "holding on the aim point"];
 
 const pl = createPlanchette({ screen: { width: 800, height: 600 }, inputs: false, trackingIndicator: false });
@@ -54,7 +55,7 @@ const entryArb: fc.Arbitrary<TrialEntryResult> = fc.oneof(
     targetId: idArb,
     outcome: fc.constant("miss" as const),
     timeToSelectMs: fc.constant(null),
-    missCause: fc.constantFrom("unreachable" as const, "tremor-at-edge" as const, "other" as const),
+    missCause: fc.constantFrom(...MISS_CAUSES),
   }),
 );
 
@@ -105,6 +106,11 @@ describe("aggregateUser properties", () => {
         for (const c of CAUSES) expect(sum(rows.map((r) => r.causes[c]))).toBe(m.causes[c]);
         for (const a of ACTIVITY_LABELS) expect(sum(rows.map((r) => r.activities[a]))).toBe(m.activities[a]);
         expect(sum(Object.values(m.causes))).toBe(m.accidental);
+        for (const c of MISS_CAUSES) expect(sum(rows.map((r) => r.missCauses[c]))).toBe(m.missCauses[c]);
+        for (const r of [m, ...rows]) {
+          expect(Object.keys(r.missCauses).sort()).toEqual([...MISS_CAUSES].sort());
+          expect(sum(Object.values(r.missCauses))).toBe(r.misses);
+        }
         expect(sum(Object.values(m.activities))).toBe(m.accidental);
       }),
       { numRuns: 200 },

@@ -4,6 +4,7 @@
  * applied by `simulate` to the output only.
  */
 import type { Profile } from "@planchette/skeleton";
+import type { MissCause } from "./classify.js";
 import type { AccidentalCause, Activity, Layout, Pose } from "./types.js";
 
 /** Result of one task entry. */
@@ -13,7 +14,7 @@ export interface TrialEntryResult {
   outcome: "selected" | "miss";
   /** eventNow - tMove0; null for a miss. */
   timeToSelectMs: number | null;
-  missCause: "unreachable" | "tremor-at-edge" | "other" | null;
+  missCause: MissCause | null;
 }
 
 export interface AccidentalRecord {
@@ -57,6 +58,8 @@ export interface TargetMetrics {
   /** accidental / intended x 100 at full precision; null when intended is 0. */
   accidentalPer100Intended: number | null;
   misses: number;
+  /** Misses by miss cause; all four keys always present, values sum to `misses`. */
+  missCauses: Record<MissCause, number>;
   timeToSelectMs: { median: number | null; p90: number | null };
   /** Accidental selections only. */
   causes: Record<AccidentalCause, number>;
@@ -79,6 +82,8 @@ export const ACCIDENTAL_CAUSES: readonly AccidentalCause[] = [
   "early-on-intended-target",
   "other",
 ];
+
+export const MISS_CAUSES: readonly MissCause[] = ["unreachable", "aim-outside-target", "tremor-at-edge", "other"];
 
 export const ACTIVITIES: readonly Activity[] = ["waiting", "moving", "reading pause", "holding on the aim point"];
 
@@ -105,6 +110,7 @@ export function round1(x: number | null): number | null {
 interface Bucket {
   intended: number;
   misses: number;
+  missCauses: Record<MissCause, number>;
   accidental: number;
   startCount: number;
   times: number[];
@@ -117,7 +123,9 @@ function newBucket(): Bucket {
   for (const c of ACCIDENTAL_CAUSES) causes[c] = 0;
   const activities = {} as Record<Activity, number>;
   for (const a of ACTIVITIES) activities[a] = 0;
-  return { intended: 0, misses: 0, accidental: 0, startCount: 0, times: [], causes, activities };
+  const missCauses = {} as Record<MissCause, number>;
+  for (const m of MISS_CAUSES) missCauses[m] = 0;
+  return { intended: 0, misses: 0, missCauses, accidental: 0, startCount: 0, times: [], causes, activities };
 }
 
 function bucketFor(map: Map<string | null, Bucket>, id: string | null): Bucket {
@@ -140,6 +148,7 @@ function toMetrics(b: Bucket): Omit<TargetMetrics, "targetId"> {
     startCount: b.startCount,
     accidentalPer100Intended: rate(b.accidental, b.intended),
     misses: b.misses,
+    missCauses: { ...b.missCauses },
     timeToSelectMs: { median: percentile(b.times, 0.5), p90: percentile(b.times, 0.9) },
     causes: { ...b.causes },
     activities: { ...b.activities },
@@ -171,6 +180,10 @@ export function aggregateUser(userName: string, trials: readonly TrialResult[], 
       } else {
         b.misses++;
         total.misses++;
+        // A miss always has a cause; fall back to 'other' so the four values keep summing to misses.
+        const mc: MissCause = e.missCause ?? "other";
+        b.missCauses[mc]++;
+        total.missCauses[mc]++;
       }
       if (e.timeToSelectMs !== null) {
         b.times.push(e.timeToSelectMs);

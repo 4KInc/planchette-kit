@@ -42,6 +42,7 @@ const CAUSES = ["reading-pause", "pass-over", "tremor-at-edge", "repeat", "waiti
 const ACTIVITIES = ["waiting", "moving", "reading pause", "holding on the aim point"];
 const sorted = (o: object): string[] => Object.keys(o).sort();
 
+const MISS_CAUSES = ["aim-outside-target", "other", "tremor-at-edge", "unreachable"];
 describe("simulate result shape (design 11 example)", () => {
   const result = simulate(request({ users: [user("steady"), user("head-tremor")] }));
 
@@ -87,7 +88,7 @@ describe("simulate result shape (design 11 example)", () => {
     for (const u of result.users) {
       expect(sorted(u)).toEqual(
         [
-          "accidental", "accidentalPer100Intended", "activities", "causes", "intended", "misses", "name",
+          "accidental", "accidentalPer100Intended", "activities", "causes", "intended", "missCauses", "misses", "name",
           "perTarget", "startCount", "startOfSession", "timeToSelectMs", "trials",
         ],
       );
@@ -96,16 +97,20 @@ describe("simulate result shape (design 11 example)", () => {
       expect(sorted(u.timeToSelectMs)).toEqual(["median", "p90"]);
       expect(sorted(u.causes)).toEqual([...CAUSES].sort());
       expect(sorted(u.activities)).toEqual([...ACTIVITIES].sort());
+      expect(sorted(u.missCauses)).toEqual(MISS_CAUSES);
+      expect(Object.values(u.missCauses).reduce((a, b) => a + b, 0)).toBe(u.misses);
       expect(u.perTarget.map((r) => r.targetId)).toEqual(["a", "b"]);
       for (const row of u.perTarget) {
         expect(sorted(row)).toEqual(
           [
-            "accidental", "accidentalPer100Intended", "activities", "causes", "intended", "misses",
+            "accidental", "accidentalPer100Intended", "activities", "causes", "intended", "missCauses", "misses",
             "startCount", "targetId", "timeToSelectMs",
           ],
         );
         expect(sorted(row.causes)).toEqual([...CAUSES].sort());
         expect(sorted(row.activities)).toEqual([...ACTIVITIES].sort());
+        expect(sorted(row.missCauses)).toEqual(MISS_CAUSES);
+        expect(Object.values(row.missCauses).reduce((a, b) => a + b, 0)).toBe(row.misses);
       }
     }
   });

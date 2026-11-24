@@ -266,10 +266,11 @@ describe("design section 6 decisions 5 to 10", () => {
 
   it("7: miss cause tremor-at-edge uses edgeDist(aimPx, rect) <= ampPx(aim pose)", () => {
     const ctx = ctxFor(shaky);
-    const edge = mkPlan([hold(1000, 1500, pxPose(500, 500), "waiting")], { aim: pxPose(790, 500) });
-    expect(classifyMiss(ctx, edge)).toBe("tremor-at-edge"); // 10 px from x = 800, ampPx 16
-    const far = mkPlan([hold(1000, 1500, pxPose(500, 500), "waiting")], { aim: pxPose(760, 500) });
-    expect(classifyMiss(ctx, far)).toBe("other"); // 40 px
+    const hold0 = () => [hold(1000, 1500, pxPose(500, 500), "waiting")];
+    const edge = mkPlan(hold0(), { aim: pxPose(810, 500) });
+    expect(classifyMiss(ctx, edge)).toBe("tremor-at-edge"); // 10 px inside x = 800, ampPx 16
+    const far = mkPlan(hold0(), { aim: pxPose(850, 500) });
+    expect(classifyMiss(ctx, far)).toBe("other"); // 50 px from the edge
     expect(classifyMiss(ctxFor(quiet), edge)).toBe("other");
   });
   it("7: a target outside the reachable rectangle is unreachable, before the other causes", () => {
@@ -336,5 +337,35 @@ describe("design section 6 decisions 5 to 10", () => {
     // after an event on an autoRepeat target, a no-id event does not match it either
     classify(ctx, select("rep", 3000), plan, state);
     expect(classify(ctx, { kind: "cancel", now: 3100 }, plan, state)).not.toMatchObject({ cause: "repeat" });
+  });
+});
+
+describe("miss causes (post-release fix: aim-outside-target)", () => {
+  const holdAt = () => [hold(1000, 1500, pxPose(500, 500), "waiting")];
+  const missAt = (x: number, y: number) => mkPlan(holdAt(), { aim: pxPose(x, y) }); // goal is x 800..900, y 450..550
+  const small = { ...geometry, headRange: { left: 10, right: 10, up: 10, down: 10 } };
+
+  it("one example per miss cause", () => {
+    expect(classifyMiss(ctxFor(quiet), missAt(850, 500))).toBe("other");
+    expect(classifyMiss(ctxFor(shaky), missAt(810, 500))).toBe("tremor-at-edge");
+    expect(classifyMiss(ctxFor(quiet), missAt(700, 500))).toBe("aim-outside-target");
+    expect(classifyMiss(ctxFor({ ...shaky, headRangeDeg: small.headRange }, undefined, small), missAt(850, 500))).toBe("unreachable");
+  });
+  it("an aim outside the rect on a reachable target with tremor off is aim-outside-target, not other", () => {
+    expect(classifyMiss(ctxFor(quiet), missAt(600, 500))).toBe("aim-outside-target");
+  });
+  it("an unreachable target whose aim is also outside is unreachable", () => {
+    const ctx = ctxFor({ ...shaky, headRangeDeg: small.headRange }, undefined, small);
+    expect(classifyMiss(ctx, missAt(750, 500))).toBe("unreachable");
+  });
+  it("an aim outside the rect near the edge with tremor on is aim-outside-target, not tremor-at-edge", () => {
+    expect(classifyMiss(ctxFor(shaky), missAt(795, 500))).toBe("aim-outside-target"); // 5 px outside, ampPx 16
+  });
+  it("is half-open: left and top edges are inside, right and bottom edges are outside", () => {
+    const ctx = ctxFor(quiet);
+    expect(classifyMiss(ctx, missAt(800, 500))).toBe("other");
+    expect(classifyMiss(ctx, missAt(850, 450))).toBe("other");
+    expect(classifyMiss(ctx, missAt(900, 500))).toBe("aim-outside-target");
+    expect(classifyMiss(ctx, missAt(850, 550))).toBe("aim-outside-target");
   });
 });

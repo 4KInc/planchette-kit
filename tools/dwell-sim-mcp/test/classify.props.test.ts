@@ -1,9 +1,9 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import { classify, createClassifyState, notePointerMove } from "../src/classify.js";
+import { classify, classifyMiss, createClassifyState, notePointerMove } from "../src/classify.js";
 import type { EntryPlan, Segment } from "../src/plan-entry.js";
 import type { RawEvent } from "../src/types.js";
-import { ctxFor, hold, layout, mkPlan, move, quiet, shaky } from "./classify-fixtures.js";
+import { ctxFor, hold, pxPose, layout, mkPlan, move, quiet, shaky } from "./classify-fixtures.js";
 
 const ACTIVITIES = ["waiting", "moving", "reading pause", "holding on the aim point"];
 const CAUSES = [
@@ -101,6 +101,25 @@ describe("classify properties", () => {
               throw new Error("unattributed event classified as intended");
             }
           }
+        },
+      ),
+      { numRuns: 300 },
+    );
+  });
+
+  it("every miss gets exactly one of the four miss causes", () => {
+    // **Validates: Requirements 4.30**
+    const MISS = ["unreachable", "aim-outside-target", "tremor-at-edge", "other"];
+    fc.assert(
+      fc.property(
+        fc.constantFrom("goal", "mid", "rep", "cancel"),
+        fc.integer({ min: 0, max: 1000 }),
+        fc.integer({ min: 0, max: 1000 }),
+        fc.boolean(),
+        (target, x, y, tremor) => {
+          const plan = mkPlan([hold(1000, 1500, pxPose(500, 500), "waiting")], { targetId: target, aim: pxPose(x, y) });
+          const c = classifyMiss(ctxFor(tremor ? shaky : quiet), plan);
+          expect(MISS.filter((m) => m === c)).toHaveLength(1);
         },
       ),
       { numRuns: 300 },

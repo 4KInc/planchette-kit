@@ -147,6 +147,8 @@ describe("input schemas", () => {
 });
 
 const causes = { "reading-pause": 0, "pass-over": 1, "tremor-at-edge": 3, repeat: 0, waiting: 0, "early-on-intended-target": 0, other: 0 };
+const missCauses = { unreachable: 0, "aim-outside-target": 1, "tremor-at-edge": 1, other: 0 };
+const ghostMissCauses = { unreachable: 0, "aim-outside-target": 0, "tremor-at-edge": 1, other: 0 };
 const activities = { waiting: 0, moving: 1, "reading pause": 0, "holding on the aim point": 3 };
 const profileFull = { dwellTime: 1000, headGain: 1 };
 const exampleLayout = {
@@ -182,11 +184,12 @@ function simulateExample(): Record<string, unknown> {
         accidentalPer100Intended: 10.5,
         startOfSession: { count: 1, byTarget: [{ targetId: "menu", count: 1 }] },
         misses: 2,
+        missCauses,
         timeToSelectMs: { median: 2310, p90: 3590 },
         causes,
         activities,
         perTarget: [
-          { targetId: "ghost", intended: 4, accidental: 3, startCount: 0, accidentalPer100Intended: 75, misses: 1, timeToSelectMs: { median: 2100, p90: 2900 }, causes, activities },
+          { targetId: "ghost", intended: 4, accidental: 3, startCount: 0, accidentalPer100Intended: 75, misses: 1, missCauses: ghostMissCauses, timeToSelectMs: { median: 2100, p90: 2900 }, causes, activities },
         ],
       },
     ],
@@ -237,6 +240,22 @@ describe("simulate output schema", () => {
     expect(withSuggestion({ ...good, followUp: { factor: "1.5", overlaps: [] } })).toBe(false);
   });
 
+  it("rejects user and per-target rows with a missing, unknown or non-integer missCauses key", () => {
+    type Row = Record<string, unknown>;
+    const mutate = (edit: (user: Row, target: Row) => void) => {
+      const ex = simulateExample();
+      const user = (ex.users as Row[])[0];
+      edit(user, (user.perTarget as Row[])[0]);
+      return SimulateOutputSchema.safeParse(ex).success;
+    };
+    expect(mutate(() => {})).toBe(true);
+    expect(mutate((u) => delete u.missCauses)).toBe(false);
+    expect(mutate((_u, t) => delete t.missCauses)).toBe(false);
+    expect(mutate((u) => delete (u.missCauses as Row)["aim-outside-target"])).toBe(false);
+    expect(mutate((_u, t) => delete (t.missCauses as Row).other)).toBe(false);
+    expect(mutate((u) => ((u.missCauses as Row).bogus = 0))).toBe(false);
+    expect(mutate((_u, t) => ((t.missCauses as Row)["tremor-at-edge"] = 0.5))).toBe(false);
+  });
   it("rejects the cause `start`", () => {
     const ex = simulateExample();
     (ex.accidentalSelections as Record<string, unknown>[])[0].cause = "start";

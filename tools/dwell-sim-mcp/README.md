@@ -289,6 +289,12 @@ Result. The request asks for 2 trials per user to keep the example short; the de
       "startCount": 0,
       "accidentalPer100Intended": 0,
       "misses": 0,
+      "missCauses": {
+        "unreachable": 0,
+        "aim-outside-target": 0,
+        "tremor-at-edge": 0,
+        "other": 0
+      },
       "timeToSelectMs": {
         "median": 3233.333333333334,
         "p90": 3433.333333333334
@@ -321,6 +327,12 @@ Result. The request asks for 2 trials per user to keep the example short; the de
           "startCount": 0,
           "accidentalPer100Intended": 0,
           "misses": 0,
+          "missCauses": {
+            "unreachable": 0,
+            "aim-outside-target": 0,
+            "tremor-at-edge": 0,
+            "other": 0
+          },
           "timeToSelectMs": {
             "median": 3233.333333333334,
             "p90": 3433.333333333334
@@ -348,6 +360,12 @@ Result. The request asks for 2 trials per user to keep the example short; the de
           "startCount": 0,
           "accidentalPer100Intended": 0,
           "misses": 0,
+          "missCauses": {
+            "unreachable": 0,
+            "aim-outside-target": 0,
+            "tremor-at-edge": 0,
+            "other": 0
+          },
           "timeToSelectMs": {
             "median": 2900.1949345777593,
             "p90": 3233.333333333334
@@ -380,6 +398,14 @@ Result. The request asks for 2 trials per user to keep the example short; the de
   "disclaimer": "Simulated users are models from published group averages, not real people. Use these results to compare layouts and settings."
 }
 ```
+
+Miss causes. `missCauses` counts the misses of a row by cause and always lists all four keys, zeros included. The values add up to `misses`. Each miss gets the first cause that applies:
+- `unreachable`: the target lies outside the area the user can reach with their head range.
+- `aim-outside-target`: the planned aim point lies outside the target's rectangle (left and top edges count as inside, right and bottom edges as outside). The simulated user makes no corrective movement, so this always ends in a miss. The layout or the user's range is the cause here, not tremor.
+- `tremor-at-edge`: tremor or tracking noise is on and the aim point is within tremor reach of the target edge.
+- `other`: none of the above.
+
+In this small run there are no misses, so every count is 0.
 
 ### `compare`
 

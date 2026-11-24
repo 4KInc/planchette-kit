@@ -199,6 +199,16 @@ const CausesSchema = z
   })
   .describe("Accidental selections by cause. All seven causes are always present.");
 
+const MissCausesSchema = z
+  .object({
+    unreachable: z.number().int().describe("Misses on a target outside the reachable area."),
+    "aim-outside-target": z.number().int().describe("Misses where the planned aim point lies outside the target."),
+    "tremor-at-edge": z.number().int().describe("Misses where tremor or noise at the target edge pushed the aim off."),
+    other: z.number().int().describe("Misses with another cause."),
+  })
+  .strict()
+  .describe("Misses by miss cause. All four causes are always present; the values sum to `misses`.");
+
 const ActivitiesSchema = z
   .object({
     waiting: z.number().describe("Accidental selections while waiting."),
@@ -221,6 +231,7 @@ const metricFields = {
   startCount: z.number().describe("Start-of-session events, counted separately from accidental selections."),
   accidentalPer100Intended: nullableNumber("Accidental selections per 100 intended, one decimal; null when there are no intended selections."),
   misses: z.number().describe("Task entries not selected before their deadline."),
+  missCauses: MissCausesSchema,
   timeToSelectMs: TimeToSelectSchema,
   causes: CausesSchema,
   activities: ActivitiesSchema,
