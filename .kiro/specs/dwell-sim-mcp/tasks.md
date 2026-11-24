@@ -427,14 +427,14 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - [x] 15.2 Server entry and build check.
     - Write `src/server.ts` (`#!/usr/bin/env node`): redirect `console.log` to `console.error`, create `McpServer`, register the three tools with `registerTool` and `outputSchema`, connect `StdioServerTransport`; exit with code 1 and the "build the skeleton first" message on stderr when `@planchette/skeleton` cannot be resolved. Import only the `server/mcp.js` and `server/stdio.js` subpaths.
-    - The package stays `"private": true` and nothing is published to npm. Write `test/server.test.ts` using the SDK's in-memory transport pair in the test only: the three tools are listed; an `isError` result passes without output-schema validation; nothing is written to stdout by the handlers. Keep that test, and also check over stdio with the SDK client (`StdioClientTransport` against the built `dist/server.js`; skipped with a stderr note when `dist/server.js` is missing) that the built server lists the three tools. Write `test/build-output.test.ts`: after `npm run build:sim`, `dist/server.js` exists and starts with the shebang (skipped with a stderr note when `dist` is missing).
+    - The package stays `"private": true` and nothing is published to npm. Write `test/server.test.ts` using the SDK's in-memory transport pair in the test only: the three tools are listed; an `isError` result passes without output-schema validation; nothing is written to stdout by the handlers. Keep that test, and also write `test/stdio-server.test.ts`, which checks over stdio with the SDK client (`StdioClientTransport` against the built `dist/server.js`; skipped with a stderr note when `dist/server.js` is missing) that the built server lists the three tools. Task 19.1 extends this file. Write `test/build-output.test.ts`: after `npm run build:sim`, `dist/server.js` exists and starts with the shebang (skipped with a stderr note when `dist` is missing).
     - _Requirements: 8.1, 8.2, 8.3, 10.4_
 
   - **Covers:** Req 8 AC 1–3; Req 4 AC 1.
 
-- [ ] 16. Performance benchmark
+- [x] 16. Performance benchmark
 
-  - [ ] 16.1 Benchmark test and recorded measurement.
+  - [x] 16.1 Benchmark test and recorded measurement.
     - Write `test/performance.test.ts`: 6 presets × 10 trials × 20 entries at 30 fps on a fixed 9-target layout with a rest area, measured with `performance.now()` in the test only, asserting `elapsed < 10 000 ms`, printing the measurement. Append a dated entry with the measured time to `docs/kiro-journal.md`.
     - _Requirements: 7.3_
 
@@ -449,7 +449,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - [ ] 17.2 Write METHODOLOGY.md.
     - Write `tools/dwell-sim-mcp/METHODOLOGY.md` in the design §13 order (the limits section includes the note "The simulator plans with the centre the engine captured, as a real user's pointer does."): purpose and disclaimer; the movement model with the formulas of design §4; the generated Figures table with source links; each derived value worked out (scatter SD 72 / 4.133 = 17.4 px and 2.5° / 4.133 = 0.6°; tremor size 12.3 / (2π × 4.25) = 0.46° and 7.77 / (2π × 4.37) = 0.28°; "ET mean + 2 SD = 1.6°" as chosen, not a percentile); the chosen values with reasons (reading pauses, reaction time, noise 0, drift, `MT_MIN`, `READING_DEPTH`, `SETTLE_MS`, `LAG_ALLOWANCE_MS`, noise as uniform peak, scan parameters); the limits, including every Out of scope item, the caveat that tremor is a pure sinusoid while real tremor is less regular (in cervical dystonia often irregular), the open-loop model and engine-level rotation; how determinism works; the start of session (the start path, the cause `start` carried only by start-of-session events, and that they are counted in neither the accidental count nor the rate); and the decision that an event on the aimed target counts as intended once the planned position is inside it; and the grace-time note "Whether a gap off a target continues a stay or resets it can differ between frame rates when the gap is close to graceTime."; and the frame-rate note: "Frame rate: at 15 fps the smoothed pointer arrives later than at 60 fps (median +70 ms, up to about 270 ms in the measured sample); time-to-select at low fps includes this."
-    - Write `test/methodology.test.ts`: the document mentions every `FIGURES` row label, every reference number with its link, every `chosen` parameter's reason in the preset data, every Out of scope item, the sinusoid caveat and the three derived values.
+    - Write `test/methodology.test.ts`: the document mentions every `FIGURES` row label, every reference number with its link, every `chosen` parameter's reason in the preset data, every Out of scope item, the sinusoid caveat, the three derived values, and the three limits notes verbatim: the captured-centre note ("The simulator plans with the centre the engine captured, as a real user's pointer does."), the frame-rate note (at 15 fps the smoothed pointer arrives later than at 60 fps, median +70 ms, up to about 270 ms in the measured sample) and the grace-chaining note (a gap near `graceTime` can continue a stay at one frame rate and reset it at the other).
     - _Requirements: 2.5, 2.6_
 
   - **Covers:** Req 2 AC 5, 6.
@@ -466,7 +466,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 - [ ] 19. MCP end-to-end test
 
   - [ ] 19.1 Test the built server over stdio.
-    - Write `test/server.stdio.test.ts`: start `dist/server.js` as a child process with the SDK's client and `StdioClientTransport` (no network; skipped with a stderr note when `dist/server.js` is missing, and the root `test` script builds first); list the tools; call `list_users`; call `simulate` with a small layout (a few targets, one rest area, one cancel target, one preset, 1 trial); call `compare` with two dwell times; call `simulate` with 13 users and check the `CAP_EXCEEDED` error result; check that nothing but JSON-RPC appears on stdout and the process opens no network connection.
+    - Extend the existing `test/stdio-server.test.ts` from 15.2 (no second stdio test file). It already starts the built `dist/server.js` with the SDK's `StdioClientTransport` and lists the tools; keep its skip with a stderr note when `dist/server.js` is missing (the root `test` script builds first). Add calls over stdio, once each: `list_users`; one `simulate` with a small layout (a few targets, one rest area, one cancel target, one preset, 1 trial); one `compare` with two dwell times. Check that each successful result's `structuredContent` validates against that tool's output schema from `src/tool-schemas.ts`. In the same file, also call `simulate` with 13 users and check the `CAP_EXCEEDED` error result, check that nothing but JSON-RPC appears on stdout, and check that the process opens no network connection.
     - _Requirements: 4.1, 4.20, 5.1, 8.1, 8.2_
 
   - **Covers:** Req 8 AC 1, 2; Req 4 AC 1, 20; Req 5 AC 1.

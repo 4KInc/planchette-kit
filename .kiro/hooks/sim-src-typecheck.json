@@ -1,0 +1,13 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Sim src typecheck and related tests",
+      "description": "On saving a dwell-sim-mcp source file, typecheck the package and run the tests that import it. Quiet on success.",
+      "trigger": "PostFileSave",
+      "matcher": "tools/dwell-sim-mcp/src/.*\\.ts$",
+      "action": { "type": "command", "command": "bash tools/dwell-sim-mcp/scripts/on-src-save.sh" },
+      "timeout": 300
+    }
+  ]
+}

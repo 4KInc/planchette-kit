@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Seed sweep",
+      "description": "Runs the dwell-sim-mcp suite across fast-check global seeds and the property-7 P7_SEED range.",
+      "trigger": "Manual",
+      "action": { "type": "command", "command": "bash tools/dwell-sim-mcp/scripts/seed-sweep.sh" },
+      "timeout": 0
+    }
+  ]
+}

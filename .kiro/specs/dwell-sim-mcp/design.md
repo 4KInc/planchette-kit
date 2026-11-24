@@ -1177,7 +1177,7 @@ a test checks that.
 | `INVALID_LAYOUT` | duplicate or empty id, non-finite or non-positive rect or screen | `Layout problem at {path}: {reason}.` with the fixed reasons listed above |
 | `LAYOUT_MISMATCH` | `compare` layouts have different id sets (path `b.layout`) | `The two layouts must have the same target ids; differing: {ids}.` |
 | `UNKNOWN_PARAMETER` | an override key is not customisable | `Parameter {path} cannot be overridden. Customisable: {list}.` (names sorted, joined with ", ") |
-| `INTERNAL_ERROR` | an exception in a run | `The simulation failed: {message}.` (also written to stderr) |
+| `INTERNAL_ERROR` | an exception in a run | `The simulation failed: {message}.` (one trailing "." is stripped from the core message before wrapping, so the message never ends ".."; also written to stderr) |
 
 **Output examples** (shortened).
 
