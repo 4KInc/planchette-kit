@@ -1212,6 +1212,25 @@
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795499460478
       }
+    ],
+    "19.1 Test the built server over stdio.": [
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795499471330
+      },
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795499836039
+      }
+    ],
+    "19. MCP end-to-end test": [
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795499836115
+      }
     ]
   }
 }

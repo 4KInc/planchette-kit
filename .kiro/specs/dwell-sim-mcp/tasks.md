@@ -463,9 +463,9 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 8 AC 2, 4, 6; Req 10 AC 4, 6.
 
-- [ ] 19. MCP end-to-end test
+- [x] 19. MCP end-to-end test
 
-  - [ ] 19.1 Test the built server over stdio.
+  - [x] 19.1 Test the built server over stdio.
     - Extend the existing `test/stdio-server.test.ts` from 15.2 (no second stdio test file). It already starts the built `dist/server.js` with the SDK's `StdioClientTransport` and lists the tools; keep its skip with a stderr note when `dist/server.js` is missing (the root `test` script builds first). Add calls over stdio, once each: `list_users`; one `simulate` with a small layout (a few targets, one rest area, one cancel target, one preset, 1 trial); one `compare` with two dwell times. Check that each successful result's `structuredContent` validates against that tool's output schema from `src/tool-schemas.ts`. In the same file, also call `simulate` with 13 users and check the `CAP_EXCEEDED` error result, check that nothing but JSON-RPC appears on stdout, and check that the process opens no network connection.
     - _Requirements: 4.1, 4.20, 5.1, 8.1, 8.2_
 
