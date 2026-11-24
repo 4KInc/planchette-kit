@@ -17,7 +17,8 @@
   },
   "scripts": {
     "test": "vitest run --passWithNoTests",
-    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.scripts.json"
+    "build": "tsc -p tsconfig.build.json && tsc -p tsconfig.scripts.json",
+    "methodology:tables": "npm run build && node dist-scripts/generate-methodology-tables.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

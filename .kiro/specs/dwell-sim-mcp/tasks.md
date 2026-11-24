@@ -440,23 +440,23 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 7 AC 3.
 
-- [ ] 17. METHODOLOGY.md
+- [x] 17. METHODOLOGY.md
 
-  - [ ] 17.1 Generate the table sections.
+  - [x] 17.1 Generate the table sections.
     - Write `tools/dwell-sim-mcp/scripts/generate-methodology-tables.ts`: prints the Figures table (with links) and the References from `FIGURES` and `REFERENCES`, and the chosen-values table from the preset data.
     - Write `test/generate-methodology-tables.test.ts`: the output has every `FIGURES` row and every reference link, and every `chosen` reason found in `PRESETS`.
     - _Requirements: 2.5, 2.6_
 
-  - [ ] 17.2 Write METHODOLOGY.md.
+  - [x] 17.2 Write METHODOLOGY.md.
     - Write `tools/dwell-sim-mcp/METHODOLOGY.md` in the design §13 order (the limits section includes the note "The simulator plans with the centre the engine captured, as a real user's pointer does."): purpose and disclaimer; the movement model with the formulas of design §4; the generated Figures table with source links; each derived value worked out (scatter SD 72 / 4.133 = 17.4 px and 2.5° / 4.133 = 0.6°; tremor size 12.3 / (2π × 4.25) = 0.46° and 7.77 / (2π × 4.37) = 0.28°; "ET mean + 2 SD = 1.6°" as chosen, not a percentile); the chosen values with reasons (reading pauses, reaction time, noise 0, drift, `MT_MIN`, `READING_DEPTH`, `SETTLE_MS`, `LAG_ALLOWANCE_MS`, noise as uniform peak, scan parameters); the limits, including every Out of scope item, the caveat that tremor is a pure sinusoid while real tremor is less regular (in cervical dystonia often irregular), the open-loop model and engine-level rotation; how determinism works; the start of session (the start path, the cause `start` carried only by start-of-session events, and that they are counted in neither the accidental count nor the rate); and the decision that an event on the aimed target counts as intended once the planned position is inside it; and the grace-time note "Whether a gap off a target continues a stay or resets it can differ between frame rates when the gap is close to graceTime."; and the frame-rate note: "Frame rate: at 15 fps the smoothed pointer arrives later than at 60 fps (median +70 ms, up to about 270 ms in the measured sample); time-to-select at low fps includes this."
     - Write `test/methodology.test.ts`: the document mentions every `FIGURES` row label, every reference number with its link, every `chosen` parameter's reason in the preset data, every Out of scope item, the sinusoid caveat, the three derived values, and the three limits notes verbatim: the captured-centre note ("The simulator plans with the centre the engine captured, as a real user's pointer does."), the frame-rate note (at 15 fps the smoothed pointer arrives later than at 60 fps, median +70 ms, up to about 270 ms in the measured sample) and the grace-chaining note (a gap near `graceTime` can continue a stay at one frame rate and reset it at the other).
     - _Requirements: 2.5, 2.6_
 
   - **Covers:** Req 2 AC 5, 6.
 
-- [ ] 18. README
+- [x] 18. README
 
-  - [ ] 18.1 Write README.md.
+  - [x] 18.1 Write README.md.
     - Write `tools/dwell-sim-mcp/README.md`: what it is; Node requirement; that a built skeleton is required and the command that builds it (`npm run build --workspace=skeleton`, or `npm run build:sim`); the start commands (`npx dwell-sim-mcp`, `npm run sim --silent`, `node …/dist/server.js`); the Kiro MCP configuration snippet with an absolute path; the warning that stdout is the protocol channel, so clients should launch with `node …/dist/server.js` (npm prints a banner without `--silent`); the tool reference with the three examples from design §11; the limits and the disclaimer.
     - Write `test/readme.test.ts`: the configuration snippet parses as JSON; its `command` is `node` and its last `args` entry ends with the path in the package `bin` (`dist/server.js`); the README contains the skeleton build command, the start command and the stdout warning.
     - _Requirements: 8.2, 8.4, 8.6, 10.4, 10.6_
