@@ -1231,6 +1231,49 @@
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795499836115
       }
+    ],
+    "20.1 Export the demo layout.": [
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795499904959
+      },
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795501325086
+      }
+    ],
+    "20.2 Run the six presets and format the journal entries.": [
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795499905661
+      },
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795501324107
+      }
+    ],
+    "20.3 Run the scripts and record the results.": [
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795501325439
+      },
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795501785868
+      }
+    ],
+    "20. Demo-layout run (Requirement 12)": [
+      {
+        "executionId": "928deda9-94d9-4f50-a9c1-38a1ea5d28f5",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795501785931
+      }
     ]
   }
 }

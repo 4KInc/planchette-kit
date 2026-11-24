@@ -1,0 +1,140 @@
+{
+  "screen": {
+    "width": 1920,
+    "height": 1080
+  },
+  "targets": [
+    {
+      "id": "ghost",
+      "rect": {
+        "x": 43,
+        "y": 165.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "pumpkin",
+      "rect": {
+        "x": 155,
+        "y": 165.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "bat",
+      "rect": {
+        "x": 267,
+        "y": 165.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "witch",
+      "rect": {
+        "x": 43,
+        "y": 277.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "skull",
+      "rect": {
+        "x": 155,
+        "y": 277.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "spider",
+      "rect": {
+        "x": 267,
+        "y": 277.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "candle",
+      "rect": {
+        "x": 43,
+        "y": 389.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "cauldron",
+      "rect": {
+        "x": 155,
+        "y": 389.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "moon",
+      "rect": {
+        "x": 267,
+        "y": 389.59375,
+        "width": 96,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "cancel",
+      "rect": {
+        "x": 43,
+        "y": 501.59375,
+        "width": 152,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "cancel"
+    },
+    {
+      "id": "undo",
+      "rect": {
+        "x": 211,
+        "y": 501.59375,
+        "width": 152,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "undo"
+    },
+    {
+      "id": "rest",
+      "rect": {
+        "x": 889,
+        "y": 297.59375,
+        "width": 402,
+        "height": 140
+      },
+      "autoRepeat": false,
+      "role": "rest-area"
+    }
+  ]
+}

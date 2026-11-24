@@ -471,21 +471,21 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 8 AC 1, 2; Req 4 AC 1, 20; Req 5 AC 1.
 
-- [ ] 20. Demo-layout run (Requirement 12)
+- [x] 20. Demo-layout run (Requirement 12)
 
   - This task depends on `npm run build:sim` and on `npm run build` (the demo page). The two scripts are dev tools: they use the already approved `@playwright/test` from the repo root and are not imported by `src/` (Requirement 8.3 limits the server's runtime imports only). They are compiled by `tsconfig.scripts.json` (Task 2.1) to `dist-scripts/*.js` and run with plain `node`, never with Node's TypeScript support. They import the built simulator from `../dist/*.js`. No new dependency is added.
 
-  - [ ] 20.1 Export the demo layout.
+  - [x] 20.1 Export the demo layout.
     - Write `tools/dwell-sim-mcp/scripts/export-demo-layout.ts`: serve the built demo page (`vite preview`), open `/` at 1920 × 1080 and again at 1366 × 768, read `window.planchetteDemo.planchette.getTargets()` and the viewport, and write `tools/dwell-sim-mcp/demo-layout-1920x1080.json` and `demo-layout-1366x768.json` as `{ screen, targets }`. The pure conversion is an exported function `toLayoutJson`. Add the workspace script `demo:export` (runs `build`, then `node dist-scripts/export-demo-layout.js`) and the root script of the same name if needed.
     - Write `test/export-demo-layout.test.ts` for `toLayoutJson`: the output has `screen` and `targets` with `id`, `rect`, `autoRepeat` and `role`, and passes `validate-request.ts` layout checks.
     - _Requirements: 12.1_
 
-  - [ ] 20.2 Run the six presets and format the journal entries.
+  - [x] 20.2 Run the six presets and format the journal entries.
     - Write `tools/dwell-sim-mcp/scripts/run-demo-presets.ts`: call `handleSimulate` from the built `dist/tool-handlers.js` (the same code path as the `simulate` tool) once per preset (`steady`, `slow`, `head-tremor`, `strong-head-tremor`, `small-range`, `reads-while-pointing`, each exactly once) on the 1920 × 1080 layout with the default profile, `{ eachTarget: 3 }` and seed 1, and run the same on the 1366 × 768 layout; format one journal entry per preset (six in total) in the tech.md format (date, what Kiro did, what went wrong or surprised us, what we changed, links to commits or counterexamples) with intended, accidental (per 100), misses, time-to-select median and p90, top causes and suggestions; the 1366 × 768 result is a second line inside the same preset entry. Add the workspace script `demo:run` (runs `build`, then `node dist-scripts/run-demo-presets.js`).
     - Write `test/run-demo-presets.test.ts` for the formatter with a stub result: six entries for six presets, each preset named exactly once, each entry has all the tech.md fields, and the run calls the handler with exactly the six preset names.
     - _Requirements: 12.1, 12.2_
 
-  - [ ] 20.3 Run the scripts and record the results.
+  - [x] 20.3 Run the scripts and record the results.
     - After `npm run build` and `npm run build:sim`, run `npm run demo:export` and `npm run demo:run` (from `dist-scripts/*.js` with `node`), commit the two JSON layouts, and append the six preset entries to `docs/kiro-journal.md`. Note in the entries anything that went wrong or surprised us.
     - _Requirements: 12.1, 12.2_
 
