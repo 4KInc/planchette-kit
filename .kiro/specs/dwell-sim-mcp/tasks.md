@@ -491,7 +491,7 @@ Each task references the requirements (Req N AC M) and properties (P N) it cover
 
   - **Covers:** Req 12 AC 1, 2.
 
-- [ ] 21. Final checkpoint
+- [x] 21. Final checkpoint
   - Run `npm test` and `npm run build` at the repo root. Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
