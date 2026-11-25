@@ -1,0 +1,18 @@
+{
+  "name": "@planchette/board",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@planchette/skeleton": "*"
+  },
+  "devDependencies": {
+    "@types/node": "24.19.2",
+    "fast-check": "4.10.3",
+    "typescript": "7.0.2",
+    "vitest": "5.1.1"
+  }
+}

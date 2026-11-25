@@ -227,26 +227,36 @@ describe('the apps and tools use the kit only by its package name', () => {
   const specifiers = /(?:from|import)\s*\(?\s*['"]([^'"]+)['"]|<script[^>]*src=['"]([^'"]+)['"]/g;
   const consumers = [...sourceFiles(resolve(root, 'apps')), ...sourceFiles(resolve(root, 'tools'))];
 
-  it('no file in apps/ or tools/ imports a path into skeleton/', () => {
+  // Public names come from the package's `exports` map: "." and "./ui".
+  const exportsMap = (
+    JSON.parse(readFileSync(resolve(pkgDir, 'package.json'), 'utf8')) as { exports: Record<string, unknown> }
+  ).exports;
+  const publicNames = new Set(Object.keys(exportsMap).map((k) => (k === '.' ? '@planchette/skeleton' : `@planchette/skeleton/${k.slice(2)}`)));
+  const isBadSkeletonSpecifier = (spec: string): boolean =>
+    /(^|\/)skeleton(\/|$)/.test(spec) && !publicNames.has(spec);
+
+  it('no file in apps/ or tools/ imports a path into skeleton/ other than a public export', () => {
     const offenders: string[] = [];
     for (const file of consumers) {
       const text = readFileSync(file, 'utf8');
       for (const m of text.matchAll(specifiers)) {
         const spec = m[1] ?? m[2];
-        const intoSkeleton = /(^|\/)skeleton(\/|$)/.test(spec) && spec !== '@planchette/skeleton';
-        if (intoSkeleton) offenders.push(`${relative(root, file)}: ${spec}`);
+        if (isBadSkeletonSpecifier(spec)) offenders.push(`${relative(root, file)}: ${spec}`);
       }
     }
     expect(offenders).toEqual([]);
   });
 
   it('the checker itself finds a bad import (so the test above can fail)', () => {
-    const bad = `import { createPlanchette } from '../../../skeleton/src/index';`;
-    const found = [...bad.matchAll(specifiers)].map((m) => m[1] ?? m[2]);
-    expect(found.some((s) => /(^|\/)skeleton(\/|$)/.test(s) && s !== '@planchette/skeleton')).toBe(true);
-    const good = `import { createPlanchette } from '@planchette/skeleton';`;
-    const ok = [...good.matchAll(specifiers)].map((m) => m[1] ?? m[2]);
-    expect(ok).toEqual(['@planchette/skeleton']);
+    // Built at runtime so this file does not trip the scanner above.
+    const name = ['skele', 'ton'].join('');
+    const pick = (src: string): string[] => [...src.matchAll(specifiers)].map((m) => m[1] ?? m[2]);
+    const bad = pick(`import { a } from '../../../${name}/src/index';`);
+    expect(bad.some(isBadSkeletonSpecifier)).toBe(true);
+    expect(pick(`import { a } from '@planchette/${name}';`)).toEqual(['@planchette/skeleton']);
+    expect(isBadSkeletonSpecifier(`@planchette/${name}`)).toBe(false);
+    expect(isBadSkeletonSpecifier(`@planchette/${name}/ui`)).toBe(false);
+    expect(isBadSkeletonSpecifier(`@planchette/${name}/src/engine/dwell.js`)).toBe(true);
   });
 
   it('vite resolves the package name to the source, so dev and build work without building first', () => {

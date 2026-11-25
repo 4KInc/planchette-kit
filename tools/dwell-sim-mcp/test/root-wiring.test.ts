@@ -18,6 +18,7 @@ describe("root wiring", () => {
   it("lists the package in workspaces next to the skeleton", () => {
     expect(root.workspaces).toContain("tools/dwell-sim-mcp");
     expect(root.workspaces).toContain("skeleton");
+    expect(root.workspaces).toContain("apps/board");
   });
 
   it("defines sim and build:sim", () => {
@@ -30,18 +31,20 @@ describe("root wiring", () => {
     );
   });
 
-  it("type-checks both workspaces", () => {
+  it("type-checks all three workspaces", () => {
     const typecheck = root.scripts?.typecheck ?? "";
     expect(typecheck).toContain("tsc --noEmit -p skeleton/tsconfig.json");
     expect(typecheck).toContain("tsc --noEmit -p tools/dwell-sim-mcp/tsconfig.json");
+    expect(typecheck).toContain("tsc --noEmit -p apps/board/tsconfig.json");
   });
 
-  it("builds the simulator before running the tests of both workspaces", () => {
+  it("builds the simulator before running the tests of all three workspaces", () => {
     const test = root.scripts?.test ?? "";
     expect(test).toContain("npm run typecheck");
     expect(test).toContain("npm run build:sim");
     expect(test).toContain("--workspace=skeleton");
     expect(test).toContain("--workspace=tools/dwell-sim-mcp");
+    expect(test).toContain("--workspace=apps/board");
     expect(test.indexOf("build:sim")).toBeLessThan(test.indexOf("npm run test --workspace"));
   });
 

@@ -49,6 +49,8 @@ a speech-language therapist; this notice is shown in the app.
 - **Core word list**: the fixed list of words shown in the Core-vocabulary grid, from
   the Universal Core vocabulary (Center for Literacy and Disability Studies, UNC
   Chapel Hill; CC BY 4.0; see Requirement 2).
+- **Exclusion list**: the bundled list of single offensive words (from LDNOOBW) used
+  to filter the Prediction word list when `filterOffensiveWords` is on (Requirement 4).
 - **Prediction word list**: the bundled word-frequency data used, together with the
   person's spoken-word history, to rank predictions (Requirement 4).
 - **Spoken-word history**: the list of words the person has spoken from the Board,
@@ -151,10 +153,10 @@ prediction strip, I want to spell it letter by letter, so that I can say anythin
    board in place of the Core-vocabulary grid.
 2. THE Board SHALL provide an exit-Spell-mode target that, when selected while in
    Spell mode, shows the Core-vocabulary grid in place of the Letter board.
-3. THE Letter board SHALL show the 26 English letters in frequency order (most
+3. THE Letter board SHALL be a fixed grid of 6 columns by 5 rows that shows the 26 English letters in frequency order (most
    frequent first: E, T, A, O, I, N, S, H, R, D, L, C, U, M, W, F, G, Y, P, B, V, K, J,
-   X, Q, Z, per written-English single-letter frequency), a Space button, and a
-   Backspace button, each at a fixed row and column within the Letter board for the
+   X, Q, Z, per written-English single-letter frequency) in plain row-major order from row 0, column 0, so that row 4 holds Q, Z, then a Space button and a
+   Backspace button in columns 0 to 3, with columns 4 and 5 of row 4 empty and carrying no target, and each key at a fixed row and column within the Letter board for the
    lifetime of the session. Frequency order is chosen over alphabetical order because
    every input mode here reaches letters by pointing, dwelling, or scanning in a fixed
    visiting order, so putting frequent letters earliest in that order (nearer the top
@@ -224,6 +226,26 @@ the buttons I already know by position.
 12. THE Board SHALL apply Requirement 4 AC 3, AC 5, and AC 6 (core-word exclusion, slot
     stability, no duplicate words) to prefix predictions in the same way as to
     whole-Message predictions.
+13. WHERE the Board-only setting `filterOffensiveWords` is on, THE Board SHALL
+    exclude from the Prediction strip every word that is in the Exclusion list and is
+    not in the Spoken-word history.
+14. WHERE the Board-only setting `filterOffensiveWords` is off, THE Board SHALL rank
+    the bundled Prediction word list without applying the Exclusion list.
+15. THE Board SHALL apply `filterOffensiveWords` only to words offered from the
+    bundled Prediction word list, so that a word in the person's Spoken-word history
+    stays eligible for prediction whatever the setting, and SHALL NOT block or alter
+    the adding of any letter or word to the Message, the Message itself, or Speak.
+16. THE Board SHALL bundle the Exclusion list as its own data file, derived from the
+    English list (file `en`) of LDNOOBW
+    (<https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words>;
+    licence Creative Commons Attribution 4.0 International, copyright 2012-2020
+    Shutterstock, Inc.), SHALL keep a licence notice next to the data file, and SHALL
+    record its source, licence, and the changes made in `THIRD_PARTY.md` and on the
+    About screen (Requirement 12).
+17. WHEN deciding whether a word is in the Exclusion list, THE Board SHALL compare
+    the whole word, case-insensitively, after the same normalisation as the Prediction
+    word list, and SHALL ignore Exclusion list entries made of more than one word,
+    because they cannot equal a single predicted word.
 
 ### Requirement 5: Input modes
 
@@ -284,6 +306,10 @@ rate, and keep those settings, so that the Board fits my body and my voice prefe
 7. WHEN an imported Board-only setting is missing or invalid, THE Board SHALL fall
    back to that setting's default and report the fallback in the same way as a
    skeleton Profile field.
+8. THE Settings screen SHALL show the setting "Filter offensive words from
+   suggestions" (`filterOffensiveWords`) as an ordinary control that the person or a
+   carer can change, and THE Board SHALL save it to local storage immediately with
+   the other Board-only settings.
 
 ### Requirement 7: Quick phrases
 
@@ -406,6 +432,8 @@ setting, its default, and its range, so that Settings, storage, and tests agree.
 6. WHEN the Board starts and a saved or imported Profile exists, THE Board SHALL keep
    that Profile's dwell time, whatever its value, and SHALL NOT apply the 1400 ms
    default.
+7. THE Board SHALL define `filterOffensiveWords` as a Board-only boolean setting,
+   default on.
 
 ### Requirement 12: About screen
 
@@ -428,6 +456,10 @@ limits.
    that stays under CC BY-SA 4.0 and that the Board's code is MIT-licensed.
 5. THE About screen SHALL show the not-a-medical-device notice of Requirement 9 AC 10.
 6. THE About screen SHALL show the Board version.
+7. THE About screen SHALL credit the Exclusion list (LDNOOBW, English list, copyright
+   2012-2020 Shutterstock, Inc.), state its licence CC BY 4.0, state the changes made
+   (single-word entries only, normalised), and link to its source repository and to
+   the licence.
 
 ## Properties for property-based tests
 
@@ -458,3 +490,7 @@ and any valid Board profile.
    or `WebSocket` call is made.
 9. **Prefix predictions**: for any Message with a non-empty Partial word, every predicted
    word starts with the Partial word.
+10. **Offensive-word filter**: for any Message, word list, history, and Exclusion list,
+    with `filterOffensiveWords` on no Exclusion list word is in the Prediction strip
+    unless it is in the Spoken-word history; with it off, the strip is ranked from the
+    unfiltered list.

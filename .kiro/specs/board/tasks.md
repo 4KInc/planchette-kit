@@ -9,7 +9,7 @@ then wire them together behind the DOM layer, then add the data files
 with the dwell-sim-mcp layout validation gated on the `reads-while-pointing`
 acceptance target from design.md. Each task names the file(s) it writes and the test
 file next to it. Unit tests are `apps/board/test/<thing>.test.ts`, property tests are
-`<thing>.props.test.ts`. Each of the fourteen properties in design.md is its own
+`<thing>.props.test.ts`. Each of the fifteen properties in design.md is its own
 required sub-task, placed right after the component it checks.
 
 Convert the feature design into a series of prompts for a code-generation LLM that
@@ -20,9 +20,9 @@ tasks that involve writing, modifying, or testing code.
 
 ## Tasks
 
-- [ ] 1. Core-vocabulary and letter-board data
+- [x] 1. Core-vocabulary and letter-board data
 
-  - [-] 1.0 Wire apps/board into the workspace.
+  - [x] 1.0 Wire apps/board into the workspace.
     - Create `apps/board/package.json`: `"private": true`, `"type": "module"`, name
       `@planchette/board`, dependency `@planchette/skeleton` `*` (as
       `tools/dwell-sim-mcp` does), devDependencies `vitest` 5.1.1, `fast-check` 4.10.3,
@@ -52,7 +52,7 @@ tasks that involve writing, modifying, or testing code.
       sample with a violating specifier to show the check fails when it should.
     - _Requirements: none (build and test infrastructure)_
 
-  - [ ] 1.1 Write the fixed core-vocabulary table.
+  - [x] 1.1 Write the fixed core-vocabulary table.
     - Create `apps/board/src/core-vocabulary.ts`: the `CoreButton` type and the
       `CORE_VOCABULARY` literal array (the 36 Universal Core vocabulary words, CC BY
       4.0, CLDS/UNC, alphabetical row-major into a fixed 6×6 grid), per design.md
@@ -62,20 +62,24 @@ tasks that involve writing, modifying, or testing code.
       is 0–5 and every `col` is 0–5; no two entries share a `(row, col)`.
     - _Requirements: 2.1, 2.2_
 
-  - [ ] 1.2 Write the fixed letter-board table.
+  - [x] 1.2 Write the fixed letter-board table.
     - Create `apps/board/src/letter-board.ts`: the `LetterKey` type and the
-      `LETTER_BOARD` literal array (26 letters in frequency order E T A O I N S H R D
-      L C U M W F G Y P B V K J X Q Z, then Space, then Backspace, fixed 6×5 grid).
+      `LETTER_BOARD` literal array (a fixed grid of 6 columns × 5 rows; the 26 letters
+      in frequency order E T A O I N S H R D L C U M W F G Y P B V K J X Q Z placed
+      in plain row-major order, then Space at (4,2) and Backspace at (4,3); cells
+      (4,4) and (4,5) are empty and have no entry).
     - Write `apps/board/test/letter-board.test.ts`: exactly 28 entries (26 letters +
       Space + Backspace); the letter order matches the documented frequency order
-      exactly; every `(row, col)` is unique.
+      exactly and each letter sits at row `floor(i / 6)`, column `i % 6`; Q is at
+      (4,0) and Z at (4,1); Space is at (4,2); Backspace is at (4,3); no key exists at
+      (4,4) or (4,5); every `(row, col)` is unique and within 0–4 and 0–5.
     - _Requirements: 3.3_
 
   - **Covers:** Req 2 AC 1, 2; Req 3 AC 3; build and test wiring (1.0).
 
-- [ ] 2. Message model and undo
+- [x] 2. Message model and undo
 
-  - [ ] 2.1 Implement `createBoardModel`.
+  - [x] 2.1 Implement `createBoardModel`.
     - Create `apps/board/src/board-model.ts`: the `BoardAction` type, `BoardModel`
       interface, and `createBoardModel` (dispatch, undo, canUndo, subscribe), per
       design.md's spacing-insertion, backspace (word vs. letter), and no-op rules,
@@ -89,14 +93,14 @@ tasks that involve writing, modifying, or testing code.
       stack; `replace` (quick phrase) replaces the whole message.
     - _Requirements: 1.2, 1.4, 1.5, 1.6, 3.4, 3.5, 3.6, 7.2_
 
-  - [ ]* 2.2 Write the property test for Clear then undo.
+  - [x]* 2.2 Write the property test for Clear then undo.
     - In `apps/board/test/board-model.props.test.ts`, generate arbitrary message
       strings (including empty, whitespace-only, and unicode) and assert
       `dispatch({type:'clear'})` then `undo()` restores the exact original message.
     - **Property 2: Clear then undo is identity**
     - **Validates: Requirements 1.6, 1.7**
 
-  - [ ]* 2.3 Write the property test for any undoable action then undo.
+  - [x]* 2.3 Write the property test for any undoable action then undo.
     - In the same file, generate an arbitrary message and an arbitrary non-no-op
       `BoardAction`; assert dispatch-then-undo restores the exact original message.
     - **Property 3: Any undoable action then undo is identity**
@@ -104,7 +108,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 1 AC 2, 4, 5, 6, 7; Req 3 AC 4, 5, 6; Req 7 AC 2; P2, P3.
 
-- [ ] 3. Checkpoint - message model complete
+- [-] 3. Checkpoint - message model complete
   - Run the root `npm test` (typecheck, build, then every workspace's tests, including
     `apps/board`) and confirm the Task 1–2 tests pass. Ensure all tests pass, ask the user
     if questions arise.
@@ -150,14 +154,49 @@ tasks that involve writing, modifying, or testing code.
       entry.
     - _Requirements: 2.5, 4.8_
 
-  - **Covers:** Req 2 AC 5; Req 4 AC 3, 8.
+  - [ ] 4.3 Verify the licence, then generate the bundled Exclusion list asset.
+    - **First step, before anything is copied or built:** fetch the README and LICENSE
+      of <https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words>
+      and confirm they state Creative Commons Attribution 4.0 International
+      (copyright 2012-2020 Shutterstock, Inc.). If they do not, **stop and tell the
+      user**; do not copy the file or run the build.
+    - Commit an unmodified copy of the file `en` as
+      `apps/board/data/source/ldnoobw-en.txt` (no download at build or run time).
+    - Write `apps/board/scripts/build-offensive-words.ts`: reads only that committed
+      file and writes `apps/board/data/offensive-words.json` (a JSON array of strings).
+      Rules, in order: lower-case; drop every entry that is not made only of a-z and
+      apostrophes (this drops every multi-word entry, which could never equal a single
+      predicted word); de-duplicate.
+    - Write `apps/board/data/offensive-words.LICENSE.md`: the CC BY 4.0 notice (source
+      repository and file `en`, copyright 2012-2020 Shutterstock, Inc., link to
+      <https://creativecommons.org/licenses/by/4.0/>, the changes made: single-word
+      entries only, lower-cased, de-duplicated).
+    - Write `apps/board/test/build-offensive-words.test.ts`: every entry matches
+      `/^[a-z']+$/`; no duplicates; no entry contains a space; a sample multi-word line
+      in a small inline input is dropped and a sample single-word line is kept; the
+      build reads no network (spy on `fetch`); the licence file exists next to the JSON
+      and contains "CC BY 4.0", "Shutterstock", and "LDNOOBW".
+    - _Requirements: 4.16, 4.17_
+
+  - [ ] 4.4 Record the Exclusion list in THIRD_PARTY.md.
+    - Add to the "Data files" section of `THIRD_PARTY.md` an entry for the Exclusion
+      list: file path, licence CC BY 4.0, copyright 2012-2020 Shutterstock, Inc., the
+      changes made, and links to the source repository and the licence.
+    - Extend `apps/board/test/third-party-board.test.ts`: `THIRD_PARTY.md` contains
+      "LDNOOBW", "Shutterstock", and "CC BY 4.0" for the Exclusion list entry.
+    - _Requirements: 4.16_
+
+  - **Covers:** Req 2 AC 5; Req 4 AC 3, 8, 16, 17.
 
 - [ ] 5. Prediction strip model
 
   - [ ] 5.1 Implement `createPredictionStrip`.
     - Create `apps/board/src/prediction.ts`: `SlotState`, `SlotLock`,
-      `PredictionStrip`, `createPredictionStrip`, the ranking formula
-      (`normalizedFreq + recencyWeight`), the core-exclusion filter, the prefix rule
+      `PredictionStrip`, `OffensiveWordFilter`, `createPredictionStrip` (taking the
+      filter as its fourth argument), the ranking formula
+      (`normalizedFreq + recencyWeight`), the core-exclusion filter, the offensive-word
+      filter (when `filter.enabled()` is true, drop candidates that are in
+      `filter.excluded` and not in the history; history words are never dropped), the prefix rule
       (non-empty `partialWord`: only words starting with it, history words first), and
       the lock-respecting fill rule from design.md; `recompute(message, partialWord,
       isLocked)`.
@@ -169,8 +208,10 @@ tasks that involve writing, modifying, or testing code.
       `slotCount` leaves the remaining unlocked slots `null`; with partial word `"he"`,
       a spoken `"hello"` ranks ahead of a higher-frequency bundled `"help"`, and no
       candidate lacks the prefix; clearing the partial word returns to the
-      whole-message ranking.
-    - _Requirements: 4.1, 4.2, 4.6, 4.7, 4.9, 4.10, 4.11_
+      whole-message ranking; with the filter on, an excluded bundled-list word is
+      absent, the same word is present when it is in the history, and with the filter
+      off it is present.
+    - _Requirements: 4.1, 4.2, 4.6, 4.7, 4.9, 4.10, 4.11, 4.13, 4.14, 4.15_
 
   - [ ]* 5.2 Write the property test for locked-slot stability.
     - In `apps/board/test/prediction.props.test.ts`, generate a message/word-list/
@@ -202,7 +243,17 @@ tasks that involve writing, modifying, or testing code.
     - **Property 14: Prefix predictions start with the partial word**
     - **Validates: Requirements 4.10, 4.12**
 
-  - **Covers:** Req 4 AC 1, 2, 6, 7, 9, 10, 11, 12; P4, P5, P6, P14.
+  - [ ]* 5.6 Write the property test for the offensive-word filter.
+    - In `apps/board/test/prediction.props.test.ts`, generate a word list, a history,
+      an Exclusion list (a random subset of the list's words plus some history words),
+      a message and partial word, an arbitrary locked-slot subset, and the setting
+      on/off. With the filter on, assert no word that is in the Exclusion list and not
+      in the history appears in any slot; with it off, assert the slots equal those
+      computed with an empty Exclusion list.
+    - **Property 15: Offensive-word filter**
+    - **Validates: Requirements 4.13, 4.14, 4.15, 4.17**
+
+  - **Covers:** Req 4 AC 1, 2, 6, 7, 9, 10, 11, 12, 13, 14, 15; P4, P5, P6, P14, P15.
 
 - [ ] 6. Storage layer
 
@@ -296,7 +347,10 @@ tasks that involve writing, modifying, or testing code.
       `BoardProfileFields`, `BoardExport`, export/import functions that call the
       skeleton's `exportProfile`/`importProfile` for the `profile` part and apply the
       same clamp-or-default-and-report rule to `predictionSlotCount` (2–8) and
-      `speechRate` (0.5–2.0).
+      `speechRate` (0.5–2.0), and to `filterOffensiveWords` (boolean, default `true`;
+      a missing or non-boolean value becomes `true` and is reported). `main.ts` passes
+      `() => settings.filterOffensiveWords` and the Set loaded from
+      `offensive-words.json` to `createPredictionStrip`.
     - In `apps/board/src/main.ts` (first version: wiring only the pure stores, no DOM
       yet), add the rule that a word is appended to the Spoken-word history only after
       a `speak()` call resolves `{ spoken: true }`, splitting the spoken message on
@@ -307,14 +361,16 @@ tasks that involve writing, modifying, or testing code.
       saved `dwellTime` of 1400 or 600 it keeps that value; with no saved profile
       (`usedDefault: true`) it applies 1400; an out-of-range `predictionSlotCount`
       (for example 1 or 9) is clamped to 2 or 8 on import and reported; a missing
-      `speechRate` falls back to 1.0 and is reported.
+      `speechRate` falls back to 1.0 and is reported; `filterOffensiveWords` defaults
+      to `true` with no saved settings, survives export then import when `false`, and
+      a non-boolean value (for example `"no"`) falls back to `true` and is reported.
     - Write `apps/board/test/main-history.test.ts`: selecting a predicted word alone
       does not change history; a `speak()` call that resolves `spoken: true` adds each
       word of the message to history; a `speak()` call that resolves `spoken: false`
       does not change history.
     - Also in `board-settings.ts`: `resolveInitialProfile(saved)` per design.md
       "Design levers used", lever 1; `main.ts` calls it before the first `setProfile`.
-    - _Requirements: 4.4, 4.9, 6.2, 6.3, 6.5, 6.6, 6.7, 8.6, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6_
+    - _Requirements: 4.4, 4.9, 6.2, 6.3, 6.5, 6.6, 6.7, 6.8, 8.6, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
 
   - [ ]* 10.2 Write the property test for settings export/import round trip and clamping.
     - In `apps/board/test/board-settings.props.test.ts`, generate arbitrary valid
@@ -455,7 +511,8 @@ tasks that involve writing, modifying, or testing code.
       controls for every Board/skeleton profile field (reusing the input-core Profile
       fields table's min/max as help text), the `voiceURI` `<select>` populated from
       `speechSynthesis.getVoices().filter(v => v.localService)`, the `speechRate`
-      range input, the Export/Import text box and buttons (mirroring the skeleton
+      range input, the "Filter offensive words from suggestions" checkbox (on by
+      default, changeable by the person or a carer, saved immediately), the Export/Import text box and buttons (mirroring the skeleton
       demo's profile box), and the Quick-phrases editor (add/edit/remove, Move
       up/Move down buttons for keyboard-operable reordering).
     - Write `apps/board/test/settings-dom.test.ts` (jsdom): every control has an
@@ -468,11 +525,15 @@ tasks that involve writing, modifying, or testing code.
       `messages.ts`: version, not-a-medical-device notice, Universal Core vocabulary
       credit (CC BY 4.0, links), Prediction word list credit (hermitdave/FrequencyWords,
       Hermit Dave, OpenSubtitles 2018 via OPUS, CC BY-SA 4.0, changes made, links), the
-      derivative-stays-CC-BY-SA and code-is-MIT statement. Write
+      derivative-stays-CC-BY-SA and code-is-MIT statement, and the Exclusion list
+      credit (LDNOOBW, copyright 2012-2020 Shutterstock, Inc., CC BY 4.0, changes
+      made, links). In `settings-dom.test.ts`, also check: the checkbox has an
+      accessible name, is checked on first run, and toggling it saves the setting and
+      changes the Prediction strip's candidates without affecting the Message. Write
       `apps/board/test/about-dom.test.ts` (jsdom): the About button is reachable by Tab;
       the screen contains each credit, licence name, and link `href`, the notice, and a
       non-empty version string.
-    - _Requirements: 6.1, 6.4, 7.3, 8.4, 8.5, 9.9, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6_
+    - _Requirements: 6.1, 6.4, 6.8, 7.3, 8.4, 8.5, 9.9, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
 
   - **Covers:** Req 6 AC 1, 4; Req 7 AC 3; Req 8 AC 4, 5; Req 9 AC 9; Req 12.
 
@@ -623,7 +684,7 @@ tasks that involve writing, modifying, or testing code.
 
 - Tasks marked with `*` (property and regression tests) are optional sub-tasks and
   can be skipped for a faster MVP, except that skipping Task 24.3 is only valid when
-  no counterexample was found (noted inline on that task). All fourteen numbered
+  no counterexample was found (noted inline on that task). All fifteen numbered
   properties in design.md are implemented as required sub-tasks regardless of the
   `*` marking convention used elsewhere in this plan for clarity; the `*` here follows
   this workflow's own convention that test-only sub-tasks may be marked optional, but
@@ -650,8 +711,8 @@ tasks that involve writing, modifying, or testing code.
     { "id": 3, "tasks": ["2.2", "2.3"] },
     { "id": 4, "tasks": ["3"] },
     { "id": 5, "tasks": ["4.1"] },
-    { "id": 6, "tasks": ["4.2", "5.1", "6.1"] },
-    { "id": 7, "tasks": ["5.2", "5.3", "5.4", "5.5", "6.2"] },
+    { "id": 6, "tasks": ["4.2", "4.3", "5.1", "6.1"] },
+    { "id": 7, "tasks": ["4.4", "5.2", "5.3", "5.4", "5.5", "5.6", "6.2"] },
     { "id": 8, "tasks": ["7"] },
     { "id": 9, "tasks": ["8.1", "9.1"] },
     { "id": 10, "tasks": ["8.2", "9.2", "9.3"] },

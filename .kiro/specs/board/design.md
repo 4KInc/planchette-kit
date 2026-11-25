@@ -30,7 +30,8 @@ apps/board/src/
   quick-phrases.ts       pure: CRUD over the quick-phrases list
   speech.ts              thin wrapper over `speechSynthesis`, local-service filter
   board-storage.ts       pure: localStorage read/write, schema, versioning, corrupt-data fallback
-  board-settings.ts      pure: Board profile fields (predictionSlotCount, voiceURI, speechRate),
+  board-settings.ts      pure: Board profile fields (predictionSlotCount, voiceURI, speechRate,
+                          filterOffensiveWords),
                           export/import together with the skeleton Profile
   messages.ts            every user-facing string, one file (structure.md convention)
   board-dom.ts            the only file that touches the DOM: renders grid/strip/bar/settings,
@@ -104,9 +105,11 @@ export interface LetterKey {
   readonly row: number;
   readonly col: number;
 }
-/** 26 letters in English single-letter frequency order (most frequent first: E T A O I N
- *  S H R D L C U M W F G Y P B V K J X Q Z), then Space, then Backspace, laid out row-major
- *  into a fixed 6x5 grid (last row: Space spans the first slot, Backspace the second). */
+/** A fixed grid of 6 columns x 5 rows (rows 0-4, cols 0-5). The 26 letters in English
+ *  single-letter frequency order (E T A O I N S H R D L C U M W F G Y P B V K J X Q Z)
+ *  are placed in plain row-major order from (0,0). Row 4 is therefore Q (4,0), Z (4,1),
+ *  then Space (4,2) and Backspace (4,3). Cells (4,4) and (4,5) are empty: no key, no
+ *  target is registered for them. */
 export const LETTER_BOARD: readonly LetterKey[];
 ```
 
@@ -169,17 +172,27 @@ export interface PredictionStrip {
   recompute(message: string, partialWord: string, isLocked: SlotLock): void;
   subscribe(fn: (slots: readonly SlotState[]) => void): () => void;
 }
+export interface OffensiveWordFilter {
+  readonly excluded: ReadonlySet<string>; // normalised single words (Exclusion list)
+  readonly enabled: () => boolean;        // current `filterOffensiveWords` setting
+}
 export function createPredictionStrip(
   slotCount: number,
   wordList: PredictionWordList,
   history: SpokenWordHistory,
+  filter: OffensiveWordFilter,
 ): PredictionStrip;
 ```
 
 `recompute` is called by `main.ts` on every `message` change. It:
 1. Computes the ranked candidate list: `score(word) = normalizedFreq(word) +
    recencyWeight(history, word)`, excluding every `CORE_VOCABULARY` word
-   (Requirement 4 AC 3). When `partialWord` is non-empty, candidates are first
+   (Requirement 4 AC 3). When `filter.enabled()` is true, it also drops every
+   candidate that is in `filter.excluded` and is not a key of `history.entries`
+   (Requirement 4 AC 13, 15); when it is false, nothing is dropped for this reason
+   (Requirement 4 AC 14). The filter touches only this candidate list: it is never
+   consulted by `board-model.ts`, the Letter board, or `speak`, so typing is never
+   blocked. When `partialWord` is non-empty, candidates are first
    filtered to words whose lower-cased form starts with the lower-cased `partialWord`,
    then ordered in two groups: words present in the Spoken-word history first, then
    words only in the bundled list, each group by `score` descending (Requirement 4
@@ -269,7 +282,7 @@ persisting that one change).
 | `planchette-board:message` | `{ version, message: string }` | 1 | saved after every Action so a reload resumes the sentence in progress; capped at 2000 characters, truncated silently if exceeded |
 | `planchette-board:history` | `{ version, words: Array<{ word: string; count: number; lastSpokenAt: number }> }` | 1 | capped at 500 distinct words; least-recently-spoken evicted first |
 | `planchette-board:quick-phrases` | `{ version, phrases: Array<{ id: string; text: string }> }` | 1 | capped at 100 phrases, each at most 500 characters; seeded on first run with a short built-in starter list (`messages.ts`) |
-| `planchette-board:settings` | `{ version, profile: Partial<Profile>, board: { predictionSlotCount, voiceURI, speechRate } }` | 1 | `profile` is the skeleton Profile's exportable JSON shape, not re-validated here — `importProfile` does that |
+| `planchette-board:settings` | `{ version, profile: Partial<Profile>, board: { predictionSlotCount, voiceURI, speechRate, filterOffensiveWords } }` | 1 | `profile` is the skeleton Profile's exportable JSON shape, not re-validated here — `importProfile` does that |
 
 Every key is namespaced `planchette-board:` so it cannot collide with a future App B
 key or a host page's own storage. `version` lets a future schema change add a
@@ -334,7 +347,9 @@ build time); the not-a-medical-device notice; the Universal Core vocabulary cred
 Prediction word list credit (hermitdave/FrequencyWords, Hermit Dave, English
 OpenSubtitles 2018 via OPUS, CC BY-SA 4.0, the changes made (trimmed, lower-cased,
 filtered), links to the repository and the licence); a statement that the trimmed list
-is a derivative that stays CC BY-SA 4.0 and that the Board's code is MIT (Requirement 12).
+is a derivative that stays CC BY-SA 4.0 and that the Board's code is MIT; and the Exclusion list credit (LDNOOBW, English list, copyright
+2012-2020 Shutterstock, Inc., CC BY 4.0, the changes made, links to the repository and
+the licence) (Requirement 12).
 
 ### Settings UI
 
@@ -350,6 +365,9 @@ renders:
   v.localService)`, with a live "no local voices available" message when the list is
   empty;
 - `speechRate` as a `<input type="range">`;
+- "Filter offensive words from suggestions" as a labelled checkbox, on by default,
+  changeable by the person or a carer, saved at once with the other Board-only
+  settings;
 - an "About" button that opens the About screen;
 - Export/Import as a text box plus two buttons, exactly like the skeleton demo's
   profile box (same pattern, so no new UI idiom is introduced), to avoid `blob:`/`data:`
@@ -376,6 +394,7 @@ interface SpokenWordHistory {
 interface BoardOnlySettings {
   readonly voiceURI: string;   // '' = first local-service voice
   readonly speechRate: number; // 0.5-2.0, default 1.0
+  readonly filterOffensiveWords: boolean; // default true; a non-boolean imports as true
 }
 interface BoardProfileFields {
   readonly predictionSlotCount: number; // 2-8, default 4
@@ -437,8 +456,43 @@ drive the score.
 `recompute`'s own core-word exclusion stays as a second check in case a future list
 revision reintroduces an overlap.
 
-**Content warning.** Subtitle text includes profanity and slurs. See the open question
-in Notes.
+**Content warning.** Subtitle text includes profanity and slurs. The Exclusion list
+below, applied at run time under the `filterOffensiveWords` setting, handles this; the
+bundled prediction list itself is not edited for it, so turning the filter off shows
+the unfiltered list.
+
+### Exclusion list: source and licence
+
+**Source:** the English list (file `en`) of
+[LDNOOBW](https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words).
+**Licence:** Creative Commons Attribution 4.0 International, copyright 2012-2020
+Shutterstock, Inc., verified in the repository README and LICENSE for this spec
+(<https://creativecommons.org/licenses/by/4.0/>). The build step re-verifies this from
+the source repository before bundling (Task 4.3) and stops if it is not CC BY 4.0.
+
+**Files, all in `apps/board/data/`:**
+
+| File | Purpose |
+|---|---|
+| `source/ldnoobw-en.txt` | committed, unmodified copy of `en`; no download at build or run time |
+| `offensive-words.json` | the normalised, single-word output (a JSON array of strings), CC BY 4.0 |
+| `offensive-words.LICENSE.md` | the CC BY 4.0 notice: source and link, copyright holder, licence link, and the changes made |
+
+**Build rules, in order:** apply the same normalisation as the prediction list
+(lower-case; keep only entries of a-z and apostrophes); drop entries that contain a
+space or any other character outside a-z and apostrophe after lower-casing, which
+removes every multi-word entry (a multi-word entry can never equal one predicted word,
+so it cannot match and is dropped); de-duplicate.
+
+**Matching rule:** whole word, case-insensitive: a predicted candidate is excluded
+exactly when its lower-cased form is an element of the set. There is no substring or
+stem matching. Because the word list was already normalised to a-z and apostrophes,
+the comparison is a plain `Set.has`.
+
+**Scope of the filter:** setting on (the default) removes Exclusion list words from
+the bundled-list candidates only. Words the person has spoken (Spoken-word history)
+stay eligible whatever the setting. The filter never touches the Message, the Letter
+board, the Core grid, Quick phrases, or Speak.
 
 ### Core vocabulary list: source and licence
 
@@ -529,8 +583,9 @@ at or above its rank computed from `h1`, all other words held equal.
 For any valid `BoardExport` value, exporting then importing it returns an equivalent
 `BoardExport` (profile part equal after `exportProfile`/`importProfile`'s own
 round-trip guarantee; `predictionSlotCount` unchanged if already in `[2,8]`,
-`speechRate` unchanged if already in `[0.5,2.0]`). For any `BoardExport`-shaped JSON
-with `board.predictionSlotCount` or `board.speechRate` outside its range, or of the
+`speechRate` unchanged if already in `[0.5,2.0]`; `filterOffensiveWords` unchanged).
+For any `BoardExport`-shaped JSON with `board.filterOffensiveWords` not a boolean
+(imports as `true`), or with `board.predictionSlotCount` or `board.speechRate` outside its range, or of the
 wrong type, or missing, importing clamps to range or falls back to default and reports
 the change, the same way `importProfile` does for skeleton fields.
 
@@ -602,6 +657,15 @@ of every word found only in the bundled list.
 
 **Validates: Requirements 4.10, 4.12**
 
+### Property 15: Offensive-word filter
+
+For any Message, Partial word, word list, Spoken-word history, Exclusion list, and
+locked-slot subset: with `filterOffensiveWords` on, no word that is in the Exclusion
+list and not in the history appears in any slot after `recompute`; with it off, the
+candidate ranking equals the ranking computed with an empty Exclusion list.
+
+**Validates: Requirements 4.13, 4.14, 4.15, 4.17**
+
 ## Error Handling
 
 - **Corrupt or missing localStorage data**: handled uniformly by `readJSON` (see
@@ -651,7 +715,7 @@ tagged `Feature: board, Property N: <text>`, minimum 100 runs:
   settings changes, and resize events, replaying them against `board-dom.ts`'s target
   registry (a lightweight fake `Planchette` host that records `registerTarget` /
   `updateTarget` calls, not a real DOM) to avoid flaking on real layout/CSS.
-- Properties 2–6, 8, 11, 14 drive `board-model.ts` / `prediction.ts` / `quick-phrases.ts`
+- Properties 2–6, 8, 11, 14, 15 drive `board-model.ts` / `prediction.ts` / `quick-phrases.ts`
   directly with `fast-check` arbitraries for messages (unicode strings including
   leading/trailing/internal whitespace), word lists, and histories.
 - Property 7 generates arbitrary `BoardExport`-shaped objects, including out-of-range
@@ -858,14 +922,6 @@ policy.
   need its own "fixed for the session" rule (changing it mid-message would violate
   Requirement 3 AC 7), so it is deliberately left out of this spec rather than
   designed partially.
-- **Open question: profanity and slurs in the Prediction word list.** The OpenSubtitles
-  list contains them, and they could appear in the strip with no one having asked for
-  them. Nothing is decided. Options: (a) no filtering, shipping the list as filtered
-  by the rules above; (b) a carer-controlled filter setting in Settings, on or off by
-  default (a new Board-only setting, so a new Profile field to define and test); (c) a
-  small built-in exclusion list applied by the build script, with the list committed
-  and reviewable. These can be combined, for example (c) always plus (b) to allow more.
-  **The user needs to choose.**
 - **`reads-while-pointing` 10-per-100 target is a proposal**, not a figure from a
   cited human-factors source (unlike the simulator's own movement-model figures, which
   are cited in METHODOLOGY.md) — it is this design's own choice, justified above. The

@@ -6,6 +6,102 @@
         "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795536746013
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795538822887
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795563164658
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795565725861
+      }
+    ],
+    "1.1 Write the fixed core-vocabulary table.": [
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795563164718
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795565725776
+      }
+    ],
+    "1.2 Write the fixed letter-board table.": [
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795563164763
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795565726955
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566858075
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566970406
+      }
+    ],
+    "2.1 Implement `createBoardModel`.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566858645
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566970772
+      }
+    ],
+    "1. Core-vocabulary and letter-board data": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566970441
+      }
+    ],
+    "2. Message model and undo": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566970810
+      }
+    ],
+    "2.2 Write the property test for Clear then undo.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566975559
+      }
+    ],
+    "2.3 Write the property test for any undoable action then undo.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566977098
+      }
+    ],
+    "3. Checkpoint - message model complete": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566977162
       }
     ]
   }
