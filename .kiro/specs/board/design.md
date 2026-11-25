@@ -34,14 +34,18 @@ apps/board/src/
                           filterOffensiveWords),
                           export/import together with the skeleton Profile
   messages.ts            every user-facing string, one file (structure.md convention)
-  board-dom.ts            the only file that touches the DOM: renders grid/strip/bar/settings,
+  board-dom.ts            the only file that registers targets: renders grid/strip/bar/settings,
                           registers targets, listens to Planchette events
+  board-controls.ts       the Controls row (mode selector, camera toggle, Calibrate, Status
+                          panel hint); takes the Planchette and the DOM, no other state
   main.ts                 creates Planchette, createBoardModel, createPredictionStrip,
-                          wires board-dom to both, starts the render loop
+                          wires board-dom and board-controls to both, saves the Profile
 ```
 
-`apps/board/src/main.ts` replaces the current stub. `board/index.html` is unchanged
-except for the script tag, already present.
+`apps/board/src/main.ts` (`startBoard`) is the browser entry. `board/index.html` holds
+the static markup and is restructured for the viewport layout (see "Viewport layout").
+It already exposes `window.planchetteBoard = { planchette }`, the test hook used by the
+end-to-end tests and the layout export; it exists and is not created again.
 
 ### State ownership
 
@@ -145,7 +149,7 @@ export function createBoardModel(initial?: string): BoardModel;
 ```
 
 `dispatch` is the single mutation point. `partialWord` is
-tracked beside the message: `add-letter` appends the character to it; `add-word`,
+tracked beside the message: `add-letter` appends the lower-cased character to it; `add-word`,
 `add-space`, `clear`, and `replace` reset it to `''`; spell-mode `backspace` removes its
 last character (and does nothing to it when it is already empty); grid-mode `backspace`
 resets it. Every branch pushes `{ message, partialWord }` (the pre-action values) onto a bounded undo stack (cap 50, oldest dropped; a conversational
@@ -153,8 +157,15 @@ tool has no need to undo further back, and an unbounded stack would grow for the
 whole session) before computing the new message, except when the action would have no
 effect (empty message + backspace/clear): those are no-ops and push nothing, matching
 Requirement 1 AC 5 and keeping Undo meaningful. Word-append inserts one space exactly
-when `message !== '' && !/\s$/.test(message)`; letter/space append never insert an
-extra space. `backspace` in grid mode removes the content after the last run of
+when `message !== '' && !/\s$/.test(message)`. Letter-append (`add-letter`) lower-cases
+the character in the model (`char.toLowerCase()`, locale-independent), so every caller
+gets the same result and the Letter board's upper-case labels stay display-only. It
+inserts one space first exactly when `partialWord === '' && message !== '' &&
+!/\s$/.test(message)`: a new spelled word after a word gets a separator ("I want" + H
+gives "I want h"), and a spelled word in progress gets none ("I want h" + E gives
+"I want he"). `add-space` never inserts an extra space. After a spell-mode Backspace
+removes the first letter of a word, the inserted space stays ("I want h" becomes
+"I want "), and the next letter adds no second space. `backspace` in grid mode removes the content after the last run of
 non-whitespace plus the whitespace before it (i.e., the last "word"); in spell mode it
 removes exactly one character.
 
@@ -239,13 +250,19 @@ is built.
 export interface QuickPhrase { readonly id: string; readonly text: string; }
 export interface QuickPhrasesStore {
   readonly phrases: readonly QuickPhrase[];
-  add(text: string): void;
+  /** Refuses (list unchanged) at the 100-phrase cap; never evicts a phrase. */
+  add(text: string): { readonly added: true } | { readonly added: false; readonly reason: 'full' };
   update(id: string, text: string): void;
   remove(id: string): void;
   reorder(ids: readonly string[]): void; // only way the order changes
   subscribe(fn: (phrases: readonly QuickPhrase[]) => void): () => void;
 }
 ```
+
+At the 100-phrase cap, `add` returns `{ added: false, reason: 'full' }` and changes
+nothing; the Settings editor then shows `messages.quickPhrases.full` ("The quick-phrases
+list is full (100). Remove a phrase to add a new one."). A phrase the person wrote is
+never removed to make room.
 
 Order only ever changes through `reorder`, called from the Settings screen's edit UI;
 Board actions (selecting a quick phrase, speaking, undoing) never call `add`,
@@ -339,14 +356,22 @@ persisting that one change).
 |---|---|---|---|
 | `planchette-board:message` | `{ version, message: string }` | 1 | saved after every Action so a reload resumes the sentence in progress; capped at 2000 characters, truncated silently if exceeded |
 | `planchette-board:history` | `{ version, words: Array<{ word: string; count: number; lastSpokenAt: number }> }` | 1 | capped at 500 distinct words; least-recently-spoken evicted first |
-| `planchette-board:quick-phrases` | `{ version, phrases: Array<{ id: string; text: string }> }` | 1 | capped at 100 phrases, each at most 500 characters; seeded on first run with the built-in starter list defined in `messages.ts`: exactly "Yes", "No", "Thank you", "I need help", "Please wait", "I want to rest", in that order |
-| `planchette-board:settings` | `{ version, profile: Partial<Profile>, board: { predictionSlotCount, voiceURI, speechRate, filterOffensiveWords } }` | 1 | `profile` is the skeleton Profile's exportable JSON shape, not re-validated here — `importProfile` does that |
+| `planchette-board:quick-phrases` | `{ version, phrases: Array<{ id: string; text: string }> }` | 1 | capped at 100 phrases, each at most 500 characters. The store never evicts: adding the 101st phrase is refused (see `quick-phrases.ts`). Seeded on first run with the built-in starter list defined in `messages.ts`: exactly "Yes", "No", "Thank you", "I need help", "Please wait", "I want to rest", in that order |
+| `planchette-board:settings` | `{ version, profile: Partial<Profile>, board: { predictionSlotCount, voiceURI, speechRate, filterOffensiveWords } }` | 1 | `profile` is the skeleton Profile's exportable JSON shape (it holds `mode` and `startCameraOnLoad`, default off), not re-validated here — `importProfile` does that. The Board writes it whenever the Profile changes (mode selector, calibration, Settings, import) |
 
-Cap behaviour: a Quick phrase longer than 500 characters is truncated to 500 on write
-(the same rule as the message cap). A stored value that is already over its cap when
-read falls back to that key's default with `usedDefault: true` (Property 12). The
-history's `lastSpokenAt` is used only to choose which entry to evict at the 500-word
-cap, not for ranking.
+Cap behaviour: a Quick phrase longer than 500 characters is cut to 500 when it is
+entered (`add`/`update`), and `writeQuickPhrases` never drops or cuts anything: if
+given more than 100 phrases it writes nothing and returns `false`, so a bug cannot
+silently erase a phrase the person wrote. A stored message or history value that is
+over its cap when read falls back to that key's default with `usedDefault: true`. A
+stored quick-phrases list over its limits does not: `readQuickPhrases` keeps the first
+100 entries and cuts each text to 500 characters (reason `'truncated'`, `usedDefault:
+false`), and the store does not write the shortened list back until the person edits
+it, because falling back to the default would show the starter list and, on the next
+write, erase the person's phrases (Property 12 is amended for this key). A list with
+malformed entries (an entry that is not `{ id: string, text: string }`) still falls back
+to the default. The history's `lastSpokenAt` is used only to choose which entry to evict
+at the 500-word cap, not for ranking.
 
 Every key is namespaced `planchette-board:` so it cannot collide with a future App B
 key or a host page's own storage. `version` lets a future schema change add a
@@ -384,22 +409,204 @@ property test exists to catch a regression (for example, an off-by-one in which
 | `prediction-slot-<0..N-1>` | `default` | `PredictionStrip`, registered at a fixed rectangle each; `autoRepeat: false` |
 | `quick-phrase-<id>` | `default` | `QuickPhrasesStore`, re-registered (ids may change) only on `reorder`/`add`/`remove`, never on message/prediction changes |
 | `speak`, `backspace-action`, `clear`, `spell-toggle` | `default` | Board-level action buttons |
+| `camera-toggle` | `default` | Controls row: Start camera / Stop camera (Requirement 13 AC 2) |
 | `undo` | `undo` | Requirement 1 AC 7, 5 AC 6 |
 | `cancel` | `cancel` | Requirement 5 AC 5 |
 | `rest-area` | `rest-area` | Requirement 5 AC 7, a quiet strip below the grid |
 
-Scan order: the Board passes an explicit `order` to rely on input-core's "listed ids
-first, in that order, unlisted ids follow in reading order" rule (input-core design
-§5, scan engine details) — `cancel` last within the active grid's row, `undo` and
-`speak`/`backspace-action`/`clear` as one row above the grid, so Cancel is always the
-last item of a scan cycle regardless of which grid (core or letter) is active,
-matching the requirement that every scan cycle include a cancel item without
-duplicating scan logic.
+Scan order: the skeleton has no scan `order` option, so the Board passes none. Targets
+are scanned in reading order (by rectangle: top to bottom, left to right), and the
+layout is arranged with that in mind. The skeleton adds its own built-in Cancel item to
+every scan cycle (Requirement 5 AC 4), so the Board needs no scan-order rule to put
+Cancel last.
 
 `calibration`, `profile`, and camera lifecycle are untouched: `board-dom.ts` calls
 `planchette.startCamera()` / `stopCamera()` / `startCalibration()` / `recentre()`
 exactly as the skeleton demo does, and renders `tracking-status` with the same
 plain-language/alternatives contract (Requirement 5 AC 9, 9 AC 8).
+
+### Input controls (Requirement 13)
+
+`board-controls.ts` follows the skeleton demo page (`skeleton/demo/main.ts`): the same
+modes, the same camera rules, the same hint text pattern. It takes the `Planchette`,
+the Controls row elements from `board/index.html`, and a small callback to save the
+Profile; it holds no other state (the camera-on flag is derived from `tracking-status`
+events and the toggle's own presses, as in the demo).
+
+| Control | Kind | Behaviour |
+|---|---|---|
+| Mode selector (`#mode`, label "Input mode") | plain `<select>`, **not** a target | options: Head + dwell, Head + gesture, Switch scanning, Gesture scanning, Mouse (the five `InputMode` values); `change` calls `setMode`; `mode-change` and calibration end update `select.value` |
+| Camera toggle (`camera-toggle`) | plain `<button>` **and** a registered target, role `default` | label "Start camera" while off, "Stop camera" while on; selecting (click, dwell, gesture, scan, mouse) while off calls `startCamera()`, while on calls `stopCamera()`; a `tracking-status` failure sets it back to "Start camera" |
+| Calibrate (`#calibrate`) | plain `<button>`, **not** a target | camera off: no call, the message line says calibration uses the camera and Start camera comes first; camera on: `startCalibration()`; step text from `calibration-step` is shown in the message line |
+| Status panel | `#camera-status` (the skeleton's tracking indicator, passed as `trackingIndicator`) and `#controls-message` (hint and calibration text) | the message line shows only while the indicator element is empty |
+
+**Which controls are targets (decision).** The skeleton demo registers only its grid,
+Cancel, Undo and rest area as targets; its mode selector, camera buttons and Calibrate
+are plain controls for a carer. The Board follows that, with one addition: the camera
+toggle is also a target. Product principle 3 (the person can always stop) and the
+accessibility rule that the camera can be stopped at any time mean a head-pointer or
+scanning user must be able to stop the camera without a carer. One toggle target
+covers both "start" (useful for a scanning user who wants gesture scanning) and
+"stop"; it is a single target because two buttons that swap in and out would move a
+target. The mode selector and Calibrate stay plain: mode changes and calibration need
+a carer's judgement and an accidental selection of either by dwell would be disruptive
+(product principle 1).
+
+**Camera start rule (principle 5).** `startBoard` never calls `startCamera()` on its
+own. It calls it once on load only when `planchette.getProfile().startCameraOnLoad`
+is true. The setting "Start camera when the page opens" is that existing Profile
+field, not a Board-only one: the skeleton already defines it (default `false`), saves
+it in the exported Profile, and `importProfile` already treats a missing or non-boolean
+value as the default `false` and reports it ("startCameraOnLoad: missing — using
+default"). A second Board-only copy would be two sources of truth for one switch and
+would break Requirement 11 AC 4 (no duplicate field), so the setting reuses the
+Profile field. Its label is `messages.settings.startCameraOnLoad` ("Start camera when
+the page opens"). Export and import ride on the Profile part of `BoardExport`
+(Property 7 names it explicitly).
+
+**Dwell ring and scan highlight.** `startBoard` calls `createDwellRing(planchette)` and
+`createScanHighlight(planchette)` from `@planchette/skeleton/ui`, as the demo does.
+
+**Persistence of the mode.** The mode is the Profile's `mode` field (default
+`'head + dwell'`), so it needs no new storage field. Today nothing writes
+`planchette-board:settings`, so neither a changed mode nor the 1400 ms dwell default is
+remembered. `main.ts` therefore gets `saveProfile()`: it reads `planchette.exportProfile()`
+and calls `writeSettings({ profile, board })`. It runs on `mode-change`, when
+calibration ends, after a Profile import, and after a Settings change. Once a Profile is
+saved, `resolveInitialProfile` returns it unchanged on the next visit (Requirement 11
+AC 6), including `dwellTime`, which is then the 1400 ms the Board applied the first
+time.
+
+**Tests never start a real camera.** `board-controls` tests use a fake Planchette whose
+`startCamera`/`stopCamera` are spies. The end-to-end tests wrap `getUserMedia` to count
+and refuse calls, as `skeleton/test/demo.e2e.ts` does, and assert zero calls.
+
+### Viewport layout (Requirement 14)
+
+**Defaults used.** `targetSize` 96 CSS px and `targetSpacing` 16 CSS px are the
+skeleton Profile defaults (`skeleton/src/engine/profile.ts`, `defaultProfile`, lines
+156-157; allowed range 64-400 and 8-64). The Board overrides only `dwellTime`.
+`predictionSlotCount` defaults to 4 (Requirement 11 AC 1). Text is 24 CSS px, the
+minimum in accessibility.md. The Board never shrinks a target or gap below these (Req
+14 AC 6).
+
+**Equal-width cells and label fit.** Each grid uses `grid-template-columns:
+repeat(6, var(--cell-w))` and `grid-auto-rows: var(--target-size)`, so every cell of a
+grid is the same size. `--cell-w` is `calc(var(--target-size) * 4 / 3)`, 128 px at the
+default. Labels are normal weight (not bold), 24 px, with a 2 px border and 2 px side
+padding, so the content width is 128 - 4 - 4 = 120 px. The widest unbreakable string is
+"Backspace" (in the Letter board's "⌫ Backspace" key): 113 px at 24 px normal weight,
+measured with `measureText` in Chromium with `system-ui` (bold would be 123 px and
+would overflow, so bold is dropped). The widest core word, "different", is 86 px. The
+Letter board's "⌫ Backspace" label wraps at its space, "⌫" over "Backspace", two lines of
+24 px at line-height 1.3 (about 62 px) inside the 96 px cell height. Wrapping happens
+only at spaces (`overflow-wrap: normal`, no hyphenation); no word is split. The font is
+not bundled (the CSP allows same-origin files, but a font file would add weight for
+little gain), so another platform's `system-ui` may be wider. The end-to-end test
+therefore asserts `scrollWidth <= clientWidth` and `scrollHeight <= clientHeight` for
+every target; if it fails on a platform, raise `--cell-w`.
+
+**Arrangement.** A two-column page, 12 px side padding and 8 px top and bottom
+padding, with the DOM in this order (which is also the Tab and reading order):
+Message bar, grid, then the right column (prediction strip, action row, camera toggle and
+rest area, Controls row, Status panel, notice). CSS grid areas place them. Left column:
+Message bar on top, the active grid under it. Right column: everything else.
+
+**Arithmetic at 1366 x 768 (default values).**
+
+Horizontal: 12 + grid width + 16 gap + right column + 12 = 1366.
+- Grid width = 6 x 128 + 5 x 16 = 768 + 80 = 848 (both grids use 6 columns).
+- Right column = 1366 - 12 - 848 - 16 - 12 = 478.
+
+Vertical, left column (usable height 768 - 8 - 8 = 752):
+- Message bar 80 (`height: 80px; box-sizing: border-box`): 24 px text at line-height
+  1.3 is 31.2 px a line, two lines are 62.4 px, plus 4 px padding and a 3 px border on
+  each side is 76.4 px, so 3.6 px spare. Longer text scrolls inside the bar and shows
+  its end.
+- Gap 16.
+- Core grid = 6 x 96 + 5 x 16 = 576 + 80 = 656.
+- Total 80 + 16 + 656 = 752. It fits with no spare height: 8 + 752 + 8 = 768.
+- Letter board = 5 x 96 + 4 x 16 = 480 + 64 = 544, so 80 + 16 + 544 = 640, leaving 112
+  empty under it. The Message bar and the right column do not move between views.
+
+Vertical, right column (usable 752; widths in brackets):
+| Block | Width | Height | y range |
+|---|---|---|---|
+| Prediction strip, 4 slots in one row: (478 - 3 x 16) / 4 = 107.5 wide each | 478 | 96 | 8-104 |
+| gap | | 16 | |
+| Action row, 3 columns x 2 rows: (478 - 2 x 16) / 3 = 148.7 wide each; Speak, Backspace, Clear / Undo, Spell, Cancel | 478 | 96 + 16 + 96 = 208 | 120-328 |
+| gap | | 16 | |
+| Camera toggle (column 1, 148.7) and rest area (columns 2-3, 2 x 148.7 + 16 = 313.3 wide) | 478 | 96 | 344-440 |
+| gap | | 16 | |
+| Controls row: label, mode selector, Calibrate (ordinary controls, `min-height: 48px`) | 478 | 48 | 456-504 |
+| gap | | 16 | |
+| Status panel (hint text, or the tracking indicator) | 478 | 112 | 520-632 |
+| gap | | 16 | |
+| Notice (footer), 24 px, line-height 1.2: about 3 lines = 86 px, up to 3.9 lines fit | 478 | 112 | 648-760 |
+
+Sum = 96 + 208 + 96 + 48 + 112 + 112 = 672, plus 5 gaps x 16 = 80, gives 752. The right
+column's last block ends at y = 760 = 768 - 8. Every target is inside the viewport:
+the widest right-column x is 1354 <= 1366 and the lowest target bottom is the grid at
+y = 104 + 656 = 760 <= 768.
+
+**Target minimums hold.** Cells are 128 x 96 (>= 96 x 96). Prediction slots are 107.5 x 96.
+Action buttons and the camera toggle are 148.7 x 96. The rest area is 313.3 x 96. Gaps
+between targets are 16 (the profile spacing): between grid cells, between slots, between
+action buttons, and between the two rows of blocks in the right column. The gap between
+the grid and the right column is 16.
+
+**1920 x 1080.** The same fixed layout is used, centred horizontally in a container of
+width 1366 (the 1366 above, including the 12 px side padding) with `margin: 0 auto`.
+Content height is 768 <= 1080 and content width is 1366 <= 1920. The spare space is empty; the layout does not scale up in v1 (uniform
+scaling is allowed by Requirement 2 AC 3 but is not needed to pass Requirement 14).
+
+**Prediction strip reservation.** `board/index.html` holds a `<div id="prediction-strip">`
+placed at the right column's top, with `grid-template-columns: repeat(4, 1fr)` and a
+`min-height` of one target row, sized by CSS whether or not it holds slots, so the
+space is reserved before the prediction wiring task fills it. The wiring task creates
+`predictionSlotCount` slot buttons inside it. Each slot shows its word at 24 px, wraps
+inside the slot at 24 px (`overflow-wrap: anywhere`, up to two lines), because the
+longest bundled word is 16 characters ("misunderstanding") and a 107.5 px slot is about 99 px
+of content. A word is never cut with an ellipsis: a truncated word could be selected
+as something the person did not mean (product principle 1). An empty slot is drawn as a
+dashed placeholder with no target registered.
+
+**Limits (stated, not hidden).** The guarantee is for the defaults. With
+`predictionSlotCount` 5-8 the strip needs two rows (+112 px): the right column then
+needs 864 px, which fits 1920 x 1080 (1064 usable) but not 1366 x 768 (752). The page may
+then scroll at 1366 x 768; the targets keep their size (Requirement 14 AC 7). A larger
+target size or spacing does the same. Settings help text for "Number of suggestions"
+says that more than 4 may need scrolling on a small screen.
+
+**Status panel failure state.** The tracking indicator's failure state is a message of
+up to about 130 characters, the "alternatives" sentence, and three buttons. That does not
+fit in 112 px. While in a failure state, the indicator is positioned over the bottom of the
+right column (`position: absolute`, anchored to the Status panel's bottom edge, 478 px
+wide, growing upward over the Controls row and the camera/rest row) with a solid
+background and a visible border. Every failure means head tracking is not working, so
+the temporarily covered targets are not the ones the person was using; the three
+buttons ("Try the camera again", "Use switch scanning", "Use the mouse") end the state.
+Planchette hit-tests registered rectangles, not the DOM, so mouse and scan input keep
+working under the overlay. The camera toggle is covered only in that state, and "Try the
+camera again" does what it does.
+
+**Scan order.** The scan visits targets in the skeleton's reading order of their
+rectangles. With this layout the prediction strip (top of the right column) and grid
+row 0 are close in y, so the visiting order interleaves them by position. This is
+checked by the dwell-simulator layout runs in Tasks 31 and 32 and revisited if it reads
+badly; the Board does not pass an order.
+
+### Accepted as built
+
+These details were built before this design named them and are accepted:
+- Action labels (`messages.actions`): Speak, Backspace, Clear, Undo, Spell, Cancel. Letter
+  board keys: Space and "⌫ Backspace" (`messages.letterBoard`).
+- The not-a-medical-device notice is in the page footer, not in the Message bar.
+- Cancel has no Board handler beyond the skeleton's own `cancel` event; the Board
+  registers the target (role `cancel`) and the skeleton cancels the dwell or the scan.
+- The rest area is a registered target of role `rest-area` with no selectable content.
+  Its earlier `min-height: 140px` is replaced by the size in the layout arithmetic above
+  (313.3 x 96), which governs.
 
 ### About screen
 
@@ -433,7 +640,8 @@ renders:
 - every Board profile / skeleton Profile field as a labelled `<input>` or `<select>`
   with its min/max shown in help text (reusing the input-core Profile fields table —
   no new range logic);
-- the control labels, all defined in `messages.ts`: "Voice" (the `voiceURI` select),
+- the control labels, all defined in `messages.ts`: "Start camera when the page opens"
+  (the checkbox below), "Voice" (the `voiceURI` select),
   "Speech rate" (the range input), "Number of suggestions" (`predictionSlotCount`),
   "Edit quick phrases" (the Quick-phrases editor), and "Filter offensive words from
   suggestions" (the checkbox);
@@ -444,11 +652,14 @@ renders:
 - "Filter offensive words from suggestions" as a labelled checkbox, on by default,
   changeable by the person or a carer, saved at once with the other Board-only
   settings;
+- "Start camera when the page opens" as a labelled checkbox bound to the Profile's
+  `startCameraOnLoad` (default off), saved with the Profile (see "Input controls");
 - an "About" button that opens the About screen;
 - Export/Import as a text box plus two buttons, exactly like the skeleton demo's
   profile box (same pattern, so no new UI idiom is introduced), to avoid `blob:`/`data:`
   URLs under the CSP;
-- the Quick-phrases editor (add/edit/remove/reorder, drag-and-drop optional, keyboard
+- the Quick-phrases editor (add/edit/remove/reorder, with the "list is full" message when
+  `add` refuses; drag-and-drop optional, keyboard
   reordering — Move up/Move down buttons — required, since drag-and-drop alone is not
   keyboard-operable).
 
@@ -625,9 +836,14 @@ restores the model's `message` to exactly `m`.
 
 ### Property 3: Any undoable action then undo is identity
 
-For any Message string `m` and any of `add-word`, `add-letter`, `add-space`,
-`backspace`, `clear`, `replace` that is not a no-op at `m` (per Requirement 1 AC 5),
-dispatching that action and then calling `undo()` restores `message` to exactly `m`.
+For any Message string `m` (with any Partial word) and any of `add-word`, `add-letter`,
+`add-space`, `backspace`, `clear`, `replace` that is not a no-op there (per Requirement 1
+AC 5), dispatching that action and then calling `undo()` restores `message` and
+`partialWord` to exactly their values before the action. This still holds with the
+spelling rule (a space inserted before the first letter of a spelled word): the undo
+snapshot is taken before the action, so it restores the message without the inserted
+space. Property 2 is the `clear` case and is unaffected, because `clear` never inserts
+a separator.
 
 **Validates: Requirements 1.4, 1.5, 1.7, 7.2**
 
@@ -663,14 +879,18 @@ at or above its rank computed from `h1`, all other words held equal.
 
 For any valid `BoardExport` value, exporting then importing it returns an equivalent
 `BoardExport` (profile part equal after `exportProfile`/`importProfile`'s own
-round-trip guarantee; `predictionSlotCount` unchanged if already in `[2,8]`,
+round-trip guarantee, including `profile.startCameraOnLoad` (`true` stays `true`,
+`false` stays `false`); `predictionSlotCount` unchanged if already in `[2,8]`,
 `speechRate` unchanged if already in `[0.5,2.0]`; `filterOffensiveWords` unchanged).
+For any `BoardExport`-shaped JSON whose `profile.startCameraOnLoad` is missing or not
+a boolean, importing gives `startCameraOnLoad` `false` and reports the change (this
+comes from the skeleton's `importProfile`; the property pins it for the Board).
 For any `BoardExport`-shaped JSON with `board.filterOffensiveWords` not a boolean
 (imports as `true`), or with `board.predictionSlotCount` or `board.speechRate` outside its range, or of the
 wrong type, or missing, importing clamps to range or falls back to default and reports
 the change, the same way `importProfile` does for skeleton fields.
 
-**Validates: Requirements 6.5, 6.6, 6.7, 11.1, 11.2, 11.3**
+**Validates: Requirements 6.5, 6.6, 6.7, 6.9, 11.1, 11.2, 11.3, 11.8**
 
 ### Property 8: Spoken-word history updates only on successful speech
 
@@ -717,7 +937,16 @@ and valid JSON exceeding a key's size cap), `readJSON` returns that key's docume
 default with `usedDefault: true` and does not throw, and the Board continues to accept
 further actions afterward (modelled as: the next `dispatch` call also does not throw).
 
-**Validates: Requirements 10.4**
+*Amended (this revision):* the "exceeding a key's size cap" case applies to the
+message and history keys. For the quick-phrases key, a list that parses with well-formed
+entries but exceeds 100 entries or a text over 500 characters is not replaced by the
+default: `readQuickPhrases` keeps the first 100 entries and cuts each text to 500
+characters (`usedDefault: false`, no throw). Replacing it with the default would drop
+phrases the person wrote and, because the store re-seeds and writes on `usedDefault`,
+erase them. All other cases (non-JSON, wrong shape, bad version, malformed entries) still
+give the default.
+
+**Validates: Requirements 10.4, 7.6**
 
 ### Property 13: No network calls
 
@@ -754,6 +983,17 @@ computed with an empty Exclusion list.
 
 **Validates: Requirements 4.13, 4.14, 4.15, 4.17**
 
+### Property 16: Spelling after a word
+
+For any core word `w0` (any `CORE_VOCABULARY` label) and any non-empty sequence `s` of
+letters (a-z, A-Z), dispatching `add-word` with `w0` on an empty Message and then
+`add-letter` for each character of `s` in order gives the Message `w0 + ' ' +
+s.toLowerCase()` and the Partial word `s.toLowerCase()`. (The first letter finds a
+non-empty Message with no trailing whitespace and an empty Partial word, so it inserts
+one space; every later letter finds a non-empty Partial word, so it inserts none.)
+
+**Validates: Requirements 3.4**
+
 ## Error Handling
 
 - **Corrupt or missing localStorage data**: handled uniformly by `readJSON` (see
@@ -764,6 +1004,9 @@ computed with an empty Exclusion list.
   session, and the person is not interrupted mid-conversation. A one-line, non-blocking
   notice ("Settings could not be saved on this device") is shown via the same `say`-style
   status area the skeleton demo uses, not a blocking dialog.
+- **Quick-phrases list full**: `add` refuses the 101st phrase and leaves the list
+  unchanged; the Settings editor shows `messages.quickPhrases.full`. No phrase is
+  removed to make room.
 - **No local-service speech voice**: `speak()` resolves `{ spoken: false }`;
   `board-dom.ts` shows the Message at large size (reusing the Message bar's own text,
   scaled up, not a second text element) and the message "Speech output is unavailable
@@ -805,7 +1048,7 @@ tagged `Feature: board, Property N: <text>`, minimum 100 runs:
   settings changes, and resize events, replaying them against `board-dom.ts`'s target
   registry (a lightweight fake `Planchette` host that records `registerTarget` /
   `updateTarget` calls, not a real DOM) to avoid flaking on real layout/CSS.
-- Properties 2–6, 8, 11, 14, 15 drive `board-model.ts` / `prediction.ts` / `quick-phrases.ts`
+- Properties 2–6, 8, 11, 14, 15, 16 drive `board-model.ts` / `prediction.ts` / `quick-phrases.ts`
   directly with `fast-check` arbitraries for messages (unicode strings including
   leading/trailing/internal whitespace), word lists, and histories.
 - Property 7 generates arbitrary `BoardExport`-shaped objects, including out-of-range
@@ -818,6 +1061,17 @@ tagged `Feature: board, Property N: <text>`, minimum 100 runs:
   the duration of a generated action sequence run through the pure stores plus
   `speech.ts` and `board-storage.ts` (never a real network stack, so this is fast and
   needs no network sandboxing).
+
+**Viewport tests** (Playwright, `apps/board/test/board-viewport.e2e.ts`): at 1366 x 768
+and 1920 x 1080, in mouse mode, in the Core view and in Spell mode, the document does
+not scroll (`scrollHeight <= innerHeight`, `scrollWidth <= innerWidth`), the Message
+bar, active grid, prediction strip, action row, Controls row, Status panel, rest area
+and notice are inside the viewport, every target returned by
+`window.planchetteBoard.planchette.getTargets()` lies fully inside the viewport, and no
+target's label overflows its element. Playwright runs these from a new `board` project
+in `playwright.config.ts` (project-level `testDir: 'apps/board/test'`), so the skeleton
+specs and their config are unchanged. The config's top-level `testDir` stays
+`skeleton/test`.
 
 **End-to-end tests** (Playwright, `apps/board/test/*.e2e.ts`, pattern copied from
 `skeleton/test/demo.e2e.ts` / `ui.e2e.ts`): drive the Board with mouse clicks and
@@ -869,7 +1123,7 @@ to commit, but a hard-coded absolute path (`/Users/<name>/...`) is machine-speci
 would break for every other clone. Decision: the committed `.kiro/settings/mcp.json` uses the
 **relative** path shown above (`tools/dwell-sim-mcp/dist/server.js`) and never an
 absolute path. That Kiro resolves a relative path against the workspace root is an
-assumption until checked: Task 23.1 verifies it first (enable the server in Kiro and
+assumption until checked: Task 30.1 verifies it first (enable the server in Kiro and
 list its tools, or read the Kiro MCP docs and run a check). If it does not resolve,
 nothing machine-specific is committed. Instead the task documents a per-user,
 uncommitted config (`~/.kiro/settings/mcp.json` with the user's own absolute path) in
@@ -938,7 +1192,7 @@ risk and the one the simulator is best suited to catch before a real person does
   1920×1080 figure) achievable by the levers below without materially hurting
   `slow`'s time-to-select (see trade-off below) — it is a reachable target for this
   codebase, not an arbitrary round number.
-- It is stated as a number (not "noticeably fewer") so Task 24 below is a pass/fail
+- It is stated as a number (not "noticeably fewer") so Task 31 below is a pass/fail
   gate, per this workflow's requirement that acceptance criteria be measurable.
 
 **Design levers used, and why each acts on reading-pause accidents specifically (never
@@ -953,7 +1207,7 @@ by changing the simulator):**
    `readJSON` reports `usedDefault: true` for that key does it return `{ dwellTime: 1400 }`
    (Requirement 11 AC 5, 6). A person's or carer's chosen dwell time is never overwritten. A reading pause of 300–900 ms is now 500–1100 ms short of
    completing a selection on its own, instead of 100–700 ms short at 1000 ms; the
-   `compare` run (Task 25) must show the accidental rate drop as a direct result of
+   `compare` run (Task 32) must show the accidental rate drop as a direct result of
    this one change before any other lever is added, isolating its effect. Trade-off:
    `compare`'s own `slow`-preset time-to-select metric is expected to rise by roughly
    the same 400 ms per *intentional* selection (a slower, deliberate dwell costs every
@@ -1015,4 +1269,4 @@ policy.
 - **`reads-while-pointing` 10-per-100 target is a proposal**, not a figure from a
   cited human-factors source (unlike the simulator's own movement-model figures, which
   are cited in METHODOLOGY.md) — it is this design's own choice, justified above. The
-  user may want a stricter or looser number once the Task 24 measurement is in hand.
+  user may want a stricter or looser number once the Task 31 measurement is in hand.

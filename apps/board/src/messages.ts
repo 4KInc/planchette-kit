@@ -14,6 +14,7 @@ export const messages = {
     heading: 'Communication Board',
     messageTitle: 'Message',
     actionsTitle: 'Actions',
+    controlsTitle: 'Controls',
     coreTitle: 'Core words',
     letterTitle: 'Letters',
     restArea: 'Rest area. Nothing here is selected.',
@@ -27,6 +28,39 @@ export const messages = {
     spell: 'Spell',
     cancel: 'Cancel',
   },
+  /** The Controls row and the Status panel (Req 13). */
+  controls: {
+    inputMode: 'Input mode',
+    modes: {
+      headDwell: 'Head + dwell',
+      headGesture: 'Head + gesture',
+      scan: 'Switch scanning',
+      gestureScan: 'Gesture scanning',
+      mouse: 'Mouse',
+    },
+    startCamera: 'Start camera',
+    stopCamera: 'Stop camera',
+    calibrate: 'Calibrate',
+    cameraStopped: 'Camera stopped.',
+    calibrateNeedsCamera: 'Calibration uses your head: press Start camera first.',
+    /** Hint while a camera mode is chosen and the camera is off. */
+    needsCameraHint:
+      'Head and gesture modes need the camera: press Start camera. Or choose switch scanning or the mouse; they work without it.',
+    /** Hint otherwise. */
+    privacyHint: 'Everything stays on this device. No camera picture is stored or sent.',
+    calibrationFinished: 'Calibration finished.',
+    calibrationStopped: 'Calibration stopped.',
+    calibrationWorking: 'Calibration…',
+    calibrationSteps: {
+      centre: 'Calibration: look straight at the screen and hold still.',
+      left: 'Calibration: turn your head to the left as far as is comfortable.',
+      right: 'Calibration: turn your head to the right as far as is comfortable.',
+      up: 'Calibration: tilt your head up as far as is comfortable.',
+      down: 'Calibration: tilt your head down as far as is comfortable.',
+      rest: 'Calibration: relax your face.',
+      gesture: 'Calibration: make your switch gesture, held.',
+    },
+  },
   /** Labels of the Letter board's two non-letter keys. */
   letterBoard: {
     space: 'Space',
@@ -36,12 +70,16 @@ export const messages = {
   settingsNotSaved: 'Settings could not be saved on this device',
   /** Seed list on first run, in this order. */
   starterQuickPhrases: ['Yes', 'No', 'Thank you', 'I need help', 'Please wait', 'I want to rest'],
+  quickPhrases: {
+    full: 'The quick-phrases list is full (100). Remove a phrase to add a new one.',
+  },
   settings: {
     voice: 'Voice',
     speechRate: 'Speech rate',
     predictionSlotCount: 'Number of suggestions',
     editQuickPhrases: 'Edit quick phrases',
     filterOffensiveWords: 'Filter offensive words from suggestions',
+    startCameraOnLoad: 'Start camera when the page opens',
   },
   about: {
     /** Universal Core vocabulary credit (CC BY 4.0). */

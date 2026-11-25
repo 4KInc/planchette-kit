@@ -74,10 +74,14 @@ export function createBoardModel(initial = ''): BoardModel {
           apply(message + sep + action.text, '');
           return;
         }
-        case 'add-letter':
+        case 'add-letter': {
           if (action.char === '') return; // nothing to append: no-op
-          apply(message + action.char, partialWord + action.char);
+          const letter = action.char.toLowerCase();
+          // A new spelled word after existing text gets one separating space.
+          const sep = partialWord === '' && message !== '' && !/\s$/u.test(message) ? ' ' : '';
+          apply(message + sep + letter, partialWord + letter);
           return;
+        }
         case 'add-space':
           apply(message + ' ', '');
           return;

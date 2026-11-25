@@ -16,6 +16,11 @@ export const DEFAULT_SLOT_COUNT = 4;
 export const DEFAULT_SPEECH_RATE = 1.0;
 export const BOARD_DEFAULT_DWELL_TIME = 1400;
 
+/**
+ * Deliberately has no start-camera field: "Start camera when the page opens" is the
+ * skeleton Profile's `startCameraOnLoad` (default false), saved and imported with the
+ * Profile. A second copy here would be two sources of truth.
+ */
 export interface BoardOnlySettings {
   readonly voiceURI: string; // '' = first local-service voice
   readonly speechRate: number; // 0.5-2.0, default 1.0
@@ -153,6 +158,11 @@ export function importBoardSettings(io: ProfileIO, json: string): BoardImportRes
   }
   const board = sanitiseBoardSettings(parsed.board, changes);
   return { value: { version: 1, profile, board }, changes };
+}
+
+/** True only when the Profile explicitly turns on "Start camera when the page opens". */
+export function shouldStartCameraOnLoad(profile: Partial<Profile>): boolean {
+  return profile.startCameraOnLoad === true;
 }
 
 /**

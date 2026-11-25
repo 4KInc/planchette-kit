@@ -67,6 +67,11 @@ a speech-language therapist; this notice is shown in the app.
   licences, the not-a-medical-device notice, and the Board version (Requirement 12).
 - **Carer**: a person who sets up or adjusts the Board on the person's behalf, by
   keyboard, mouse, or screen reader.
+- **Controls row**: the group of input controls (mode selector, camera toggle,
+  Calibrate button, and the status panel) described in Requirement 13.
+- **Status panel**: the fixed area that holds the skeleton's tracking indicator
+  (Requirement 13).
+- **Viewport**: the browser window's visible area, in CSS px (Requirement 14).
 - **Target**: as defined in the input-core spec: an element the Board registers with
   the Planchette by id and rectangle, selectable by every input mode.
 
@@ -102,10 +107,10 @@ that I can review it before I speak it.
 #### Acceptance Criteria
 
 1. THE Board SHALL show the current Message in the Message bar at all times.
-2. WHEN the person selects a core-vocabulary button, a Letter-board letter, a
-   predicted word, or a Quick phrase, THE Board SHALL append the corresponding word,
-   letter, or phrase text to the Message, with one space inserted between words where
-   the existing Message does not already end in whitespace.
+2. WHEN the person selects a core-vocabulary button, a predicted word, or a Quick
+   phrase, THE Board SHALL append the corresponding word or phrase text to the
+   Message, with one space inserted between words where the existing Message does not
+   already end in whitespace. A Letter-board letter follows Requirement 3 AC 4.
 3. THE Board SHALL provide a Speak action target that sends the current Message to
    speech output (Requirement 9) without clearing the Message.
 4. THE Board SHALL provide a Backspace action target that removes the last word, or,
@@ -165,7 +170,13 @@ prediction strip, I want to spell it letter by letter, so that I can say anythin
    carer's or typist's alphabetical expectation, which the Settings screen's text
    labels and screen-reader labels offset.
 4. WHEN the person selects a letter in Spell mode, THE Board SHALL append that letter
-   to the Message with no inserted space.
+   to the Message in lower case (the Letter board's labels stay upper case; the
+   Message model lower-cases the letter). WHEN the Partial word is empty and the
+   Message is not empty and does not end in whitespace, THE Board SHALL insert one
+   space before the letter, so a new spelled word starts after the previous word
+   ("I want" then H gives "I want h"). WHEN the Partial word is not empty, THE Board
+   SHALL insert no space, so a spelled word continues ("I want h" then E gives
+   "I want he").
 5. WHEN the person selects Space in Spell mode, THE Board SHALL append one space
    character to the Message.
 6. THE Letter board's Space and Backspace targets SHALL be the same Backspace and
@@ -173,6 +184,9 @@ prediction strip, I want to spell it letter by letter, so that I can say anythin
    Letter board.
 7. THE Board SHALL never choose a Letter-board button's position from frequency of
    use, prediction, or recency.
+8. WHEN the person selects Undo after a letter, THE Board SHALL restore the exact
+   Message and Partial word that existed before that letter, including a space the
+   letter inserted.
 
 ### Requirement 4: Word prediction strip
 
@@ -313,6 +327,17 @@ rate, and keep those settings, so that the Board fits my body and my voice prefe
    suggestions" (`filterOffensiveWords`) as an ordinary control that the person or a
    carer can change, and THE Board SHALL save it to local storage immediately with
    the other Board-only settings.
+9. THE Settings screen SHALL show the setting "Start camera when the page opens" as an
+   ordinary control that the person or a carer can change. It SHALL be bound to the
+   skeleton Profile's existing `startCameraOnLoad` field (default off), not to a
+   second Board-only field (Requirement 11 AC 4), so it is saved with the Profile,
+   exported and imported with the Profile, and an imported value that is missing or
+   not a boolean falls back to off and is reported by `importProfile` (Requirement 6
+   AC 6).
+10. THE Board SHALL save the skeleton Profile (including the input mode and
+    `startCameraOnLoad`) to local storage whenever it changes through the mode
+    selector, calibration, the Settings screen, or an import, so the next visit starts
+    with it (Requirement 13 AC 8).
 
 ### Requirement 7: Quick phrases
 
@@ -334,6 +359,15 @@ every time.
    session (their order may only change when the person edits the list through
    Settings), so pointing to a quick phrase does not move while the person points at
    it.
+5. WHEN the Quick-phrases list already holds 100 phrases and a new phrase is added,
+   THE Board SHALL refuse the new phrase, leave the list unchanged, and show the
+   message "The quick-phrases list is full (100). Remove a phrase to add a new one."
+   from `messages.ts`. THE Board SHALL never delete or overwrite a phrase the person
+   wrote to make room.
+6. WHEN stored Quick phrases exceed 100 entries, or an entry's text exceeds 500
+   characters, THE Board SHALL keep the first 100 entries and cut each text to 500
+   characters, rather than discarding the list, and SHALL NOT write that shortened list
+   back until the person edits the list.
 
 ### Requirement 8: Speech output
 
@@ -412,7 +446,9 @@ say leaves my device, so that I can trust it with private communication.
 4. IF stored data under the Board's local-storage keys is missing, corrupt, or fails
    to parse, THEN THE Board SHALL fall back to that data's default (an empty history,
    the built-in Quick-phrases starter list, or default settings) without throwing an
-   error, and SHALL continue to operate.
+   error, and SHALL continue to operate. The one exception is a Quick-phrases list
+   that parses but is over its size limits: Requirement 7 AC 6 applies, and no phrase
+   is discarded.
 
 ### Requirement 11: Board profile fields
 
@@ -438,6 +474,9 @@ setting, its default, and its range, so that Settings, storage, and tests agree.
    default.
 7. THE Board SHALL define `filterOffensiveWords` as a Board-only boolean setting,
    default on.
+8. THE Board SHALL NOT define a Board-only "start camera on load" field. The setting
+   "Start camera when the page opens" (Requirement 6 AC 9) is the skeleton Profile's
+   `startCameraOnLoad` field, whose default is off.
 
 ### Requirement 12: About screen
 
@@ -465,6 +504,79 @@ limits.
    (single-word entries only, normalised), and link to its source repository and to
    the licence.
 
+### Requirement 13: Input controls
+
+**User Story:** As a person or carer, I want to choose the input mode, start and stop
+the camera, and calibrate from the Board itself, so that the Board can be used out of
+the box in whichever mode fits.
+
+#### Acceptance Criteria
+
+1. THE Board SHALL show a Controls row with: a mode selector that offers every
+   skeleton input mode (head + dwell, head + gesture, switch scanning, gesture
+   scanning, mouse), a camera toggle that reads "Start camera" while the camera is
+   off and "Stop camera" while it is on, a Calibrate button, and the Status panel.
+2. THE mode selector and the Calibrate button SHALL be ordinary focusable form
+   controls with visible labels, as on the skeleton demo page, and SHALL NOT be
+   Planchette targets. THE camera toggle SHALL also be a Planchette target of role
+   `default` (id `camera-toggle`), at least the Profile's target size, so that a
+   head-pointer, gesture, scanning, or mouse user can stop the camera, and start it
+   again, without a carer.
+3. WHEN the mode selector changes, THE Board SHALL call `setMode`, and WHEN the
+   Profile's mode changes by any route (import, calibration, the selector) THE Board
+   SHALL show that mode in the selector.
+4. THE Board SHALL start the camera only when the camera toggle is selected while the
+   camera is off, or on page load when the Profile's `startCameraOnLoad` is on
+   (default off, Requirement 6 AC 9). Changing the mode, loading the page with the
+   default Profile, or any other action SHALL NOT start the camera.
+5. WHEN the camera toggle is selected while the camera is on, THE Board SHALL stop the
+   camera. WHEN tracking reports a failure (permission denied, load failure, no face),
+   THE Board SHALL show the toggle as "Start camera" again, and the Status panel SHALL
+   show the plain-language message and the mode alternatives (Requirement 5 AC 9).
+6. WHEN Calibrate is pressed while the camera is off, THE Board SHALL not start
+   calibration, and SHALL say that calibration uses the camera and that Start camera
+   comes first. WHEN the camera is on, THE Board SHALL call `startCalibration`.
+7. THE Board SHALL show the dwell progress ring and the scan highlight by creating
+   them with `createDwellRing` and `createScanHighlight` for the Planchette (Requirement
+   9 AC 3), and SHALL show a hint, as the demo does, that head and gesture modes need
+   the camera and that switch scanning and the mouse work without it.
+8. THE Board SHALL save the chosen mode with the rest of the Profile (Requirement 6
+   AC 10): the mode is the Profile's `mode` field, not a separate Board setting, and the
+   next visit starts in it.
+9. THE Board's automated tests SHALL never start a real camera: they use a fake
+   Planchette whose `startCamera` is a spy, or assert that `getUserMedia` is not called.
+
+### Requirement 14: Fit to the viewport
+
+**User Story:** As a head-pointer user who cannot scroll, I want everything I need on
+one screen, so that I can build, review, and speak a message without leaving the
+board.
+
+#### Acceptance Criteria
+
+1. WITH the default Profile sizes (target size 96 CSS px, target spacing 16 CSS px) and
+   the default `predictionSlotCount` (4), THE Board SHALL show the Message bar, the
+   active grid (Core-vocabulary grid or Letter board), the Prediction strip, the
+   action row, the Controls row with its Status panel, the rest area, and the
+   not-a-medical-device notice entirely inside a 1366×768 and a 1920×1080 viewport,
+   with no page scroll in either axis, in the Core view and in Spell mode.
+2. EVERY registered Planchette target's rectangle SHALL lie fully inside the viewport
+   in both views, at both sizes.
+3. THE Message bar SHALL stay visible, at the same position and size, while the person
+   is in Spell mode; a Message longer than the bar SHALL scroll inside the bar and
+   show its end, never scroll the page.
+4. EACH grid SHALL use equal-width columns and equal-height rows, so that every cell
+   of a grid has the same size. EVERY label SHALL fit inside its cell with no overflow
+   and at 24 CSS px or larger: a label wraps at spaces, and no word is split.
+5. THE Prediction strip's slots SHALL each have a reserved position in the layout,
+   whether or not the slot holds a word.
+6. THE Board SHALL NOT shrink any target below the Profile's target size, or any gap
+   below the Profile's target spacing, to make the layout fit.
+7. WHERE the person or a carer sets a target size, target spacing, or
+   `predictionSlotCount` larger than the default, THE Board SHALL keep every target at
+   the chosen size and MAY need more than one screen; the guarantee in AC 1 is for the
+   defaults only.
+
 ## Properties for property-based tests
 
 These must hold for any generated sequence of Board actions (selections, mode
@@ -478,15 +590,17 @@ and any valid Board profile.
    Undo restores the exact Message that existed before Clear.
 3. **Undo restores the previous Message**: for any Message state and any undoable
    Action (Add word, Add letter, Add space, Backspace, Clear), performing the Action
-   and then Undo restores the exact Message that existed before the Action.
+   and then Undo restores the exact Message and Partial word that existed before the
+   Action (including a space that the Action inserted).
 4. **Prediction never changes a slot in use**: for any sequence of Message changes and
    any slot that is under the pointer, scan-highlighted, or mid-press at the moment of
    a prediction recompute, that slot's displayed word is unchanged by the recompute.
 5. **Prediction excludes core words**: for any Message and any resulting ranked
    prediction list, no entry equals any Core word list entry.
-6. **Settings round trip**: for any valid Board settings (skeleton Profile subset plus
-   Board-only settings), exporting then importing returns an equivalent settings
-   object.
+6. **Settings round trip**: for any valid Board settings (skeleton Profile subset,
+   including `startCameraOnLoad`, plus Board-only settings), exporting then importing
+   returns an equivalent settings object. A missing or non-boolean `startCameraOnLoad`
+   imports as off and is reported.
 7. **Corrupt storage never throws**: for any malformed or partial JSON stored under a
    Board local-storage key, loading it produces the documented default and the Board
    continues to operate without throwing.
@@ -498,3 +612,6 @@ and any valid Board profile.
     with `filterOffensiveWords` on no Exclusion list word is in the Prediction strip
     unless it is in the Spoken-word history; with it off, the strip is ranked from the
     unfiltered list.
+11. **Spelling after a word**: for any core word `w` and any non-empty letter sequence
+    `s`, Add word `w` on an empty Message, then Add letter for each letter of `s`,
+    gives the Message "`w` `s`" with `s` in lower case.

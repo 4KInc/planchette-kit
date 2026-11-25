@@ -13,28 +13,93 @@
   --focus: #b3470a;
   --target-size: 96px;
   --target-gap: 16px;
+  --cell-w: calc(var(--target-size) * 4 / 3);
 }
 * { box-sizing: border-box; }
 body {
   margin: 0;
-  min-height: 100vh;
-  font: 24px/1.4 system-ui, sans-serif;
+  font: 24px/1.3 system-ui, sans-serif;
   color: var(--text);
   background: var(--bg);
 }
-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 24px;
-  border-bottom: 3px solid var(--accent);
+[hidden] { display: none !important; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
 }
-h1 { margin: 0; font-size: 32px; }
-h2 { margin: 0 0 12px; font-size: 24px; }
-main { display: flex; flex-direction: column; gap: 24px; padding: 24px; }
-section { background: var(--panel); border: 3px solid var(--accent); border-radius: 12px; padding: 16px; }
+/*
+ * Viewport layout (Req 14, design.md "Viewport layout"). Two columns: the Message bar above
+ * the active grid on the left, the `.side` column on the right. A container of at most
+ * 1366 px, centred. At the defaults the left column is 80 + 16 + 656 = 752 px and the right
+ * column is 96 + 208 + 96 + 48 + 112 + 112 + 5 * 16 = 752 px, so 1366 x 768 fits with no
+ * scrolling.
+ */
+.page {
+  display: grid;
+  grid-template-columns: calc(var(--cell-w) * 6 + var(--target-gap) * 5) minmax(0, 1fr);
+  grid-template-rows: 80px auto;
+  grid-template-areas:
+    "message side"
+    "grid side";
+  column-gap: var(--target-gap);
+  row-gap: var(--target-gap);
+  max-width: 1366px;
+  margin: 0 auto;
+  padding: 8px 12px;
+}
+section { margin: 0; padding: 0; }
+.message { grid-area: message; min-height: 0; }
+.board { grid-area: grid; }
+.side {
+  grid-area: side;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--target-size) calc(var(--target-size) * 2 + var(--target-gap)) var(--target-size) 48px 112px 112px;
+  row-gap: var(--target-gap);
+  min-width: 0;
+}
+#message-bar {
+  margin: 0;
+  height: 80px;
+  padding: 4px 8px;
+  border: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+}
+.prediction-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--target-gap);
+  min-height: var(--target-size);
+}
+.prediction-strip > button { overflow-wrap: anywhere; }
+.actions {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: var(--target-size);
+  gap: var(--target-gap);
+}
+.camera-rest {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: var(--target-size);
+  gap: var(--target-gap);
+}
+.camera-rest > .rest { grid-column: 2 / span 2; }
+.controls-row { display: flex; align-items: center; gap: 12px; height: 48px; }
+.controls-row label { white-space: nowrap; }
+.controls-row select { font: inherit; min-height: 48px; min-width: 0; flex: 1 1 auto; }
+#status-panel { position: relative; min-width: 0; }
 #camera-status { min-height: 1px; }
 #camera-status [data-planchette="tracking-indicator"] {
   padding: 8px 12px;
@@ -42,9 +107,23 @@ section { background: var(--panel); border: 3px solid var(--accent); border-radi
   border-radius: 8px;
   background: var(--panel);
   color: var(--text);
-  max-width: 34em;
 }
-#camera-status button { margin: 8px 8px 0 0; }
+/*
+ * Failure state: the indicator overlays the bottom of the right column (design.md "Status
+ * panel failure state"), anchored to the Status panel's bottom edge, growing upward.
+ */
+#camera-status [data-planchette="tracking-indicator"][data-state="failed"] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: #ffffff;
+  border-width: 3px;
+}
+#camera-status [data-planchette="tracking-indicator"] p { margin: 0; }
+#camera-status button { margin: 8px 8px 0 0; padding: 4px 8px; }
+#controls-message { margin: 0; max-height: 112px; overflow-y: auto; }
 button {
   font: inherit;
   color: var(--text);
@@ -56,30 +135,31 @@ button {
   cursor: pointer;
 }
 button:focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
-#message-bar { margin: 0; min-height: 3em; font-size: 32px; overflow-wrap: anywhere; }
-.actions { display: flex; flex-wrap: wrap; gap: var(--target-gap); }
+/* Targets: normal weight, 24 px, 2 px border and 2 px side padding, wrapped at spaces only. */
 .target {
   font-size: 24px;
-  font-weight: bold;
+  font-weight: normal;
+  line-height: 1.3;
   min-height: var(--target-size);
   min-width: var(--target-size);
-  padding: 4px 16px;
+  padding: 4px 2px;
+  border-width: 2px;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
 }
 /*
- * Core-vocabulary grid (Req 2). Placement comes from each button's data-row / data-col
- * (the entry's own row and column), never from DOM order. Size and spacing follow the
- * profile through --target-size / --target-gap, set by board-dom.ts. A column grows only
- * if a word needs more than the target size; the order never changes.
+ * Core-vocabulary and Letter grids (Req 2, 3). Placement comes from each button's data-row /
+ * data-col, never from DOM order. Every cell is --cell-w wide and --target-size high.
  */
-[hidden] { display: none !important; }
 .core-grid, .letter-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(var(--target-size), max-content));
-  grid-auto-rows: minmax(var(--target-size), auto);
+  grid-template-columns: repeat(6, var(--cell-w));
+  grid-auto-rows: var(--target-size);
   gap: var(--target-gap);
   justify-content: start;
 }
-.core-grid .target, .letter-grid .target { padding: 4px; }
+.core-grid .target, .letter-grid .target { min-width: 0; }
 .core-grid [data-row="0"] { grid-row: 1; }
 .letter-grid [data-row="0"] { grid-row: 1; }
 .core-grid [data-row="1"] { grid-row: 2; }
@@ -106,18 +186,18 @@ button:focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
 .letter-grid [data-col="5"] { grid-column: 6; }
 .target[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
 .rest {
-  min-height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   border: 3px dotted var(--text);
   border-radius: 12px;
-  padding: 8px;
+  padding: 4px 8px;
+  overflow: hidden;
 }
-.rest p { margin: 0; }
-footer { padding: 0 24px 24px; }
-footer p { margin: 0; }
+.rest p { margin: 0; font-size: 24px; line-height: 1.2; }
+footer { min-width: 0; overflow-y: auto; }
+footer p { margin: 0; line-height: 1.2; }
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }

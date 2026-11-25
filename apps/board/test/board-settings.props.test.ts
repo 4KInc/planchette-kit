@@ -175,3 +175,50 @@ describe("Property 7: Settings export/import round trip and clamping", () => {
     );
   });
 });
+
+describe("Property 7 (startCameraOnLoad): profile.startCameraOnLoad round trip and defaulting", () => {
+  // **Property 7: Settings export/import round trip and clamping**
+  // **Validates: Requirements 6.9, 6.6, 11.8**
+
+  it("a boolean startCameraOnLoad survives export then import with no changes reported", () => {
+    fc.assert(
+      fc.property(validProfilePatch, validBoard, (patch, board) => {
+        const src = mk();
+        src.setProfile(patch);
+        const r = importBoardSettings(mk(), exportBoardSettings(src, board));
+        expect(r.changes).toEqual([]);
+        expect(r.value.profile.startCameraOnLoad).toBe(patch.startCameraOnLoad);
+      }),
+    );
+  });
+
+  const badStart = fc.oneof(
+    fc.constant(MISSING as unknown),
+    fc.string(), fc.integer(), fc.constant(null), fc.constant({}), fc.array(fc.boolean(), { maxLength: 2 }),
+  );
+
+  it("a missing or non-boolean startCameraOnLoad imports as false, is reported, and other fields are untouched", () => {
+    fc.assert(
+      fc.property(validProfilePatch, validBoard, badStart, (patch, board, bad) => {
+        const src = mk();
+        src.setProfile({ ...patch, startCameraOnLoad: true });
+        const profile = JSON.parse(src.exportProfile()) as Record<string, unknown>;
+        if (bad === MISSING) delete profile.startCameraOnLoad;
+        else profile.startCameraOnLoad = bad;
+        const json = JSON.stringify({ version: 1, profile, board });
+
+        const target = mk();
+        target.setProfile({ startCameraOnLoad: true }); // a stale true must not leak through
+        const r = importBoardSettings(target, json);
+
+        expect(r.value.profile.startCameraOnLoad).toBe(false);
+        expect(r.changes.some((c) => c.includes("startCameraOnLoad"))).toBe(true);
+        const { startCameraOnLoad: _a, ...expected } = JSON.parse(src.exportProfile()) as Record<string, unknown>;
+        const { startCameraOnLoad: _b, ...actual } = r.value.profile as Record<string, unknown>;
+        expect(actual).toEqual(expected);
+        expect(r.value.board).toEqual(board);
+        expect(r.changes.every((c) => c.includes("startCameraOnLoad"))).toBe(true);
+      }),
+    );
+  });
+});

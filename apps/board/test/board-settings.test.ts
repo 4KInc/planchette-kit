@@ -4,6 +4,8 @@ import {
   exportBoardSettings,
   importBoardSettings,
   resolveInitialProfile,
+  shouldStartCameraOnLoad,
+  DEFAULT_BOARD_SETTINGS,
   type BoardExport,
 } from "../src/board-settings";
 import { DEFAULT_SETTINGS, readSettings, writeSettings, type StorageLike } from "../src/board-storage";
@@ -66,6 +68,42 @@ describe("board export/import", () => {
     const r = importBoardSettings(mk(), "{nope");
     expect(r.value.board).toEqual(DEFAULT_SETTINGS.board);
     expect(r.changes.length).toBeGreaterThan(0);
+  });
+});
+
+describe("startCameraOnLoad (Profile field)", () => {
+  const withProfile = (patch: Record<string, unknown>, drop?: string): string => {
+    const profile = { ...(JSON.parse(mk().exportProfile()) as Record<string, unknown>), ...patch };
+    if (drop !== undefined) delete profile[drop];
+    return JSON.stringify({ version: 1, profile, board: DEFAULT_SETTINGS.board });
+  };
+
+  it("the exported profile holds startCameraOnLoad: false by default", () => {
+    const json = exportBoardSettings(mk(), DEFAULT_SETTINGS.board);
+    expect((JSON.parse(json) as BoardExport).profile.startCameraOnLoad).toBe(false);
+  });
+
+  it("importing true gives true", () => {
+    const r = importBoardSettings(mk(), withProfile({ startCameraOnLoad: true }));
+    expect(r.value.profile.startCameraOnLoad).toBe(true);
+    expect(shouldStartCameraOnLoad(r.value.profile)).toBe(true);
+  });
+
+  it.each([["missing", undefined], ["yes", "yes"], ["1", 1]])("a %s value gives false and is reported", (_n, v) => {
+    const json = v === undefined ? withProfile({}, "startCameraOnLoad") : withProfile({ startCameraOnLoad: v });
+    const r = importBoardSettings(mk(), json);
+    expect(r.value.profile.startCameraOnLoad).toBe(false);
+    expect(r.changes.some((c) => c.includes("startCameraOnLoad"))).toBe(true);
+  });
+
+  it("shouldStartCameraOnLoad is true only for true", () => {
+    expect(shouldStartCameraOnLoad({})).toBe(false);
+    expect(shouldStartCameraOnLoad({ startCameraOnLoad: false })).toBe(false);
+    expect(shouldStartCameraOnLoad({ startCameraOnLoad: true })).toBe(true);
+  });
+
+  it("DEFAULT_BOARD_SETTINGS has no startCameraOnLoad", () => {
+    expect(Object.keys(DEFAULT_BOARD_SETTINGS)).not.toContain("startCameraOnLoad");
   });
 });
 

@@ -16,9 +16,12 @@ export interface QuickPhrase {
   readonly text: string;
 }
 
+export type AddResult = { readonly added: true } | { readonly added: false; readonly reason: 'full' };
+
 export interface QuickPhrasesStore {
   readonly phrases: readonly QuickPhrase[];
-  add(text: string): void;
+  /** Refuses (list unchanged, nothing written, no notification) at the 100-phrase cap; never evicts a phrase. */
+  add(text: string): AddResult;
   update(id: string, text: string): void;
   remove(id: string): void;
   reorder(ids: readonly string[]): void; // only way the order changes
@@ -34,7 +37,8 @@ export interface QuickPhrasesOptions {
 /**
  * Loads the list from storage. When nothing valid is stored (`usedDefault`), seeds it
  * with `messages.starterQuickPhrases` and saves it. A valid saved list, even an empty
- * one, is never re-seeded.
+ * one, is never re-seeded. A saved list over the limits is shown cut to 100 phrases of
+ * at most 500 characters, but is not written back until the person edits it.
  */
 export function createQuickPhrasesStore(options: QuickPhrasesOptions = {}): QuickPhrasesStore {
   const { storage } = options;
@@ -71,9 +75,9 @@ export function createQuickPhrasesStore(options: QuickPhrasesOptions = {}): Quic
       return phrases;
     },
     add(text) {
-      const added = { id: newId(), text: text.slice(0, QUICK_PHRASE_MAX_CHARS) };
-      // Same eviction as the storage layer: oldest (first) entries go once over the cap.
-      commit([...phrases, added].slice(-QUICK_PHRASES_MAX));
+      if (phrases.length >= QUICK_PHRASES_MAX) return { added: false, reason: 'full' };
+      commit([...phrases, { id: newId(), text: text.slice(0, QUICK_PHRASE_MAX_CHARS) }]);
+      return { added: true };
     },
     update(id, text) {
       if (!used(id)) return;

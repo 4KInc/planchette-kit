@@ -89,9 +89,6 @@ describe("board-storage", () => {
     const s = memoryStorage();
     s.data.set(KEY_MESSAGE, JSON.stringify({ version: 1, message: "a".repeat(MESSAGE_MAX_CHARS + 1) }));
     expect(readMessage(s).usedDefault).toBe(true);
-    const many = Array.from({ length: QUICK_PHRASES_MAX + 1 }, (_, i) => ({ id: `${i}`, text: "t" }));
-    s.data.set(KEY_QUICK_PHRASES, JSON.stringify({ version: 1, phrases: many }));
-    expect(readQuickPhrases(s).usedDefault).toBe(true);
   });
 
   it("truncates an over-long message on write", () => {
@@ -111,13 +108,33 @@ describe("board-storage", () => {
     expect(s.data.has(KEY_HISTORY)).toBe(true);
   });
 
-  it("evicts the oldest quick phrases past the cap", () => {
+  it("refuses to write more than the quick-phrases cap and writes nothing", () => {
     const s = memoryStorage();
     const phrases = Array.from({ length: QUICK_PHRASES_MAX + 1 }, (_, i) => ({ id: `${i}`, text: `p${i}` }));
-    writeQuickPhrases(phrases, s);
-    const stored = readQuickPhrases(s).value;
-    expect(stored).toHaveLength(QUICK_PHRASES_MAX);
-    expect(stored[0]?.id).toBe("1");
-    expect(stored.at(-1)?.id).toBe(`${QUICK_PHRASES_MAX}`);
+    expect(writeQuickPhrases(phrases, s)).toBe(false);
+    expect(s.data.has(KEY_QUICK_PHRASES)).toBe(false);
+    expect(writeQuickPhrases(phrases.slice(0, QUICK_PHRASES_MAX), s)).toBe(true);
+    expect(readQuickPhrases(s).value).toHaveLength(QUICK_PHRASES_MAX);
+  });
+  it("reads a stored list of 150 quick phrases as its first 100", () => {
+    const s = memoryStorage();
+    const many = Array.from({ length: 150 }, (_, i) => ({ id: `${i}`, text: `p${i}` }));
+    s.data.set(KEY_QUICK_PHRASES, JSON.stringify({ version: 1, phrases: many }));
+    const r = readQuickPhrases(s);
+    expect(r.usedDefault).toBe(false);
+    expect(r.reason).toBe("truncated");
+    expect(r.value).toEqual(many.slice(0, QUICK_PHRASES_MAX));
+  });
+  it("cuts a stored 600-character quick phrase to 500", () => {
+    const s = memoryStorage();
+    s.data.set(KEY_QUICK_PHRASES, JSON.stringify({ version: 1, phrases: [{ id: "a", text: "x".repeat(600) }] }));
+    const r = readQuickPhrases(s);
+    expect(r.usedDefault).toBe(false);
+    expect(r.value[0]?.text).toHaveLength(500);
+  });
+  it("reads a quick-phrases list with one malformed entry as the default", () => {
+    const s = memoryStorage();
+    s.data.set(KEY_QUICK_PHRASES, JSON.stringify({ version: 1, phrases: [{ id: "a", text: "ok" }, { id: 2, text: "bad" }] }));
+    expect(readQuickPhrases(s)).toMatchObject({ value: [], usedDefault: true });
   });
 });

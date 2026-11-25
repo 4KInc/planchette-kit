@@ -109,16 +109,42 @@ describe('QuickPhrasesStore', () => {
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
-  it('caps the list at 100, evicting the oldest, and truncates text to 500 chars', () => {
+  it('truncates added text to 500 chars', () => {
+    const { store } = seeded();
+    store.add('x'.repeat(600));
+    expect(store.phrases.at(-1)!.text).toHaveLength(500);
+  });
+  it('refuses add at 100 phrases without changing, writing or notifying; add works again after remove', () => {
     const storage = memoryStorage();
     writeQuickPhrases(Array.from({ length: 100 }, (_, i) => ({ id: `s${i}`, text: `p${i}` })), storage);
     const store = createQuickPhrasesStore({ storage, newId: counterIds() });
-    store.add('x'.repeat(600));
+    const before = store.phrases;
+    const stored = storage.data.get(KEY_QUICK_PHRASES);
+    const fn = vi.fn();
+    store.subscribe(fn);
+    const setItem = vi.spyOn(storage, 'setItem');
+    expect(store.add('one too many')).toEqual({ added: false, reason: 'full' });
+    expect(store.phrases).toEqual(before);
     expect(store.phrases).toHaveLength(100);
-    expect(store.phrases[0]!.id).toBe('s1');
-    expect(store.phrases.at(-1)!.text).toHaveLength(500);
+    expect(storage.data.get(KEY_QUICK_PHRASES)).toBe(stored);
+    expect(setItem).not.toHaveBeenCalled();
+    expect(fn).not.toHaveBeenCalled();
+    store.remove('s0');
+    expect(store.add('fits now')).toEqual({ added: true });
+    expect(store.phrases).toHaveLength(100);
+    expect(store.phrases.at(-1)!.text).toBe('fits now');
   });
-
+  it('shows 100 of a loaded 150-phrase list and leaves the stored value until an edit', () => {
+    const storage = memoryStorage();
+    const many = Array.from({ length: 150 }, (_, i) => ({ id: `s${i}`, text: `p${i}` }));
+    const raw = JSON.stringify({ version: 1, phrases: many });
+    storage.data.set(KEY_QUICK_PHRASES, raw);
+    const store = createQuickPhrasesStore({ storage, newId: counterIds() });
+    expect(store.phrases).toEqual(many.slice(0, 100));
+    expect(storage.data.get(KEY_QUICK_PHRASES)).toBe(raw);
+    store.remove('s0');
+    expect(JSON.parse(storage.data.get(KEY_QUICK_PHRASES)!).phrases).toHaveLength(99);
+  });
   it('generated default ids skip ids already stored', () => {
     const storage = memoryStorage();
     writeQuickPhrases([{ id: 'qp-1', text: 'a' }], storage);

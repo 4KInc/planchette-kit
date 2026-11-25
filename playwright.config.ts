@@ -22,6 +22,23 @@ export default defineConfig({
       testMatch: '**/demo.e2e.ts',
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${BUILT_PORT}` },
     },
+    // The Board app's specs. The top-level testDir stays 'skeleton/test' (the two projects above
+    // inherit it), so each Board project sets its own testDir; that keeps the skeleton projects
+    // from picking up apps/board files and the Board projects from picking up skeleton files.
+    // `board` runs against the dev server, `board-built` against the built output, so the
+    // Content-Security-Policy is checked on the Board page there too.
+    {
+      name: 'board',
+      testDir: 'apps/board/test',
+      testMatch: '**/*.e2e.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PORT}` },
+    },
+    {
+      name: 'board-built',
+      testDir: 'apps/board/test',
+      testMatch: '**/*.e2e.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${BUILT_PORT}` },
+    },
   ],
   webServer: [
     {

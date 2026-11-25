@@ -1,0 +1,164 @@
+/**
+ * board-controls.ts — the Controls row and the Status panel's message line (Req 13). It
+ * follows skeleton/demo/main.ts and design.md "Input controls".
+ *
+ *  - `#mode` (select) and `#calibrate` (button) are plain controls for a carer, not targets.
+ *  - `camera-toggle` is a plain button and a registered target (board-dom.ts registers it
+ *    with the other `data-planchette-target` elements and has no action for it). A `select`
+ *    event for it starts or stops the camera.
+ *  - This module never starts the camera by itself. `startBoard` calls `startCamera()` once
+ *    on load, and only when the Profile says so; it then tells this module with `setCameraOn`.
+ *
+ * Plain mouse clicks on the toggle. The skeleton turns a mouse press into a `select` only in
+ * mouse mode (the mouse adapter counts the button as the switch only there). In every other
+ * mode a carer's click would do nothing, so the toggle also has a DOM `click` handler. In
+ * mouse mode a real pointer click already gives a `select`, so the handler skips it to avoid
+ * toggling twice. A keyboard activation (click with `detail` 0) is skipped in the two scan
+ * modes, where Space is the person's switch and would otherwise act twice.
+ */
+import type { InputMode, Planchette } from '@planchette/skeleton';
+import { messages } from './messages.js';
+
+export type ControlsHost = Pick<
+  Planchette,
+  'setMode' | 'startCamera' | 'stopCamera' | 'startCalibration' | 'getProfile' | 'addEventListener' | 'removeEventListener'
+>;
+
+export interface BoardControlsOptions {
+  readonly host: ControlsHost;
+  readonly document: Document;
+  /** Called after a mode change and after a calibration run ends. */
+  readonly saveProfile: () => void;
+}
+
+export interface BoardControls {
+  /** Tells the controls the camera was started (or failed to start) outside them, on load. */
+  setCameraOn(on: boolean): void;
+  destroy(): void;
+}
+
+const MODES: ReadonlyArray<{ value: InputMode; label: string }> = [
+  { value: 'head + dwell', label: messages.controls.modes.headDwell },
+  { value: 'head + gesture', label: messages.controls.modes.headGesture },
+  { value: 'scan', label: messages.controls.modes.scan },
+  { value: 'gesture scan', label: messages.controls.modes.gestureScan },
+  { value: 'mouse', label: messages.controls.modes.mouse },
+];
+
+const STEP_TEXT: Readonly<Record<string, string>> = messages.controls.calibrationSteps;
+
+function byId<T extends HTMLElement>(doc: Document, id: string): T {
+  const el = doc.getElementById(id);
+  if (el === null) throw new Error(`board: #${id} is missing from board/index.html`);
+  return el as T;
+}
+
+export function mountBoardControls({ host, document: doc, saveProfile }: BoardControlsOptions): BoardControls {
+  const modeSelect = byId<HTMLSelectElement>(doc, 'mode');
+  const calibrateButton = byId<HTMLButtonElement>(doc, 'calibrate');
+  const toggle = doc.querySelector<HTMLButtonElement>('[data-planchette-target="camera-toggle"]');
+  if (toggle === null) throw new Error('board: the camera-toggle target is missing from board/index.html');
+  const messageLine = byId(doc, 'controls-message');
+  const indicator = doc.getElementById('camera-status');
+
+  const modeLabel = doc.querySelector<HTMLElement>('label[for="mode"]');
+  if (modeLabel !== null) modeLabel.textContent = messages.controls.inputMode;
+  calibrateButton.textContent = messages.controls.calibrate;
+  modeSelect.replaceChildren();
+  for (const m of MODES) modeSelect.add(new Option(m.label, m.value));
+
+  let cameraOn = false;
+
+  /** The message line shows only while the tracking indicator has nothing to say. */
+  const refreshVisibility = (): void => {
+    messageLine.hidden = indicator !== null && indicator.childNodes.length > 0;
+  };
+  const say = (text: string): void => {
+    messageLine.textContent = text;
+    refreshVisibility();
+  };
+  const showHint = (): void => {
+    const mode = host.getProfile().mode;
+    const needsCamera = mode === 'head + dwell' || mode === 'head + gesture' || mode === 'gesture scan';
+    say(needsCamera && !cameraOn ? messages.controls.needsCameraHint : messages.controls.privacyHint);
+  };
+  const setCameraOn = (on: boolean): void => {
+    cameraOn = on;
+    toggle.textContent = on ? messages.controls.stopCamera : messages.controls.startCamera;
+    toggle.setAttribute('aria-pressed', String(on));
+    showHint();
+  };
+  const toggleCamera = (): void => {
+    if (cameraOn) {
+      host.stopCamera();
+      setCameraOn(false);
+      say(messages.controls.cameraStopped);
+    } else {
+      setCameraOn(true);
+      host.startCamera().catch(() => setCameraOn(false)); // the indicator shows the failure
+    }
+  };
+
+  const refreshMode = (): void => {
+    modeSelect.value = host.getProfile().mode;
+    showHint();
+  };
+
+  const onChange = (): void => host.setMode(modeSelect.value as InputMode);
+  const onModeChange = (): void => {
+    refreshMode();
+    saveProfile();
+  };
+  const onCalibrate = (): void => {
+    if (!cameraOn) return say(messages.controls.calibrateNeedsCamera);
+    host.startCalibration();
+  };
+  const onStep = (e: CustomEvent<{ step: string; completed: boolean }>): void => {
+    const { step, completed } = e.detail;
+    if (step !== 'done') return say(STEP_TEXT[step] ?? messages.controls.calibrationWorking);
+    refreshMode(); // shows the hint, so the result is said after it
+    say(completed ? messages.controls.calibrationFinished : messages.controls.calibrationStopped);
+    saveProfile(); // a stopped run leaves the Profile unchanged, so saving again is harmless
+  };
+  const onTracking = (e: CustomEvent<{ status: string }>): void => {
+    const s = e.detail.status;
+    if (s === 'found' || s === 'lost' || s === 'low-confidence') setCameraOn(true);
+    else setCameraOn(false); // permission denied, load failed, no face: the indicator explains
+  };
+  const onSelect = (e: CustomEvent<{ targetId: string }>): void => {
+    if (e.detail.targetId === 'camera-toggle') toggleCamera();
+  };
+  const onClick = (e: MouseEvent): void => {
+    const mode = host.getProfile().mode;
+    if (mode === 'mouse' && e.detail > 0) return; // the mouse adapter already sent a select
+    if ((mode === 'scan' || mode === 'gesture scan') && e.detail === 0) return; // Space is the switch
+    toggleCamera();
+  };
+
+  modeSelect.addEventListener('change', onChange);
+  calibrateButton.addEventListener('click', onCalibrate);
+  toggle.addEventListener('click', onClick);
+  host.addEventListener('mode-change', onModeChange);
+  host.addEventListener('calibration-step', onStep);
+  host.addEventListener('tracking-status', onTracking);
+  host.addEventListener('select', onSelect);
+  const observer = indicator !== null && typeof MutationObserver !== 'undefined' ? new MutationObserver(refreshVisibility) : null;
+  if (indicator !== null) observer?.observe(indicator, { childList: true, subtree: true, characterData: true });
+
+  setCameraOn(false);
+  refreshMode();
+
+  return {
+    setCameraOn,
+    destroy() {
+      modeSelect.removeEventListener('change', onChange);
+      calibrateButton.removeEventListener('click', onCalibrate);
+      toggle.removeEventListener('click', onClick);
+      host.removeEventListener('mode-change', onModeChange);
+      host.removeEventListener('calibration-step', onStep);
+      host.removeEventListener('tracking-status', onTracking);
+      host.removeEventListener('select', onSelect);
+      observer?.disconnect();
+    },
+  };
+}

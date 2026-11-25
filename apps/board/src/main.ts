@@ -6,10 +6,12 @@
  */
 /// <reference types="vite/client" />
 import { createPlanchette, type Planchette, type Profile } from '@planchette/skeleton';
+import { createDwellRing, createScanHighlight } from '@planchette/skeleton/ui';
+import { mountBoardControls } from './board-controls.js';
 import { mountBoardDom, type BoardDom } from './board-dom.js';
 import offensiveWordsData from '../data/offensive-words.json';
 import predictionWordListData from '../data/prediction-word-list.json';
-import { resolveInitialProfile } from './board-settings.js';
+import { resolveInitialProfile, shouldStartCameraOnLoad } from './board-settings.js';
 import { createBoardModel, type BoardModel } from './board-model.js';
 import {
   HISTORY_MAX_WORDS,
@@ -17,6 +19,7 @@ import {
   readMessage,
   readSettings,
   writeHistory,
+  writeSettings,
   type HistoryEntry,
   type StorageLike,
   type StoredBoardSettings,
@@ -51,6 +54,8 @@ export interface BoardApp {
   getSettings(): StoredBoardSettings;
   /** Snapshot of the Spoken-word history, as stored. */
   getHistory(): readonly HistoryEntry[];
+  /** Saves the Profile (with the current Board settings) under the settings key. */
+  saveProfile(profile: Partial<Profile>): void;
   /** Adds the predicted word in `slotIndex` to the message. Never touches history. */
   selectPrediction(slotIndex: number, spellMode?: boolean): void;
   /**
@@ -98,6 +103,9 @@ export function createBoardApp(deps: BoardAppDeps): BoardApp {
     initialProfile,
     getSettings: () => settings.board,
     getHistory: snapshot,
+    saveProfile(profile) {
+      writeSettings({ profile, board: settings.board }, deps.storage);
+    },
     selectPrediction(slotIndex, spellMode = false) {
       const word = strip.slots[slotIndex]?.word;
       if (word === null || word === undefined) return;
@@ -131,11 +139,15 @@ export interface StartedBoard {
 }
 
 /** Browser entry: creates the Planchette and the Board, and mounts the DOM layer. */
-export function startBoard(doc: Document = document): StartedBoard {
+export function startBoard(
+  doc: Document = document,
+  /** A seam for tests, which pass a fake. The page uses the real `createPlanchette`. */
+  create: typeof createPlanchette = createPlanchette,
+): StartedBoard {
   const win = doc.defaultView;
   if (win === null) throw new Error('board: the document has no window');
   const status = doc.getElementById('camera-status');
-  const planchette = createPlanchette({
+  const planchette = create({
     screen: { width: win.innerWidth, height: win.innerHeight },
     assetsUrl: `${import.meta.env.BASE_URL}mediapipe/`,
     ...(status === null ? {} : { trackingIndicator: status }),
@@ -150,7 +162,20 @@ export function startBoard(doc: Document = document): StartedBoard {
   });
   // First: the saved or imported Profile, or the Board's 1400 ms dwell default (Req 11 AC 5, 6).
   planchette.setProfile(app.initialProfile);
+  // Remember the mode and the dwell default. board-controls.ts calls this on a mode change
+  // and when a calibration run ends (the one place those two saves happen).
+  const saveCurrentProfile = (): void => app.saveProfile(JSON.parse(planchette.exportProfile()) as Partial<Profile>);
   const dom = mountBoardDom({ host: planchette, app, document: doc });
+  createDwellRing(planchette);
+  createScanHighlight(planchette);
+  // Mounted before the DOM layer so the toggle has its label (and size) when it is registered.
+  // The Profile is saved here, on a mode change and when calibration ends (Task 18.1).
+  const controls = mountBoardControls({ host: planchette, document: doc, saveProfile: saveCurrentProfile });
+  // The camera starts nowhere else, and only when the person's Profile asks for it.
+  if (shouldStartCameraOnLoad(planchette.getProfile())) {
+    controls.setCameraOn(true);
+    planchette.startCamera().catch(() => controls.setCameraOn(false)); // the indicator shows the failure
+  }
   // For the end-to-end tests and for people trying the Board in the console.
   (win as unknown as { planchetteBoard: { planchette: Planchette } }).planchetteBoard = { planchette };
   return { planchette, app, dom };

@@ -29,8 +29,9 @@ import {
 
 /**
  * Feature: board, Property 12: Corrupt or partial storage never throws and falls back
- * to the documented default
- * **Validates: Requirements 10.4**
+ * to the documented default (amended for quick phrases: over-cap lists are cut down,
+ * not defaulted)
+ * **Validates: Requirements 10.4, 7.6**
  */
 
 function stubStorage(key: string, raw: string): StorageLike & { data: Map<string, string> } {
@@ -202,7 +203,8 @@ function corruptRaw(spec: KeySpec): fc.Arbitrary<string> {
     wrongFieldType.map((o) => JSON.stringify(o)),
     missingVersion,
     badVersion,
-    ...(spec.name === 'settings' ? [] : [spec.oversize]),
+    // Settings has no cap; quick phrases are kept cut down rather than defaulted (amended Property 12).
+    ...(spec.name === 'settings' || spec.name === 'quick-phrases' ? [] : [spec.oversize]),
   );
 }
 
@@ -239,6 +241,24 @@ describe('Property 12: Corrupt or partial storage never throws and falls back to
       });
     });
   }
+
+  it('quick phrases over the caps are kept cut down (first 100, texts cut to 500), never defaulted, never throw', () => {
+    fc.assert(
+      fc.property(specs.find((s) => s.name === 'quick-phrases')!.oversize, (raw) => {
+        const parsed = JSON.parse(raw) as { phrases: { id: string; text: string }[] };
+        const storage = stubStorage(KEY_QUICK_PHRASES, raw);
+        let result!: StorageResult<unknown>;
+        expect(() => {
+          result = readQuickPhrases(storage);
+        }).not.toThrow();
+        expect(result.usedDefault).toBe(false);
+        expect(result.value).toEqual(
+          parsed.phrases.slice(0, QUICK_PHRASES_MAX).map((p) => ({ id: p.id, text: p.text.slice(0, QUICK_PHRASE_MAX_CHARS) })),
+        );
+      }),
+      { numRuns: 100 },
+    );
+  });
 
   it('readJSON without a migrate function falls back on any non-matching raw value and never throws', () => {
     fc.assert(

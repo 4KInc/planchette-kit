@@ -54,6 +54,8 @@ export interface StoredSettings {
 export const DEFAULT_MESSAGE = "";
 export const DEFAULT_HISTORY: readonly HistoryEntry[] = [];
 export const DEFAULT_QUICK_PHRASES: readonly StoredQuickPhrase[] = [];
+// When `profile` is empty the skeleton Profile's defaults apply, including
+// `startCameraOnLoad: false`.
 export const DEFAULT_SETTINGS: StoredSettings = {
   profile: {},
   board: { predictionSlotCount: 4, voiceURI: "", speechRate: 1.0, filterOffensiveWords: true },
@@ -189,36 +191,51 @@ export function writeHistory(words: readonly HistoryEntry[], storage?: StorageLi
 // --- quick phrases ----------------------------------------------------------
 
 function isStoredPhrase(p: unknown): p is StoredQuickPhrase {
-  return isRecord(p) && typeof p.id === "string" && typeof p.text === "string" && p.text.length <= QUICK_PHRASE_MAX_CHARS;
+  return isRecord(p) && typeof p.id === "string" && typeof p.text === "string";
 }
 
+/**
+ * Well-formed entries only; a list over `QUICK_PHRASES_MAX` or a text over
+ * `QUICK_PHRASE_MAX_CHARS` is kept cut down (first 100 entries, texts cut to 500) with
+ * reason `'truncated'` rather than replaced by the default, so a person's phrases are
+ * never discarded. Malformed entries, a wrong shape, or a bad version still give the default.
+ */
 export function readQuickPhrases(storage?: StorageLike): StorageResult<readonly StoredQuickPhrase[]> {
+  let truncated = false;
   const r = readJSON<{ phrases: readonly StoredQuickPhrase[] }>(
     KEY_QUICK_PHRASES,
     SCHEMA_VERSION,
     { phrases: DEFAULT_QUICK_PHRASES },
-    (raw, version) =>
-      version === SCHEMA_VERSION &&
-      isRecord(raw) &&
-      Array.isArray(raw.phrases) &&
-      raw.phrases.length <= QUICK_PHRASES_MAX &&
-      raw.phrases.every(isStoredPhrase)
-        ? { phrases: raw.phrases.map((p: StoredQuickPhrase) => ({ id: p.id, text: p.text })) }
-        : undefined,
+    (raw, version) => {
+      if (version !== SCHEMA_VERSION || !isRecord(raw) || !Array.isArray(raw.phrases) || !raw.phrases.every(isStoredPhrase)) {
+        return undefined;
+      }
+      const list = raw.phrases as StoredQuickPhrase[];
+      truncated = list.length > QUICK_PHRASES_MAX || list.some((p) => p.text.length > QUICK_PHRASE_MAX_CHARS);
+      return {
+        phrases: list.slice(0, QUICK_PHRASES_MAX).map((p) => ({ id: p.id, text: p.text.slice(0, QUICK_PHRASE_MAX_CHARS) })),
+      };
+    },
     storage ?? defaultStorage(),
   );
-  return { ...r, value: r.value.phrases };
+  return r.usedDefault || !truncated
+    ? { ...r, value: r.value.phrases }
+    : { value: r.value.phrases, usedDefault: false, reason: "truncated" };
 }
 
 /**
- * The list is ordered oldest first, so when it exceeds `QUICK_PHRASES_MAX` the oldest
- * (first) entries are evicted. Each text is truncated to `QUICK_PHRASE_MAX_CHARS`.
+ * Writes the list as given and returns `true`. A list over `QUICK_PHRASES_MAX` writes
+ * nothing and returns `false`: a phrase the person wrote is never evicted or cut here.
  */
-export function writeQuickPhrases(phrases: readonly StoredQuickPhrase[], storage?: StorageLike): void {
-  const kept = phrases
-    .slice(Math.max(0, phrases.length - QUICK_PHRASES_MAX))
-    .map((p) => ({ id: p.id, text: p.text.slice(0, QUICK_PHRASE_MAX_CHARS) }));
-  writeJSON(KEY_QUICK_PHRASES, SCHEMA_VERSION, { phrases: kept }, storage ?? defaultStorage());
+export function writeQuickPhrases(phrases: readonly StoredQuickPhrase[], storage?: StorageLike): boolean {
+  if (phrases.length > QUICK_PHRASES_MAX) return false;
+  writeJSON(
+    KEY_QUICK_PHRASES,
+    SCHEMA_VERSION,
+    { phrases: phrases.map((p) => ({ id: p.id, text: p.text })) },
+    storage ?? defaultStorage(),
+  );
+  return true;
 }
 
 // --- settings ---------------------------------------------------------------

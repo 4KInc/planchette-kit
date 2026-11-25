@@ -137,6 +137,7 @@ export function mountBoardDom({ host, app, document: doc }: BoardDomOptions): Bo
 
   const showMessage = (message: string): void => {
     messageBar.textContent = message;
+    messageBar.scrollTop = messageBar.scrollHeight; // a long Message shows its end
   };
   showMessage(app.model.message);
   const unsubscribe = app.model.subscribe(showMessage);

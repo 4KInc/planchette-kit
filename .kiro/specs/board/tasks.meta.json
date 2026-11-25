@@ -520,6 +520,204 @@
         "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795593605093
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795595268930
+      }
+    ],
+    "16.1 Insert a space before a new spelled word, and lower-case letters.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795628918522
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795628962174
+      }
+    ],
+    "16. Spelling after a word": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795628962222
+      }
+    ],
+    "16.2 Write the property test for spelling after a word.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795628963457
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629127177
+      }
+    ],
+    "17.1 Refuse a new phrase at the cap and stop evicting.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795628964683
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629128395
+      }
+    ],
+    "17. Quick-phrases cap: refuse, never evict": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629128435
+      }
+    ],
+    "17.2 Update the corrupt-storage property test for the amended Property 12.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629129669
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629214695
+      }
+    ],
+    "18.1 Expose \"Start camera when the page opens\" through the Profile, and save the Profile.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629129765
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629215934
+      }
+    ],
+    "18. Start-camera setting and saving the Profile": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629215984
+      }
+    ],
+    "18.2 Extend the settings round-trip property test for `startCameraOnLoad`.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629217261
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629345887
+      }
+    ],
+    "19.1 Build the Controls row and wire the camera, modes, ring and highlight.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629217327
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629344628
+      }
+    ],
+    "19.2 Test the controls without a real camera.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629346053
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629481565
+      }
+    ],
+    "19. Input controls row": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629481607
+      }
+    ],
+    "20.1 Lay the page out to fit 1366×768 and 1920×1080.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795629482836
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795632531197
+      }
+    ],
+    "20.2 Pin the layout structure in a unit test.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795632532448
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795633224303
+      }
+    ],
+    "21.1 Make Playwright run the Board's specs.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795632532525
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795633225583
+      }
+    ],
+    "20. Viewport-fitting layout and equal-width cells": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795633224350
+      }
+    ],
+    "21.2 Write the viewport end-to-end test.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795633225650
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795635406463
+      }
+    ],
+    "21. Viewport end-to-end test and Playwright config": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795635406510
+      }
+    ],
+    "22. Checkpoint - spelling, quick phrases, controls and layout complete": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795635407746
       }
     ]
   }

@@ -8,41 +8,58 @@
     <link rel="stylesheet" href="../apps/board/board.css" />
   </head>
   <body>
-    <header>
+    <header class="visually-hidden">
       <h1 data-text="page.heading"></h1>
-      <div id="camera-status"></div>
     </header>
-    <main>
+    <main class="page">
       <section aria-labelledby="message-title" class="message">
-        <h2 id="message-title" data-text="page.messageTitle"></h2>
+        <h2 id="message-title" class="visually-hidden" data-text="page.messageTitle"></h2>
         <p id="message-bar" role="status"></p>
       </section>
       <section aria-labelledby="core-title" class="board">
-        <h2 id="core-title" data-text="page.coreTitle"></h2>
+        <h2 id="core-title" class="visually-hidden" data-text="page.coreTitle"></h2>
         <div id="core-grid" class="core-grid"></div>
       </section>
       <section aria-labelledby="letter-title" class="board" hidden>
-        <h2 id="letter-title" data-text="page.letterTitle"></h2>
+        <h2 id="letter-title" class="visually-hidden" data-text="page.letterTitle"></h2>
         <div id="letter-grid" class="letter-grid" hidden></div>
       </section>
-      <section aria-labelledby="actions-title" class="board">
-        <h2 id="actions-title" data-text="page.actionsTitle"></h2>
-        <div class="actions">
-          <button type="button" class="target" data-planchette-target="speak" data-text="actions.speak"></button>
-          <button type="button" class="target" data-planchette-target="backspace-action" data-text="actions.backspace"></button>
-          <button type="button" class="target" data-planchette-target="clear" data-text="actions.clear"></button>
-          <button type="button" class="target" data-planchette-target="undo" data-role="undo" data-text="actions.undo"></button>
-          <button type="button" class="target" data-planchette-target="spell-toggle" aria-pressed="false" data-text="actions.spell"></button>
-          <button type="button" class="target" data-planchette-target="cancel" data-role="cancel" data-text="actions.cancel"></button>
+      <div class="side">
+        <div id="prediction-strip" class="prediction-strip"></div>
+        <section aria-labelledby="actions-title" class="actions-section">
+          <h2 id="actions-title" class="visually-hidden" data-text="page.actionsTitle"></h2>
+          <div class="actions">
+            <button type="button" class="target" data-planchette-target="speak" data-text="actions.speak"></button>
+            <button type="button" class="target" data-planchette-target="backspace-action" data-text="actions.backspace"></button>
+            <button type="button" class="target" data-planchette-target="clear" data-text="actions.clear"></button>
+            <button type="button" class="target" data-planchette-target="undo" data-role="undo" data-text="actions.undo"></button>
+            <button type="button" class="target" data-planchette-target="spell-toggle" aria-pressed="false" data-text="actions.spell"></button>
+            <button type="button" class="target" data-planchette-target="cancel" data-role="cancel" data-text="actions.cancel"></button>
+          </div>
+        </section>
+        <div class="camera-rest">
+          <button type="button" class="target" data-planchette-target="camera-toggle" aria-pressed="false"></button>
+          <div class="rest" id="rest-area" data-planchette-target="rest-area" data-role="rest-area">
+            <p data-text="page.restArea"></p>
+          </div>
         </div>
-      </section>
-      <div class="rest" id="rest-area" data-planchette-target="rest-area" data-role="rest-area">
-        <p data-text="page.restArea"></p>
+        <section aria-labelledby="controls-title" class="controls">
+          <h2 id="controls-title" class="visually-hidden" data-text="page.controlsTitle"></h2>
+          <div class="controls-row">
+            <label for="mode"></label>
+            <select id="mode"></select>
+            <button type="button" id="calibrate"></button>
+          </div>
+        </section>
+        <div id="status-panel">
+          <div id="camera-status"></div>
+          <p id="controls-message" role="status"></p>
+        </div>
+        <footer>
+          <p id="notice" data-text="notMedicalDevice"></p>
+        </footer>
       </div>
     </main>
-    <footer>
-      <p id="notice" data-text="notMedicalDevice"></p>
-    </footer>
     <script type="module" src="../apps/board/src/entry.ts"></script>
   </body>
 </html>

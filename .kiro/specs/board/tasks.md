@@ -9,7 +9,7 @@ then wire them together behind the DOM layer, then add the data files
 with the dwell-sim-mcp layout validation gated on the `reads-while-pointing`
 acceptance target from design.md. Each task names the file(s) it writes and the test
 file next to it. Unit tests are `apps/board/test/<thing>.test.ts`, property tests are
-`<thing>.props.test.ts`. Each of the fifteen properties in design.md is its own
+`<thing>.props.test.ts`. Each of the sixteen properties in design.md is its own
 required sub-task, placed right after the component it checks.
 
 Convert the feature design into a series of prompts for a code-generation LLM that
@@ -506,14 +506,277 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 2 AC 1–4; Req 3 AC 1, 2; Req 9 AC 1, 2; P1.
 
-- [-] 15. Checkpoint - grid and Spell mode complete
+- [x] 15. Checkpoint - grid and Spell mode complete
   - Run the full `apps/board` test suite including the new DOM-layer tests. Ensure
     all tests pass, ask the user if questions arise.
 
-- [ ] 16. DOM layer: Prediction strip wiring
+- [x] 16. Spelling after a word
 
-  - [ ] 16.1 Register Prediction-strip targets and implement the slot-lock rule.
-    - Extend `board-dom.ts`: render `predictionSlotCount` fixed-position slots,
+  - [x] 16.1 Insert a space before a new spelled word, and lower-case letters.
+    - Change `apps/board/src/board-model.ts`: in the `add-letter` case, lower-case the
+      character with `toLowerCase()` (the model does it, so every caller gets the same
+      result and the Letter board's upper-case labels stay display-only), and when
+      `partialWord === ''` and `message !== ''` and the message does not end in
+      whitespace, insert one space before the letter. The new `partialWord` is the old
+      one plus the lower-cased letter. The undo snapshot is still taken before the
+      action, so Undo restores the exact previous message and partial word. `add-space`
+      is unchanged. `board-dom.ts` keeps dispatching `k.label` unchanged.
+    - Update `apps/board/test/board-model.test.ts`: a named test `starts a spelled word
+      after a word: "I want" + H gives "I want h"`; continuing a word adds no space
+      ("I want h" + E gives "I want he"); a letter on an empty message adds no space;
+      a letter after a message that ends in whitespace adds no second space; letters are
+      lower-cased in both the message and `partialWord`; Undo of the first letter
+      restores "I want" with an empty `partialWord`; Undo of a continuing letter
+      restores the previous message and `partialWord`; spell-mode Backspace of the
+      first letter leaves "I want " and the next letter gives "I want k". Search
+      `apps/board/test` for `add-letter` and fix any expectation that assumed upper-case
+      or no separator (for example `board-dom-grid.test.ts`, `board-dom-actions.test.ts`,
+      `prediction.test.ts`).
+    - _Requirements: 1.2, 3.4, 3.8_
+
+  - [x]* 16.2 Write the property test for spelling after a word.
+    - In `apps/board/test/board-model.props.test.ts`, add: for any `CORE_VOCABULARY`
+      label `w0` and any non-empty string of letters `s` (a-z, A-Z), `add-word` `w0` on
+      an empty model then `add-letter` for each character of `s` gives the message
+      `w0 + ' ' + s.toLowerCase()` and `partialWord` `s.toLowerCase()`.
+    - Re-run the existing Property 2 and Property 3 tests unchanged (they must still
+      pass: Undo restores the pre-action snapshot, so an inserted space is undone). If the
+      Property 3 test does not already compare `partialWord`, extend it to, and make its
+      generator reach non-empty messages without trailing whitespace before `add-letter`.
+    - **Property 16: Spelling after a word**
+    - **Validates: Requirements 3.4**
+
+  - **Covers:** Req 1 AC 2; Req 3 AC 4, 8; P16 (P2, P3 re-checked).
+
+- [x] 17. Quick-phrases cap: refuse, never evict
+
+  - [x] 17.1 Refuse a new phrase at the cap and stop evicting.
+    - `apps/board/src/messages.ts`: add `quickPhrases: { full: 'The quick-phrases list is
+      full (100). Remove a phrase to add a new one.' }`.
+    - `apps/board/src/quick-phrases.ts`: `add(text)` returns `{ added: true }` or, when
+      the list already holds `QUICK_PHRASES_MAX` (100) phrases, `{ added: false, reason:
+      'full' }` without changing the list, calling `writeQuickPhrases`, or notifying
+      subscribers. Remove the `.slice(-QUICK_PHRASES_MAX)` eviction. Update the
+      `QuickPhrasesStore` interface and its comments.
+    - `apps/board/src/board-storage.ts`: `writeQuickPhrases` no longer slices or cuts: it
+      writes the list as given and returns `true`, or, when given more than
+      `QUICK_PHRASES_MAX` phrases, writes nothing and returns `false`. `readQuickPhrases`
+      keeps the first 100 entries and cuts each text to `QUICK_PHRASE_MAX_CHARS` instead of
+      falling back to the default (`usedDefault: false`, reason `'truncated'`); an entry
+      that is not `{ id: string, text: string }`, a wrong shape, or a bad version still
+      falls back to the default. Fix the comment that says the oldest entries are evicted.
+      The store does not write a shortened list back on load; only a later edit writes.
+    - Update `apps/board/test/board-storage.test.ts` (the 6.1 cap tests): the history
+      cap test stays; the quick-phrases test now checks that writing 101 phrases writes
+      nothing and returns `false`, that a stored list of 150 reads back as its first 100
+      with `usedDefault: false`, that a stored text of 600 characters reads back cut to
+      500, and that a list with one malformed entry reads as the default.
+    - Update `apps/board/test/quick-phrases.test.ts` (the 8.1 tests): fill the store to
+      100, `add` returns `{ added: false, reason: 'full' }`, `phrases` and the stored
+      value are unchanged, no subscriber is called, and no existing phrase text or id
+      changed; after `remove`, `add` succeeds again; a loaded list of 150 phrases shows
+      100 and the stored value stays at 150 until an edit.
+    - _Requirements: 7.5, 7.6, 10.4_
+
+  - [x]* 17.2 Update the corrupt-storage property test for the amended Property 12.
+    - In `apps/board/test/board-storage.props.test.ts`, change the quick-phrases
+      over-cap generators: a well-formed list over 100 entries, or with a text over 500
+      characters, reads back as its first 100 entries with texts cut to 500, not as the
+      default, and never throws. Every other generated case (non-JSON, wrong shape, bad
+      version, malformed entries, message and history over their caps) still expects the
+      documented default.
+    - **Property 12: Corrupt or partial storage never throws and falls back to the documented default** (amended for quick phrases)
+    - **Validates: Requirements 10.4, 7.6**
+
+  - **Covers:** Req 7 AC 5, 6; Req 10 AC 4; P12 (amended).
+
+- [x] 18. Start-camera setting and saving the Profile
+
+  - [x] 18.1 Expose "Start camera when the page opens" through the Profile, and save the Profile.
+    - Decision (design.md "Input controls"): the setting is the skeleton Profile's
+      existing `startCameraOnLoad` field (default off), not a second Board-only field,
+      because `importProfile` already applies the missing-or-non-boolean-becomes-default
+      rule and reports it, and Requirement 11 AC 4 forbids a duplicate field. Do not add
+      a field to `BoardOnlySettings`.
+    - `apps/board/src/messages.ts`: add `settings.startCameraOnLoad: 'Start camera when
+      the page opens'`.
+    - `apps/board/src/board-settings.ts`: add `shouldStartCameraOnLoad(profile)` (true
+      only when `profile.startCameraOnLoad === true`) and a comment on
+      `BoardOnlySettings` that it deliberately has no start-camera field.
+      `apps/board/src/board-storage.ts`: no schema change (the field lives in the stored
+      `profile` part); update the comment on `DEFAULT_SETTINGS` to say the Profile's
+      defaults, including `startCameraOnLoad: false`, apply when `profile` is empty.
+    - `apps/board/src/main.ts`: add `saveProfile(profile)` to `BoardApp` (it calls
+      `writeSettings({ profile, board })` with the current Board settings). `startBoard`
+      (completed in Task 19.1) calls it with `JSON.parse(planchette.exportProfile())` on
+      `mode-change` and when calibration ends, so the mode and the 1400 ms default are
+      remembered; the Settings screen and import call it too (Task 25.1).
+    - Extend `apps/board/test/board-settings.test.ts` (the 10.1 tests): the exported
+      `profile` holds `startCameraOnLoad: false` by default; importing `startCameraOnLoad:
+      true` gives `true`; a missing value and a non-boolean value (`"yes"`, `1`) give
+      `false` and the report names `startCameraOnLoad`; `Object.keys(DEFAULT_BOARD_SETTINGS)`
+      has no `startCameraOnLoad`. Add `apps/board/test/main-profile.test.ts`: `saveProfile`
+      writes the settings key; a fresh `createBoardApp` on that storage returns the saved
+      profile as `initialProfile` unchanged (a saved `mode: 'mouse'` and a saved
+      `dwellTime` of 1400 are kept); with nothing saved, `initialProfile` is `{ dwellTime:
+      1400 }` and `startCameraOnLoad` stays at the skeleton default `false`.
+    - _Requirements: 6.9, 6.10, 11.4, 11.8, 13.8_
+
+  - [x]* 18.2 Extend the settings round-trip property test for `startCameraOnLoad`.
+    - In `apps/board/test/board-settings.props.test.ts` (the 10.2 test), add
+      `profile.startCameraOnLoad` (boolean) to the generated valid exports and check it
+      survives export then import; generate malformed exports whose
+      `profile.startCameraOnLoad` is missing or not a boolean and check the import gives
+      `false` and reports it.
+    - **Property 7: Settings export/import round trip and clamping**
+    - **Validates: Requirements 6.9, 6.6, 11.8**
+
+  - **Covers:** Req 6 AC 9, 10; Req 11 AC 4, 8; Req 13 AC 8; P7 (extended).
+
+- [x] 19. Input controls row
+
+  - [x] 19.1 Build the Controls row and wire the camera, modes, ring and highlight.
+    - `board/index.html`: add the Controls row (`<label for="mode">Input mode</label>` and
+      `<select id="mode">`, `<button id="calibrate">`, and the camera toggle `<button
+      class="target" data-planchette-target="camera-toggle">`) and the Status panel
+      (`<div id="camera-status">` for the skeleton's tracking indicator and `<p
+      id="controls-message" role="status">`). Move the existing `#camera-status` out of the
+      header into the panel. Placement is done in Task 20.1.
+    - Create `apps/board/src/board-controls.ts`: `mountBoardControls({ host, document,
+      saveProfile })`, following `skeleton/demo/main.ts` and design.md "Input controls":
+      the five modes in the selector (labels: Head + dwell, Head + gesture, Switch
+      scanning, Gesture scanning, Mouse), `setMode` on change, the selector refreshed on
+      `mode-change` and when calibration ends, the camera toggle (target `camera-toggle`,
+      "Start camera" / "Stop camera") calling `startCamera()` / `stopCamera()` on `select`,
+      reset to "Start camera" on a `tracking-status` failure, Calibrate (refuses with a
+      message when the camera is off, else `startCalibration()`), the calibration step
+      text, the head-modes-need-the-camera hint (shown only while the indicator is empty),
+      and `saveProfile()` after a mode change and after calibration ends. The mode
+      selector and Calibrate are not targets.
+    - `apps/board/src/messages.ts`: every label and sentence the controls show (Input mode,
+      the five mode labels, Start camera, Stop camera, Calibrate, Camera stopped., the
+      calibrate-needs-camera sentence, the hint, the calibration step texts).
+    - `apps/board/src/main.ts` (`startBoard`): call `createDwellRing(planchette)` and
+      `createScanHighlight(planchette)` (from `@planchette/skeleton/ui`), mount the
+      controls, and start the camera on load only when
+      `shouldStartCameraOnLoad(planchette.getProfile())` is true (catch the rejection: the
+      indicator shows the failure). The camera is started nowhere else.
+      `board-dom.ts`'s existing registration loop registers `camera-toggle`; make sure
+      `syncTargets` covers it and that `ACTIONS` has no entry for it.
+    - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.7, 13.8, 5.8, 5.9, 9.3, 9.8_
+
+  - [x] 19.2 Test the controls without a real camera.
+    - Write `apps/board/test/board-controls.test.ts` (jsdom, a fake Planchette with spy
+      `startCamera`, `stopCamera`, `setMode`, `startCalibration`, and a way to emit
+      `mode-change`, `tracking-status`, `calibration-step`, `select`): the selector lists
+      exactly the five modes; changing it calls `setMode` with that value; a `mode-change`
+      event updates the selector; `startCamera` is not called on mount with the default
+      Profile, is not called by a mode change, is called once when the camera toggle is
+      selected while off, and is called on mount only when `startCameraOnLoad` is `true`;
+      the toggle selected while on calls `stopCamera` and reads "Start camera"; a
+      `tracking-status` failure resets the toggle; Calibrate with the camera off does not
+      call `startCalibration` and shows the message; with it on, it does; `camera-toggle`
+      is the only control registered as a target (the selector and Calibrate carry no
+      `data-planchette-target`); the mode is saved (the `saveProfile` spy runs on
+      `mode-change`).
+    - _Requirements: 13.1, 13.2, 13.3, 13.4, 13.5, 13.6, 13.9_
+
+  - **Covers:** Req 13 AC 1–9; Req 5 AC 8, 9; Req 9 AC 3, 8.
+
+- [x] 20. Viewport-fitting layout and equal-width cells
+
+  - [x] 20.1 Lay the page out to fit 1366×768 and 1920×1080.
+    - Restructure `board/index.html` and `apps/board/board.css` to the arrangement and
+      numbers in design.md "Viewport layout" (defaults: target size 96, spacing 16,
+      4 prediction slots): a two-column CSS grid, 12 px side and 8 px top and bottom page
+      padding, a container of at most 1366 px centred with `margin: 0 auto`; left column
+      Message bar (80 px high, `overflow-y: auto`, scrolled to its end after each change)
+      above the active grid; right column in this order: `#prediction-strip` (reserved
+      one-row space, 4 columns, present in the markup before any slot exists), the
+      action row (3 columns × 2 rows), the camera toggle with the rest area spanning two
+      columns (96 px high), the Controls row (48 px), the Status panel (112 px), the
+      notice footer (112 px). The core and Letter sections occupy the same grid area.
+      Drop the section borders and padding that cost height; keep each section's heading
+      for screen readers as visually hidden text. Remove `body { min-height: 100vh }` and
+      the old `.rest { min-height: 140px }`. The tracking indicator's failure state
+      overlays the bottom of the right column (design.md "Status panel failure state").
+    - Equal-width cells: replace `repeat(6, minmax(var(--target-size), max-content))`
+      with `repeat(6, var(--cell-w))` and `grid-auto-rows: var(--target-size)`, with
+      `--cell-w: calc(var(--target-size) * 4 / 3)`; grid targets and action targets use
+      normal font weight at 24 px with a 2 px border and 2 px side padding; labels wrap
+      at spaces only (no word splitting). Prediction slot buttons (created in Task 23.1)
+      use `overflow-wrap: anywhere` at 24 px.
+    - `apps/board/src/board-dom.ts`: after `showMessage`, set the Message bar's
+      `scrollTop` to its `scrollHeight`. Keep `applyLayout` setting `--target-size` and
+      `--target-gap` from the Profile.
+    - Check the existing `board-dom-*.test.ts` helpers still find the elements they use
+      (`apps/board/test/board-dom-helpers.ts`); fix them if the markup change breaks
+      them.
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7, 9.1, 9.2_
+
+  - [x] 20.2 Pin the layout structure in a unit test.
+    - Write `apps/board/test/board-layout.test.ts` (jsdom): parse `board/index.html` and
+      check the regions exist in the documented DOM order (Message bar, core section,
+      letter section, `#prediction-strip` (present with no slot children), action row,
+      camera toggle, rest area, Controls row, Status panel, footer notice); read
+      `apps/board/board.css` as text and check that `--cell-w` is
+      `calc(var(--target-size) * 4 / 3)`, that the grids use `repeat(6, var(--cell-w))`
+      and `grid-auto-rows: var(--target-size)`, that `minmax(var(--target-size),
+      max-content)` is gone, that grid and action targets are not bold, and that no
+      font size below 24px appears for target text.
+    - _Requirements: 14.4, 14.5, 14.6_
+
+  - **Covers:** Req 14 AC 1–7; Req 9 AC 1, 2.
+
+- [x] 21. Viewport end-to-end test and Playwright config
+
+  - [x] 21.1 Make Playwright run the Board's specs.
+    - Edit `playwright.config.ts` without touching the skeleton specs: keep the top-level
+      `testDir: 'skeleton/test'` and the `chromium` and `built` projects exactly as they
+      are, and add two projects with their own `testDir: 'apps/board/test'` and
+      `testMatch: '**/*.e2e.ts'`: `board` (Desktop Chrome, the dev server at port 5199) and
+      `board-built` (Desktop Chrome, `baseURL` the built output at port 5198, so the
+      Content-Security-Policy is checked there too). Add a comment saying why.
+    - Write `apps/board/test/playwright-config.test.ts` (Vitest): import the config and
+      check that the top-level `testDir` is still `skeleton/test`, that the `chromium`
+      and `built` projects are unchanged, and that `board` and `board-built` exist with
+      `testDir` `apps/board/test`.
+    - _Requirements: none (test infrastructure)_
+
+  - [x] 21.2 Write the viewport end-to-end test.
+    - Write `apps/board/test/board-viewport.e2e.ts` (pattern from
+      `skeleton/test/demo.e2e.ts`: wrap `getUserMedia` to count and refuse calls). For
+      each of 1366×768 and 1920×1080: open `/board/`, choose Mouse in `#mode` (the real
+      selector), then in the Core view and again after clicking Spell: check
+      `document.documentElement.scrollHeight <= innerHeight` and `scrollWidth <=
+      innerWidth`; check every region (Message bar, active grid, `#prediction-strip`,
+      action row, Controls row, Status panel, rest area, notice) lies inside the
+      viewport; check every rectangle from `window.planchetteBoard.planchette.getTargets()`
+      lies fully inside the viewport (28 grid targets in Spell mode, 36 in the Core view,
+      plus the action, camera toggle, rest and Cancel/Undo targets); check no `.target`
+      element overflows (`scrollWidth <= clientWidth`, `scrollHeight <= clientHeight`),
+      using the longest labels ("different", "⌫ Backspace"); check the Message bar's
+      rectangle is the same in the Core view and in Spell mode and is visible there;
+      type a message longer than the bar and check the page still does not scroll and
+      the bar shows its end; check `getUserMedia` was never called. No camera is started.
+      The test runs in both the `board` and `board-built` projects.
+    - The `window.planchetteBoard` hook already exists (`startBoard` in `main.ts`); do
+      not add it again.
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 13.9_
+
+  - **Covers:** Req 14 AC 1–5; Req 13 AC 9.
+
+- [-] 22. Checkpoint - spelling, quick phrases, controls and layout complete
+  - Run the full `apps/board` test suite, `npm run typecheck`, and `npm run test:e2e`
+    (the new `board` and `board-built` projects with the existing skeleton ones). Ensure
+    all tests pass, ask the user if questions arise.
+
+- [ ] 23. DOM layer: Prediction strip wiring
+
+  - [ ] 23.1 Register Prediction-strip targets and implement the slot-lock rule.
+    - Extend `board-dom.ts`: render `predictionSlotCount` fixed-position slot buttons
+      inside the `#prediction-strip` container reserved in Task 20.1 (do not add a new
+      container),
       register `prediction-slot-<i>` targets (unselectable / no target when the slot's
       word is `null`), and implement `isLocked` from `pointer-move`'s last target hit,
       the current `highlight` event's `targetIds`, and a short pending-press flag
@@ -530,9 +793,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 4 AC 1, 5.
 
-- [ ] 17. DOM layer: Quick phrases
+- [ ] 24. DOM layer: Quick phrases
 
-  - [ ] 17.1 Render and wire the Quick-phrases list in the Board view.
+  - [ ] 24.1 Render and wire the Quick-phrases list in the Board view.
     - Extend `board-dom.ts`: render `QuickPhrasesStore.phrases` as fixed-position
       targets (`quick-phrase-<id>`), re-registered only on store changes (never on
       message/prediction changes), wired to
@@ -545,18 +808,22 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 7 AC 2, 3.
 
-- [ ] 18. DOM layer: Settings screen
+- [ ] 25. DOM layer: Settings screen
 
-  - [ ] 18.1 Build the Settings panel.
+  - [ ] 25.1 Build the Settings panel.
     - Extend `board-dom.ts` (or a new `apps/board/src/board-settings-dom.ts` if the
       file grows large): a keyboard-and-screen-reader-operable panel with labelled
       controls for every Board/skeleton profile field (reusing the input-core Profile
       fields table's min/max as help text), the `voiceURI` `<select>` populated from
       `speechSynthesis.getVoices().filter(v => v.localService)`, the `speechRate`
       range input, the "Filter offensive words from suggestions" checkbox (on by
-      default, changeable by the person or a carer, saved immediately), the Export/Import text box and buttons (mirroring the skeleton
+      default, changeable by the person or a carer, saved immediately), the "Start camera
+      when the page opens" checkbox (bound to the Profile's `startCameraOnLoad`, off by
+      default, saved with the Profile through `saveProfile` from Task 18.1; import also
+      calls `saveProfile`), the Export/Import text box and buttons (mirroring the skeleton
       demo's profile box), and the Quick-phrases editor (add/edit/remove, Move
-      up/Move down buttons for keyboard-operable reordering).
+      up/Move down buttons for keyboard-operable reordering; when `add` returns `{ added:
+      false }` the editor shows `messages.quickPhrases.full` and the list is unchanged).
     - Write `apps/board/test/settings-dom.test.ts` (jsdom): every control has an
       accessible name; Tab order reaches every control; the voice `<select>` shows
       "no local voices available" when `getVoices()` returns none with
@@ -569,7 +836,10 @@ tasks that involve writing, modifying, or testing code.
       Hermit Dave, OpenSubtitles 2018 via OPUS, CC BY-SA 4.0, changes made, links), the
       derivative-stays-CC-BY-SA and code-is-MIT statement, and the Exclusion list
       credit (LDNOOBW, copyright 2012-2020 Shutterstock, Inc., CC BY 4.0, changes
-      made, links). In `settings-dom.test.ts`, also check: the checkbox has an
+      made, links). In `settings-dom.test.ts`, also check: the start-camera checkbox has an accessible name,
+      is unchecked on first run, and toggling it changes the Profile's
+      `startCameraOnLoad` and saves it without starting the camera; adding a 101st phrase
+      shows the full message and leaves the list unchanged; the checkbox has an
       accessible name, is checked on first run, and toggling it saves the setting and
       changes the Prediction strip's candidates without affecting the Message. Write
       `apps/board/test/about-dom.test.ts` (jsdom): the About button is reachable by Tab;
@@ -579,13 +849,13 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 6 AC 1, 4; Req 7 AC 3; Req 8 AC 4, 5; Req 9 AC 9; Req 12.
 
-- [ ] 19. Checkpoint - DOM layer complete
+- [ ] 26. Checkpoint - DOM layer complete
   - Run the full `apps/board` test suite and `npm run typecheck`. Ensure all tests
     pass, ask the user if questions arise.
 
-- [ ] 20. Accessibility, theme, and notice content
+- [ ] 27. Accessibility, theme, and notice content
 
-  - [ ] 20.1 Apply calm styling, contrast, reduced motion, and the required notices.
+  - [ ] 27.1 Apply calm styling, contrast, reduced motion, and the required notices.
     - Create `apps/board/demo.css`-equivalent stylesheet (named to match the app,
       e.g. `apps/board/board.css`) with: 24 CSS px minimum text size everywhere on the
       grid/strip/bar/list; measured 4.5:1 text contrast and 3:1 UI-part contrast
@@ -593,7 +863,7 @@ tasks that involve writing, modifying, or testing code.
       `skeleton/test/demo.e2e.ts`); `prefers-reduced-motion` respected by relying on
       `createDwellRing`/`createScanHighlight`'s own built-in handling (no extra Board
       animation is added); no flashing element anywhere on the page.
-    - Check the About screen from Task 18.1 uses the same 24 CSS px text size and
+    - Check the About screen from Task 25.1 uses the same 24 CSS px text size and
       contrast rules (the notice and credits come from `messages.ts`).
     - Write `apps/board/test/board-colours.test.ts` (jsdom + computed style, mirroring
       `demo.e2e.ts`'s contrast checks): every text colour/background pairing used on
@@ -603,12 +873,13 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 9 AC 1–7, 10.
 
-- [ ] 21. End-to-end tests (Playwright + axe-core)
+- [ ] 28. End-to-end tests (Playwright + axe-core)
 
-  - [ ] 21.1 Write the mouse- and keyboard-driven end-to-end suite.
-    - Write `apps/board/test/board.e2e.ts` (pattern from `skeleton/test/demo.e2e.ts`,
-      added to `playwright.config.ts`'s `testDir`/`testMatch` if needed): loads
-      `/board/`, never starts the camera; drives mouse clicks (core word → Message bar
+  - [ ] 28.1 Write the mouse- and keyboard-driven end-to-end suite.
+    - Write `apps/board/test/board.e2e.ts` (pattern from `skeleton/test/demo.e2e.ts`;
+      it runs under the `board` and `board-built` projects added in Task 21.1, so do not
+      edit `playwright.config.ts` again): loads
+      `/board/`, never starts the camera (the page's Start camera is not pressed); drives mouse clicks (core word → Message bar
       updates; Backspace/Clear/Undo/Speak behave per Requirement 1; Spell-mode toggle
       shows the Letter board and back) and keyboard/switch-scan selection (Space as
       the default switch binding advances and selects, Escape cancels); confirms
@@ -622,13 +893,13 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 1 AC 2–7; Req 3 AC 1, 2; Req 5 AC 1, 9; Req 9 AC 9.
 
-- [ ] 22. Checkpoint - end-to-end suite complete
+- [ ] 29. Checkpoint - end-to-end suite complete
   - Run `npm run test:e2e` and confirm the new Board specs pass alongside the existing
     skeleton ones. Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 23. MCP configuration for the dwell simulator
+- [ ] 30. MCP configuration for the dwell simulator
 
-  - [ ] 23.1 Add the workspace MCP configuration and verify the relative path.
+  - [ ] 30.1 Add the workspace MCP configuration and verify the relative path.
     - Create `.kiro/settings/mcp.json` with the `dwell-sim` server entry using the
       **relative** command path `tools/dwell-sim-mcp/dist/server.js`, per design.md's
       "Configuring the MCP server" section (`command: "node"`, relative `args`,
@@ -641,7 +912,7 @@ tasks that involve writing, modifying, or testing code.
     - **If it does not resolve: stop and tell the user.** Document a per-user config
       that is not committed (`~/.kiro/settings/mcp.json` with the user's own absolute
       path) in `tools/dwell-sim-mcp/README.md`, remove the relative entry from the
-      workspace file, and do not continue to Task 24 until the user replies.
+      workspace file, and do not continue to Task 31 until the user replies.
     - Write `tools/dwell-sim-mcp/test/board-mcp-config.test.ts`: `.kiro/settings/mcp.json`
       parses as JSON, contains a `dwell-sim` entry whose `args` path does not start
       with `/` or a drive letter, and whose `command` is `node`.
@@ -649,9 +920,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Configuring the MCP server".
 
-- [ ] 24. Board layout export and the six-preset gate run
+- [ ] 31. Board layout export and the six-preset gate run
 
-  - [ ] 24.1 Export the Board's four layouts.
+  - [ ] 31.1 Export the Board's four layouts.
     - Write `tools/dwell-sim-mcp/scripts/export-board-layout.ts` (pattern from
       `export-demo-layout.ts`): serves the built `dist/board/index.html`, opens it at
       1920×1080 and 1366×768, reads `window.planchetteBoard.planchette.getTargets()`
@@ -659,9 +930,10 @@ tasks that involve writing, modifying, or testing code.
       for the spell view, and writes the four `board-layout-*.json` files next to the
       existing demo-layout files.
     - Add a `demo:export:board` script to `tools/dwell-sim-mcp/package.json` running
-      this script via `dist-scripts/export-board-layout.js`, and wire a `window.planchetteBoard`
-      test hook into `apps/board/src/main.ts` (mirroring the demo's
-      `window.planchetteDemo`).
+      this script via `dist-scripts/export-board-layout.js`. The `window.planchetteBoard`
+      test hook already exists in `apps/board/src/main.ts` (created with `startBoard`
+      and used by Task 21.2); do not add it again. Export the layouts from the viewport
+      layout built in Task 20.1.
     - Write `tools/dwell-sim-mcp/test/export-board-layout.test.ts`: the pure
       `toLayoutJson`-equivalent conversion function used by the script produces the
       expected `{ screen, targets }` shape from a fixed sample input (unit test; the
@@ -669,7 +941,7 @@ tasks that involve writing, modifying, or testing code.
       `export-demo-layout.ts`'s own test boundary).
     - _Requirements: none (design.md "Exporting the Board's layout")_
 
-  - [ ] 24.2 Generalise the preset runner and run the six-preset gate.
+  - [ ] 31.2 Generalise the preset runner and run the six-preset gate.
     - Write `tools/dwell-sim-mcp/scripts/run-board-presets.ts`: imports
       `runDemoPresets`/`DemoLayout`/`DemoHandler` from `run-demo-presets.ts` (no
       duplication), passes the four Board layouts and a `{ eachTarget: 2 }` task,
@@ -686,11 +958,11 @@ tasks that involve writing, modifying, or testing code.
     - **Acceptance gate**: the `reads-while-pointing` preset's `accidentalPer100Intended`
       metric must be at or below 10 on all four Board layouts. If it is not, adjust the
       design levers in design.md's "Design levers used" section (dwell time, grouping,
-      spacing) and re-run before proceeding to Task 24.3.
+      spacing) and re-run before proceeding to Task 31.3.
     - _Requirements: none (design.md "Running the six presets", "The acceptance target")_
 
-  - [ ]* 24.3 Pin any surfaced counterexample.
-    - WHERE a `simulate` run from Task 24.2 surfaces an accidental selection whose
+  - [ ]* 31.3 Pin any surfaced counterexample.
+    - WHERE a `simulate` run from Task 31.2 surfaces an accidental selection whose
       cause is not the expected `reading-pause` cause at or below the target rate,
       write `apps/board/test/layout-regressions.test.ts`: a fixed regression test that
       re-runs that exact `simulate` call (preset, layout file, seed, task) and asserts
@@ -700,9 +972,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Running the six presets", "The acceptance target", "Counterexample policy".
 
-- [ ] 25. Compare runs for layout-affecting changes made in this spec
+- [ ] 32. Compare runs for layout-affecting changes made in this spec
 
-  - [ ] 25.1 Record a `compare` baseline-vs-chosen-defaults run.
+  - [ ] 32.1 Record a `compare` baseline-vs-chosen-defaults run.
     - Using the `compare` MCP tool (via a script or an ad hoc MCP call recorded in the
       journal, not a new source file, mirroring how dwell-sim-mcp's README documents
       `compare` usage), compare the Board's core-grid layout at the input-core global
@@ -716,26 +988,26 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Comparing layout changes".
 
-- [ ] 26. Final checkpoint
+- [ ] 33. Final checkpoint
   - Run `npm test` and `npm run build` and `npm run test:e2e` at the repository root.
-    Confirm the Task 24.2 acceptance gate still passes (metrics are deterministic for
+    Confirm the Task 31.2 acceptance gate still passes (metrics are deterministic for
     a fixed seed, so this should not need re-running unless source changed since
-    Task 24). Ensure all tests pass, ask the user if questions arise.
+    Task 31). Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
 
 - Tasks marked with `*` (property and regression tests) are optional sub-tasks and
-  can be skipped for a faster MVP, except that skipping Task 24.3 is only valid when
-  no counterexample was found (noted inline on that task). All fifteen numbered
+  can be skipped for a faster MVP, except that skipping Task 31.3 is only valid when
+  no counterexample was found (noted inline on that task). All sixteen numbered
   properties in design.md are implemented as required sub-tasks regardless of the
   `*` marking convention used elsewhere in this plan for clarity; the `*` here follows
   this workflow's own convention that test-only sub-tasks may be marked optional, but
   the properties listed in design.md are the ones explicitly requested and should not
   be skipped without reporting that gap to the user.
-- `apps/board/src/main.ts` is extended incrementally across Tasks 10, 13, 14, 16, 17,
-  and 18; no task leaves it in a state that does not compile or run.
+- `apps/board/src/main.ts` is extended incrementally across Tasks 10, 13, 14, 18, 19, 23,
+  24, and 25; no task leaves it in a state that does not compile or run.
 - The dwell-sim-mcp package (`tools/dwell-sim-mcp`) is extended, not duplicated:
-  Tasks 23–25 add Board-specific scripts and one config file, reusing
+  Tasks 30–32 add Board-specific scripts and one config file, reusing
   `run-demo-presets.ts`'s exported functions and the existing `simulate`/`compare`
   MCP tools exactly as the dwell-sim-mcp spec built them.
 - Scripts under `tools/dwell-sim-mcp/scripts/` compile to `dist-scripts/*.js` and run
@@ -768,18 +1040,30 @@ tasks that involve writing, modifying, or testing code.
     { "id": 18, "tasks": ["14.3"] },
     { "id": 19, "tasks": ["15"] },
     { "id": 20, "tasks": ["16.1"] },
-    { "id": 21, "tasks": ["17.1"] },
-    { "id": 22, "tasks": ["18.1"] },
-    { "id": 23, "tasks": ["19"] },
-    { "id": 24, "tasks": ["20.1"] },
-    { "id": 25, "tasks": ["21.1"] },
-    { "id": 26, "tasks": ["22"] },
-    { "id": 27, "tasks": ["23.1"] },
-    { "id": 28, "tasks": ["24.1"] },
-    { "id": 29, "tasks": ["24.2"] },
-    { "id": 30, "tasks": ["24.3"] },
-    { "id": 31, "tasks": ["25.1"] },
-    { "id": 32, "tasks": ["26"] }
+    { "id": 21, "tasks": ["16.2", "17.1"] },
+    { "id": 22, "tasks": ["17.2"] },
+    { "id": 23, "tasks": ["18.1"] },
+    { "id": 24, "tasks": ["18.2"] },
+    { "id": 25, "tasks": ["19.1"] },
+    { "id": 26, "tasks": ["19.2"] },
+    { "id": 27, "tasks": ["20.1"] },
+    { "id": 28, "tasks": ["20.2"] },
+    { "id": 29, "tasks": ["21.1"] },
+    { "id": 30, "tasks": ["21.2"] },
+    { "id": 31, "tasks": ["22"] },
+    { "id": 32, "tasks": ["23.1"] },
+    { "id": 33, "tasks": ["24.1"] },
+    { "id": 34, "tasks": ["25.1"] },
+    { "id": 35, "tasks": ["26"] },
+    { "id": 36, "tasks": ["27.1"] },
+    { "id": 37, "tasks": ["28.1"] },
+    { "id": 38, "tasks": ["29"] },
+    { "id": 39, "tasks": ["30.1"] },
+    { "id": 40, "tasks": ["31.1"] },
+    { "id": 41, "tasks": ["31.2"] },
+    { "id": 42, "tasks": ["31.3"] },
+    { "id": 43, "tasks": ["32.1"] },
+    { "id": 44, "tasks": ["33"] }
   ]
 }
 ```

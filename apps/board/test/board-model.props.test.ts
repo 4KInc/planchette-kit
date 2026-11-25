@@ -1,5 +1,6 @@
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';
+import { CORE_VOCABULARY } from '../src/core-vocabulary.js';
 import { createBoardModel, UNDO_LIMIT, type BoardAction } from '../src/board-model.js';
 
 /** Messages incl. empty, whitespace-only and unicode. */
@@ -13,8 +14,10 @@ const messageArb = fc.oneof(
 const partialArb = fc.string({ unit: 'grapheme', maxLength: 5 });
 
 /** A message plus a pending partial word, built through the model so state is reachable. */
+/** Non-empty messages with no trailing whitespace, so add-letter takes the space-insertion path. */
+const wordsMessageArb = fc.stringMatching(/^[a-z]{1,8}( [a-z]{1,8}){0,3}$/u);
 const setupArb = fc.record({
-  message: messageArb,
+  message: fc.oneof(messageArb, wordsMessageArb),
   letters: partialArb.filter((s) => s.length > 0).map((s) => Array.from(s)),
   withLetters: fc.boolean(),
 });
@@ -123,6 +126,23 @@ describe('board-model properties', () => {
         expect(m.partialWord).toBe('');
         expect(m.canUndo()).toBe(false);
       }),
+    );
+  });
+
+  it('Property 16: Spelling after a word', () => {
+    // **Validates: Requirements 3.4**
+    fc.assert(
+      fc.property(
+        fc.constantFrom(...CORE_VOCABULARY.map((b) => b.label)),
+        fc.stringMatching(/^[a-zA-Z]{1,12}$/u),
+        (w0, s) => {
+          const m = createBoardModel();
+          m.dispatch({ type: 'add-word', text: w0 }, false);
+          for (const c of s) m.dispatch({ type: 'add-letter', char: c }, true);
+          expect(m.message).toBe(w0 + ' ' + s.toLowerCase());
+          expect(m.partialWord).toBe(s.toLowerCase());
+        },
+      ),
     );
   });
 });

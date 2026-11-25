@@ -22,13 +22,81 @@ describe('board-model: appending', () => {
     expect(n.message).toBe('a\nb');
   });
 
-  it('add-letter and add-space insert no extra space', () => {
+  it('add-space inserts no extra space', () => {
     const m = createBoardModel('go');
-    m.dispatch({ type: 'add-letter', char: 'x' }, true);
-    expect(m.message).toBe('gox');
     m.dispatch({ type: 'add-space' }, true);
     m.dispatch({ type: 'add-space' }, true);
-    expect(m.message).toBe('gox  ');
+    expect(m.message).toBe('go  ');
+  });
+});
+
+describe('board-model: spelling after a word', () => {
+  const letter = (char: string) => ({ type: 'add-letter', char }) as const;
+
+  it('starts a spelled word after a word: "I want" + H gives "I want h"', () => {
+    const m = createBoardModel('I want');
+    m.dispatch(letter('H'), true);
+    expect(m.message).toBe('I want h');
+    expect(m.partialWord).toBe('h');
+  });
+
+  it('continuing a word adds no space', () => {
+    const m = createBoardModel('I want');
+    m.dispatch(letter('H'), true);
+    m.dispatch(letter('E'), true);
+    expect(m.message).toBe('I want he');
+    expect(m.partialWord).toBe('he');
+  });
+
+  it('a letter on an empty message adds no space', () => {
+    const m = createBoardModel();
+    m.dispatch(letter('A'), true);
+    expect(m.message).toBe('a');
+  });
+
+  it('a letter after trailing whitespace adds no second space', () => {
+    const m = createBoardModel('I want ');
+    m.dispatch(letter('H'), true);
+    expect(m.message).toBe('I want h');
+    const n = createBoardModel('a\n');
+    n.dispatch(letter('B'), true);
+    expect(n.message).toBe('a\nb');
+  });
+
+  it('lower-cases letters in the message and partialWord', () => {
+    const m = createBoardModel();
+    m.dispatch(letter('A'), true);
+    m.dispatch(letter('B'), true);
+    expect(m.message).toBe('ab');
+    expect(m.partialWord).toBe('ab');
+  });
+
+  it('undo of the first letter restores the message and an empty partialWord', () => {
+    const m = createBoardModel('I want');
+    m.dispatch(letter('H'), true);
+    m.undo();
+    expect(m.message).toBe('I want');
+    expect(m.partialWord).toBe('');
+  });
+
+  it('undo of a continuing letter restores the previous message and partialWord', () => {
+    const m = createBoardModel('I want');
+    m.dispatch(letter('H'), true);
+    m.dispatch(letter('E'), true);
+    m.undo();
+    expect(m.message).toBe('I want h');
+    expect(m.partialWord).toBe('h');
+  });
+
+  it('spell-mode backspace of the first letter leaves "I want " and the next letter gives "I want k"', () => {
+    const m = createBoardModel('I want');
+    m.dispatch(letter('H'), true);
+    m.dispatch({ type: 'backspace' }, true);
+    expect(m.message).toBe('I want ');
+    expect(m.partialWord).toBe('');
+    m.dispatch(letter('K'), true);
+    expect(m.message).toBe('I want k');
+    expect(m.partialWord).toBe('k');
   });
 });
 
