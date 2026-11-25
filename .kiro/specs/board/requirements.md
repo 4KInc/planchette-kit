@@ -206,7 +206,7 @@ the buttons I already know by position.
    empty and unselectable if the ranked list has fewer entries than
    `predictionSlotCount`.
 7. WHEN there is no Partial word, THE Board SHALL rank a predicted word by the sum of
-   its normalised frequency in the Prediction word list and a recency-weighted count
+   its normalised frequency in the Prediction word list and a count-weighted score
    from the Spoken-word history, so that words the person has actually spoken before
    are favoured over the bundled list alone.
 8. THE Board SHALL bundle the Prediction word list as its own data file, derived from
@@ -218,7 +218,8 @@ the buttons I already know by position.
 9. THE Board SHALL store the Spoken-word history only in the browser's local storage
    on the person's device.
 10. WHILE a Partial word is present, THE Board SHALL offer only predicted words that
-    start with the Partial word (compared case-insensitively), ranking words from the
+    start with the Partial word (compared case-insensitively; a Slot locked under
+    Requirement 4 AC 5 keeps its word), ranking words from the
     Spoken-word history before words only in the Prediction word list, and ranking
     within each group by the Requirement 4 AC 7 score.
 11. WHEN the Partial word becomes empty, THE Board SHALL return to ranking by the
@@ -228,7 +229,8 @@ the buttons I already know by position.
     whole-Message predictions.
 13. WHERE the Board-only setting `filterOffensiveWords` is on, THE Board SHALL
     exclude from the Prediction strip every word that is in the Exclusion list and is
-    not in the Spoken-word history.
+    not in the Spoken-word history (a Slot locked under Requirement 4 AC 5 keeps its
+    word until the lock is released).
 14. WHERE the Board-only setting `filterOffensiveWords` is off, THE Board SHALL rank
     the bundled Prediction word list without applying the Exclusion list.
 15. THE Board SHALL apply `filterOffensiveWords` only to words offered from the

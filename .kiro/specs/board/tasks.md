@@ -108,14 +108,14 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 1 AC 2, 4, 5, 6, 7; Req 3 AC 4, 5, 6; Req 7 AC 2; P2, P3.
 
-- [-] 3. Checkpoint - message model complete
+- [x] 3. Checkpoint - message model complete
   - Run the root `npm test` (typecheck, build, then every workspace's tests, including
     `apps/board`) and confirm the Task 1–2 tests pass. Ensure all tests pass, ask the user
     if questions arise.
 
-- [ ] 4. Bundled prediction word list
+- [x] 4. Bundled prediction word list
 
-  - [ ] 4.1 Verify the licence, then generate the bundled word-list asset.
+  - [x] 4.1 Verify the licence, then generate the bundled word-list asset.
     - **First step, before anything is copied or built:** fetch the README of
       <https://github.com/hermitdave/FrequencyWords> and confirm it still states
       "CC-by-sa-4.0 for content" (and MIT for code). If it does not say CC BY-SA, **stop
@@ -125,9 +125,15 @@ tasks that involve writing, modifying, or testing code.
     - Write `apps/board/scripts/build-prediction-word-list.ts`: reads only that
       committed file and writes `apps/board/data/prediction-word-list.json`
       (`{ word: normalisedFrequency }`). Rules, in order: lower-case; keep only
-      entries of a-z and apostrophes with length 2 or more; drop every
+      entries that start with a letter, then continue with letters or apostrophes, of
+      length 2 or more (`/^[a-z][a-z']+$/`); drop every
       `CORE_VOCABULARY` word; keep the first 5,000 remaining entries in source order;
-      frequency is `1 / (rank + 1)` scaled to [0, 1].
+      frequency is `1 / (rank + 1)` scaled to [0, 1], with 0-based rank (the top entry
+      is exactly 1), so every value is already in (0, 1].
+    - Add an npm script `build:wordlist` to `apps/board/package.json` that compiles
+      `scripts/build-prediction-word-list.ts` with `tsc` to a temporary directory
+      outside the repository and runs the compiled `.js` with plain `node` (no Node
+      TypeScript stripping).
     - Write `apps/board/data/prediction-word-list.LICENSE.md`: the CC BY-SA 4.0 notice
       (source repository and file, author Hermit Dave, OpenSubtitles 2018 via OPUS,
       link to <https://creativecommons.org/licenses/by-sa/4.0/>, the changes made:
@@ -135,12 +141,14 @@ tasks that involve writing, modifying, or testing code.
       CC BY-SA 4.0).
     - Write `apps/board/test/build-prediction-word-list.test.ts`: the JSON has exactly
       5,000 entries given the committed source; no entry equals a `CORE_VOCABULARY`
-      word; every key matches `/^[a-z']{2,}$/`; frequencies are strictly decreasing
-      with rank; the build reads no network (spy on `fetch`); the licence file exists
+      word; every key matches `/^[a-z][a-z']+$/`; a named test (`drops tokenizer
+      fragments`) checks that `'s` and `'t` from the committed source are absent, and
+      that `don't` is kept if present in the source; frequencies are strictly
+      decreasing with rank; the build reads no network (spy on `fetch`); the licence file exists
       next to the JSON and contains "CC BY-SA 4.0", "Hermit Dave", and "OpenSubtitles".
     - _Requirements: 4.3, 4.8_
 
-  - [ ] 4.2 Record both data sources in THIRD_PARTY.md.
+  - [x] 4.2 Record both data sources in THIRD_PARTY.md.
     - Add to `THIRD_PARTY.md` (matching the style of the existing "Model files"
       section) a "Data files" entry for the prediction word list: file path, size
       (5,000 entries), licence CC BY-SA 4.0 (the derivative stays CC BY-SA 4.0; the
@@ -154,7 +162,7 @@ tasks that involve writing, modifying, or testing code.
       entry.
     - _Requirements: 2.5, 4.8_
 
-  - [ ] 4.3 Verify the licence, then generate the bundled Exclusion list asset.
+  - [x] 4.3 Verify the licence, then generate the bundled Exclusion list asset.
     - **First step, before anything is copied or built:** fetch the README and LICENSE
       of <https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words>
       and confirm they state Creative Commons Attribution 4.0 International
@@ -178,7 +186,7 @@ tasks that involve writing, modifying, or testing code.
       and contains "CC BY 4.0", "Shutterstock", and "LDNOOBW".
     - _Requirements: 4.16, 4.17_
 
-  - [ ] 4.4 Record the Exclusion list in THIRD_PARTY.md.
+  - [x] 4.4 Record the Exclusion list in THIRD_PARTY.md.
     - Add to the "Data files" section of `THIRD_PARTY.md` an entry for the Exclusion
       list: file path, licence CC BY 4.0, copyright 2012-2020 Shutterstock, Inc., the
       changes made, and links to the source repository and the licence.
@@ -188,9 +196,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 2 AC 5; Req 4 AC 3, 8, 16, 17.
 
-- [ ] 5. Prediction strip model
+- [x] 5. Prediction strip model
 
-  - [ ] 5.1 Implement `createPredictionStrip`.
+  - [x] 5.1 Implement `createPredictionStrip`.
     - Create `apps/board/src/prediction.ts`: `SlotState`, `SlotLock`,
       `PredictionStrip`, `OffensiveWordFilter`, `createPredictionStrip` (taking the
       filter as its fourth argument), the ranking formula
@@ -200,7 +208,12 @@ tasks that involve writing, modifying, or testing code.
       (non-empty `partialWord`: only words starting with it, history words first), and
       the lock-respecting fill rule from design.md; `recompute(message, partialWord,
       isLocked)`.
-    - Write `apps/board/test/prediction.test.ts`: with an empty history, ranking
+    - Write `apps/board/test/prediction.test.ts`: exact score values for a small
+      example: a word with history count 1 scores its `normalizedFreq` + 1, and count 3
+      scores `normalizedFreq` + `1 + ln(3)`; a history-only word (not in the bundled
+      list) scores `recencyWeight` alone; the tie-break order on equal score is history
+      words first, then bundled-list rank, then lexicographic for history-only words;
+      with an empty history, ranking
       follows word-list frequency only; with a history entry, that word's score rises;
       a slot held locked across two `recompute` calls keeps its original word even
       when a higher-ranked candidate becomes available; `predictionSlotCount` at 2 and
@@ -213,51 +226,59 @@ tasks that involve writing, modifying, or testing code.
       off it is present.
     - _Requirements: 4.1, 4.2, 4.6, 4.7, 4.9, 4.10, 4.11, 4.13, 4.14, 4.15_
 
-  - [ ]* 5.2 Write the property test for locked-slot stability.
+  - [x]* 5.2 Write the property test for locked-slot stability.
     - In `apps/board/test/prediction.props.test.ts`, generate a message/word-list/
       history and an arbitrary subset of slot indices marked locked; call `recompute`
       and assert every locked slot's `word` is unchanged.
     - **Property 4: Prediction never changes a locked slot**
     - **Validates: Requirements 4.1, 4.5**
 
-  - [ ]* 5.3 Write the property test for unlocked-slot filling.
-    - In the same file, assert every unlocked slot's word is absent from
-      `CORE_VOCABULARY`, appears in no other slot, and unlocked slots are filled in
-      non-increasing rank order.
+  - [x]* 5.3 Write the property test for unlocked-slot filling.
+    - In the same file, for any message and any Partial word (empty or non-empty),
+      assert every unlocked slot's word is absent from `CORE_VOCABULARY`, appears in no
+      other slot, and unlocked slots are filled in non-increasing rank order (the
+      whole-message score order when the Partial word is empty, the prefix ordering
+      with the history group first when it is not).
     - **Property 5: Unlocked slots are filled from the ranked, deduplicated, core-excluding list**
     - **Validates: Requirements 4.3, 4.6, 4.7**
 
-  - [ ]* 5.4 Write the property test for recency monotonicity.
+  - [x]* 5.4 Write the property test for recency monotonicity.
     - In the same file, generate a word `w` and two histories `h1`, `h2` where `h2`
       adds one more spoken occurrence of `w` to `h1`; assert `w`'s rank under `h2` is
       at or above its rank under `h1`.
     - **Property 6: Speaking a word never decreases its future rank**
     - **Validates: Requirements 4.7**
 
-  - [ ]* 5.5 Write the property test for prefix predictions.
+  - [x]* 5.5 Write the property test for prefix predictions.
     - In `apps/board/test/prediction.props.test.ts`, generate a word list, a history,
       a non-empty partial word (letters, mixed case), and an arbitrary locked-slot
-      subset; call `recompute` and assert every word in every slot starts with the
-      partial word (case-insensitive), and every history word with that prefix that
-      fits in the unlocked slots is placed ahead of every list-only word.
+      subset; call `recompute` and assert every unlocked slot's word, and every locked
+      slot's word that already starts with the partial word, starts with the partial
+      word (case-insensitive); a locked slot keeps its word even if it no longer
+      matches. Assert every history word with that prefix that fits in the unlocked
+      slots is placed ahead of every list-only word.
     - **Property 14: Prefix predictions start with the partial word**
     - **Validates: Requirements 4.10, 4.12**
 
-  - [ ]* 5.6 Write the property test for the offensive-word filter.
+  - [x]* 5.6 Write the property test for the offensive-word filter.
     - In `apps/board/test/prediction.props.test.ts`, generate a word list, a history,
       an Exclusion list (a random subset of the list's words plus some history words),
       a message and partial word, an arbitrary locked-slot subset, and the setting
       on/off. With the filter on, assert no word that is in the Exclusion list and not
-      in the history appears in any slot; with it off, assert the slots equal those
-      computed with an empty Exclusion list.
+      in the history appears in any unlocked slot (and in no slot when the setting and
+      Exclusion list are unchanged since the slot was filled). Also check the toggle
+      case on unlocked slots: turning the filter on leaves a locked slot's word
+      unchanged, and the first `recompute` after the lock is released replaces it. With
+      the filter off, assert the slots equal those computed with an empty Exclusion
+      list.
     - **Property 15: Offensive-word filter**
     - **Validates: Requirements 4.13, 4.14, 4.15, 4.17**
 
   - **Covers:** Req 4 AC 1, 2, 6, 7, 9, 10, 11, 12, 13, 14, 15; P4, P5, P6, P14, P15.
 
-- [ ] 6. Storage layer
+- [x] 6. Storage layer
 
-  - [ ] 6.1 Implement `readJSON` / `writeJSON` and the storage keys.
+  - [x] 6.1 Implement `readJSON` / `writeJSON` and the storage keys.
     - Create `apps/board/src/board-storage.ts`: `StorageResult`, `readJSON`,
       `writeJSON`, and typed helpers for the four keys in design.md's "Storage keys,
       schema, and limits" table (`planchette-board:message`,
@@ -271,7 +292,7 @@ tasks that involve writing, modifying, or testing code.
       oldest/least-recent entry once exceeded.
     - _Requirements: 10.3, 10.4_
 
-  - [ ]* 6.2 Write the property test for corrupt-storage fallback.
+  - [x]* 6.2 Write the property test for corrupt-storage fallback.
     - In `apps/board/test/board-storage.props.test.ts`, generate arbitrary strings
       (non-JSON text, valid JSON of the wrong shape, JSON missing `version`, JSON
       exceeding a key's size cap) as the stored raw value for each of the four keys;
@@ -283,7 +304,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 10 AC 3, 4; P12.
 
-- [ ] 7. Checkpoint - prediction and storage complete
+- [-] 7. Checkpoint - prediction and storage complete
   - Run the full `apps/board` unit and property test suite. Ensure all tests pass,
     ask the user if questions arise.
 

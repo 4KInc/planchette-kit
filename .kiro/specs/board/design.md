@@ -186,7 +186,18 @@ export function createPredictionStrip(
 
 `recompute` is called by `main.ts` on every `message` change. It:
 1. Computes the ranked candidate list: `score(word) = normalizedFreq(word) +
-   recencyWeight(history, word)`, excluding every `CORE_VOCABULARY` word
+   recencyWeight(history, word)`, where `recencyWeight(history, w) = 1 + ln(count)`
+   when `w` is in the Spoken-word history with `count >= 1`, else `0` (so count 1 adds
+   1, count 3 adds `1 + ln 3`). There is no time decay and no clock input:
+   `lastSpokenAt` is used only for history eviction in storage, never for ranking.
+   `normalizedFreq(w)` is the bundled `1 / (rank + 1)` value with 0-based rank (the top
+   entry is exactly 1); a history word that is not in the bundled list has
+   `normalizedFreq` 0, so its score is `recencyWeight` alone. Candidates are the union
+   of the bundled list and the history words. Ties on equal score are broken by:
+   history words first, then bundled-list order (rank), then lexicographic order for
+   history-only words. The `message` argument is not used to filter candidates: a word
+   already in the message can still be suggested. It stays in the signature for the
+   whole-message rule and future use. Every `CORE_VOCABULARY` word is excluded
    (Requirement 4 AC 3). When `filter.enabled()` is true, it also drops every
    candidate that is in `filter.excluded` and is not a key of `history.entries`
    (Requirement 4 AC 13, 15); when it is false, nothing is dropped for this reason
@@ -283,6 +294,12 @@ persisting that one change).
 | `planchette-board:history` | `{ version, words: Array<{ word: string; count: number; lastSpokenAt: number }> }` | 1 | capped at 500 distinct words; least-recently-spoken evicted first |
 | `planchette-board:quick-phrases` | `{ version, phrases: Array<{ id: string; text: string }> }` | 1 | capped at 100 phrases, each at most 500 characters; seeded on first run with a short built-in starter list (`messages.ts`) |
 | `planchette-board:settings` | `{ version, profile: Partial<Profile>, board: { predictionSlotCount, voiceURI, speechRate, filterOffensiveWords } }` | 1 | `profile` is the skeleton Profile's exportable JSON shape, not re-validated here — `importProfile` does that |
+
+Cap behaviour: a Quick phrase longer than 500 characters is truncated to 500 on write
+(the same rule as the message cap). A stored value that is already over its cap when
+read falls back to that key's default with `usedDefault: true` (Property 12). The
+history's `lastSpokenAt` is used only to choose which entry to evict at the 500-word
+cap, not for ranking.
 
 Every key is namespaced `planchette-board:` so it cannot collide with a future App B
 key or a host page's own storage. `version` lets a future schema change add a
@@ -384,7 +401,7 @@ interface MessageSnapshot { readonly message: string; }
 
 // prediction.ts
 interface PredictionWordList {
-  readonly words: ReadonlyMap<string, number>; // word -> normalised frequency [0,1]
+  readonly words: ReadonlyMap<string, number>; // word -> 1 / (rank + 1), 0-based rank, top = 1
 }
 interface SpokenWordHistory {
   readonly entries: ReadonlyMap<string, { count: number; lastSpokenAt: number }>;
@@ -440,9 +457,11 @@ source repository before bundling (Task 4.1) and the build stops if it is not CC
 
 **Filtering rules, applied in this order by the build script:**
 1. lower-case every word;
-2. keep only entries made of the letters a-z and apostrophes, of length 2 or more
-   (a one-letter entry is dropped because `I` is a core word and `a` adds a slot for
-   no gain; contractions such as `don't` are kept because people say them);
+2. keep only entries that start with a letter, then continue with letters or
+   apostrophes, of length 2 or more (`/^[a-z][a-z']+$/`; a one-letter entry is dropped
+   because `I` is a core word and `a` adds a slot for no gain; tokenizer fragments
+   such as `'s`, `'t`, `'m` are dropped because they start with an apostrophe;
+   contractions such as `don't` and `i'm` are kept because people say them);
 3. drop every word that equals a `CORE_VOCABULARY` word (Requirement 4 AC 3);
 4. keep the first 5,000 remaining entries in source order.
 
@@ -563,10 +582,13 @@ for at the moment of a `recompute` call, that slot's `word` after the call equal
 
 ### Property 5: Unlocked slots are filled from the ranked, deduplicated, core-excluding list
 
-For any message with an empty Partial word, word list, and history, every word assigned to an unlocked slot
-after `recompute` (a) does not appear in `CORE_VOCABULARY`, (b) does not repeat in any
-other slot, and (c) is not outranked by a candidate placed in a later unlocked slot
-(slots are filled in non-increasing rank order among the unlocked ones).
+For any message, any Partial word (empty or non-empty), word list, and history, every
+word assigned to an unlocked slot after `recompute` (a) does not appear in
+`CORE_VOCABULARY`, (b) does not repeat in any other slot, and (c) is not outranked by a
+candidate placed in a later unlocked slot (slots are filled in non-increasing rank order
+among the unlocked ones). With an empty Partial word, rank order is the whole-message
+score order; with a non-empty Partial word, rank order is the prefix ordering (words in
+the Spoken-word history first, then list-only words, each group by score descending).
 
 **Validates: Requirements 4.3, 4.6, 4.7**
 
@@ -650,10 +672,13 @@ through the sequence).
 
 ### Property 14: Prefix predictions start with the partial word
 
-For any Message, non-empty Partial word, word list, and history, every word in every
-slot after `recompute` starts with the Partial word (compared case-insensitively), and
-every history word that starts with it and fits in the unlocked slots is placed ahead
-of every word found only in the bundled list.
+For any Message, non-empty Partial word, word list, history, and locked-slot subset,
+after `recompute` the word in every unlocked slot, and the word in every locked slot
+whose word already starts with the Partial word, starts with the Partial word (compared
+case-insensitively). A locked slot keeps its word even if that word no longer matches
+the Partial word (Property 4 takes precedence). Among unlocked slots, every history word
+that starts with the Partial word and fits is placed ahead of every word found only in
+the bundled list.
 
 **Validates: Requirements 4.10, 4.12**
 
@@ -661,8 +686,12 @@ of every word found only in the bundled list.
 
 For any Message, Partial word, word list, Spoken-word history, Exclusion list, and
 locked-slot subset: with `filterOffensiveWords` on, no word that is in the Exclusion
-list and not in the history appears in any slot after `recompute`; with it off, the
-candidate ranking equals the ranking computed with an empty Exclusion list.
+list and not in the history appears in any unlocked slot after `recompute`, and appears
+in no slot at all when the filter setting and the Exclusion list are unchanged since
+that slot was filled. A word in a locked slot (for example under the pointer) is never
+swapped out when the filter is turned on; it is replaced on the first `recompute` after
+the lock is released. With the filter off, the candidate ranking equals the ranking
+computed with an empty Exclusion list.
 
 **Validates: Requirements 4.13, 4.14, 4.15, 4.17**
 

@@ -130,3 +130,17 @@ if the pinned version contains that logger.
 rule in `tech.md`. They were added on request for the automated accessibility check, as
 development-only test tools: they are never bundled into the build or the package, and no
 file of theirs is changed.
+
+## Data files
+
+| File | Version | Licence | Source |
+|---|---|---|---|
+| `apps/board/data/prediction-word-list.json` (5,000 entries) | Derived from `en_50k.txt` of FrequencyWords (OpenSubtitles 2018 via OPUS), by Hermit Dave | CC BY-SA 4.0. The derivative stays CC BY-SA 4.0; the Board's code is MIT. | https://github.com/hermitdave/FrequencyWords (licence: https://creativecommons.org/licenses/by-sa/4.0/) |
+| Universal Core vocabulary (36 words, used in `apps/board/src/core-vocabulary.ts`) | Universal Core vocabulary, Center for Literacy and Disability Studies (CLDS), University of North Carolina at Chapel Hill (UNC) | CC BY 4.0 | https://www.med.unc.edu/healthsciences/clds/universal-core-vocabulary/ (licence: https://creativecommons.org/licenses/by/4.0/) |
+| `apps/board/data/offensive-words.json` (275 entries), Exclusion list | Derived from the English list of "List of Dirty, Naughty, Obscene, and Otherwise Bad Words" (LDNOOBW), copyright 2012-2020 Shutterstock, Inc. Unmodified source copy: `apps/board/data/source/ldnoobw-en.txt` | CC BY 4.0. Changes made: single-word entries only, lower-cased, de-duplicated (see `apps/board/data/offensive-words.LICENSE.md`). | https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words (licence: https://creativecommons.org/licenses/by/4.0/) |
+
+Changes made to the prediction word list: trimmed to the 5,000 most frequent entries,
+lower-cased, filtered to words that start with a letter followed only by letters or
+apostrophes, core-vocabulary words removed, and re-ranked. The full description is in
+`apps/board/data/prediction-word-list.LICENSE.md`. The unmodified source copy is
+`apps/board/data/source/en_50k.txt`.

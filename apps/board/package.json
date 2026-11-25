@@ -4,7 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "vitest run --passWithNoTests"
+    "test": "vitest run --passWithNoTests",
+    "build:wordlist": "d=$(mktemp -d) && tsc --ignoreConfig --outDir \"$d\" --target ES2022 --module ESNext --moduleResolution bundler --strict --skipLibCheck --types node scripts/build-prediction-word-list.ts && echo '{\"type\":\"module\"}' > \"$d/package.json\" && node \"$d/scripts/build-prediction-word-list.js\" \"$PWD\"; s=$?; rm -rf \"$d\"; exit $s",
+    "build:offensive-words": "d=$(mktemp -d) && tsc --ignoreConfig --outDir \"$d\" --target ES2022 --module ESNext --moduleResolution bundler --strict --skipLibCheck --types node scripts/build-offensive-words.ts && echo '{\"type\":\"module\"}' > \"$d/package.json\" && node \"$d/build-offensive-words.js\" \"$PWD\"; s=$?; rm -rf \"$d\"; exit $s"
   },
   "dependencies": {
     "@planchette/skeleton": "*"

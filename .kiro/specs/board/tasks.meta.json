@@ -1,5 +1,14 @@
 {
-  "pbtResults": {},
+  "pbtResults": {
+    "5.2 Write the property test for locked-slot stability.": {
+      "status": "passed",
+      "lastRunTimestamp": 1795571932622
+    },
+    "5.3 Write the property test for unlocked-slot filling.": {
+      "status": "passed",
+      "lastRunTimestamp": 1795572026250
+    }
+  },
   "executionHistory": {
     "1.0 Wire apps/board into the workspace.": [
       {
@@ -102,6 +111,193 @@
         "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795566977162
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795567368793
+      }
+    ],
+    "4.1 Verify the licence, then generate the bundled word-list asset.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795567377229
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795568681761
+      }
+    ],
+    "4.2 Record both data sources in THIRD_PARTY.md.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795568687583
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795570547192
+      }
+    ],
+    "4.3 Verify the licence, then generate the bundled Exclusion list asset.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795568687640
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795570547273
+      }
+    ],
+    "5.1 Implement `createPredictionStrip`.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795568687826
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571863828
+      }
+    ],
+    "6.1 Implement `readJSON` / `writeJSON` and the storage keys.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795568688555
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795570547366
+      }
+    ],
+    "6. Storage layer": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795570547397
+      }
+    ],
+    "4.4 Record the Exclusion list in THIRD_PARTY.md.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795570559053
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571573316
+      }
+    ],
+    "6.2 Write the property test for corrupt-storage fallback.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795570559500
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571572981
+      }
+    ],
+    "4. Bundled prediction word list": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571573381
+      }
+    ],
+    "5. Prediction strip model": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571863865
+      }
+    ],
+    "5.2 Write the property test for locked-slot stability.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571863952
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571941429
+      }
+    ],
+    "5.3 Write the property test for unlocked-slot filling.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795571941774
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572036758
+      }
+    ],
+    "5.4 Write the property test for recency monotonicity.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572037041
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572362561
+      }
+    ],
+    "5.5 Write the property test for prefix predictions.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572363070
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572520790
+      }
+    ],
+    "5.6 Write the property test for the offensive-word filter.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572520852
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572766891
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795572893219
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795573067332
+      }
+    ],
+    "7. Checkpoint - prediction and storage complete": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795573068010
       }
     ]
   }
