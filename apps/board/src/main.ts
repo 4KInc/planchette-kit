@@ -1,9 +1,12 @@
 /**
- * Communication board entry point. First version: wires the pure stores only (no DOM,
- * no Planchette, no camera). `createBoardApp` is the testable wiring; importing this
- * module runs nothing.
+ * Communication board wiring. `createBoardApp` wires the pure stores (no DOM, no
+ * Planchette) and is the testable part. `startBoard` is the browser entry: it creates the
+ * Planchette and mounts board-dom.ts. Importing this module runs nothing; the page's
+ * script (entry.ts) calls `startBoard`.
  */
-import type { Profile } from '@planchette/skeleton';
+/// <reference types="vite/client" />
+import { createPlanchette, type Planchette, type Profile } from '@planchette/skeleton';
+import { mountBoardDom, type BoardDom } from './board-dom.js';
 import offensiveWordsData from '../data/offensive-words.json';
 import predictionWordListData from '../data/prediction-word-list.json';
 import { resolveInitialProfile } from './board-settings.js';
@@ -24,7 +27,7 @@ import {
   type PredictionWordList,
   type SpokenWordHistory,
 } from './prediction.js';
-import type { SpeechResult } from './speech.js';
+import { pickLocalVoice, speak, type SpeechResult } from './speech.js';
 import { normaliseSpokenWords } from './spoken-words.js';
 
 export interface BoardAppDeps {
@@ -119,4 +122,36 @@ export function createBoardApp(deps: BoardAppDeps): BoardApp {
       return result;
     },
   };
+}
+
+export interface StartedBoard {
+  readonly planchette: Planchette;
+  readonly app: BoardApp;
+  readonly dom: BoardDom;
+}
+
+/** Browser entry: creates the Planchette and the Board, and mounts the DOM layer. */
+export function startBoard(doc: Document = document): StartedBoard {
+  const win = doc.defaultView;
+  if (win === null) throw new Error('board: the document has no window');
+  const status = doc.getElementById('camera-status');
+  const planchette = createPlanchette({
+    screen: { width: win.innerWidth, height: win.innerHeight },
+    assetsUrl: `${import.meta.env.BASE_URL}mediapipe/`,
+    ...(status === null ? {} : { trackingIndicator: status }),
+  });
+  const app: BoardApp = createBoardApp({
+    now: () => Date.now(),
+    speak: (text) => {
+      const { voiceURI, speechRate } = app.getSettings();
+      const voice = pickLocalVoice(win.speechSynthesis.getVoices(), voiceURI);
+      return speak(text, { voice, rate: speechRate }, win.speechSynthesis);
+    },
+  });
+  // First: the saved or imported Profile, or the Board's 1400 ms dwell default (Req 11 AC 5, 6).
+  planchette.setProfile(app.initialProfile);
+  const dom = mountBoardDom({ host: planchette, app, document: doc });
+  // For the end-to-end tests and for people trying the Board in the console.
+  (win as unknown as { planchetteBoard: { planchette: Planchette } }).planchetteBoard = { planchette };
+  return { planchette, app, dom };
 }

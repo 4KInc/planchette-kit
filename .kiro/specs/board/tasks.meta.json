@@ -427,6 +427,99 @@
         "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795590314557
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590586797
+      }
+    ],
+    "12.1 Write the no-network property test.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590587796
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590689537
+      }
+    ],
+    "13.1 Implement the Message bar and action targets.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590592778
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795592836868
+      }
+    ],
+    "12. No-network property across the pure layer": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590689577
+      }
+    ],
+    "13. DOM layer: Message bar, action row, and target registration": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795592836918
+      }
+    ],
+    "14.1 Render the Core-vocabulary grid and register its targets.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795592836996
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593105107
+      }
+    ],
+    "14.2 Render the Letter board and Spell-mode toggle.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593105179
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593234950
+      }
+    ],
+    "14. DOM layer: core-vocabulary grid and Spell mode": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593234998
+      }
+    ],
+    "14.3 Write the property test for fixed-grid position stability.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593235403
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593604541
+      }
+    ],
+    "15. Checkpoint - grid and Spell mode complete": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795593605093
       }
     ]
   }

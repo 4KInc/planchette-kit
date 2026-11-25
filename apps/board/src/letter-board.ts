@@ -15,6 +15,8 @@ export interface LetterKey {
   readonly col: number; // 0-5
 }
 
+import { messages } from './messages.js';
+
 const COLUMNS = 6;
 const FREQUENCY_ORDER = 'ETAOINSHRDLCUMWFGYPBVKJXQZ';
 
@@ -25,8 +27,8 @@ const KEYS: LetterKey[] = [
     row: Math.floor(i / COLUMNS),
     col: i % COLUMNS,
   })),
-  { id: 'space', label: 'Space', row: 4, col: 2 },
-  { id: 'backspace', label: '⌫ Backspace', row: 4, col: 3 },
+  { id: 'space', label: messages.letterBoard.space, row: 4, col: 2 },
+  { id: 'backspace', label: messages.letterBoard.backspace, row: 4, col: 3 },
 ];
 
 /** 28 keys; a literal, deterministic layout, never computed from state. Deeply frozen. */

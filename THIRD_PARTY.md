@@ -9,6 +9,7 @@ Every dependency used in this project, its version, licence and source.
 | `fast-check` | 4.10.3 | MIT | https://github.com/dubzzz/fast-check |
 | `typescript` | 7.0.2 | Apache-2.0 | https://github.com/microsoft/TypeScript |
 | `@types/node` | 24.19.2 | MIT | https://github.com/DefinitelyTyped/DefinitelyTyped |
+| `jsdom` | 29.1.1 | MIT | https://github.com/jsdom/jsdom (dev only: DOM unit tests of `apps/board`) |
 | `@playwright/test` | 1.65.1 | Apache-2.0 | https://github.com/microsoft/playwright (dev only: end-to-end tests) |
 | `@axe-core/playwright` | 4.14.0 | MPL-2.0 | https://github.com/dequelabs/axe-core-npm (dev only: accessibility tests; licence exception, see below) |
 | `axe-core` | 4.14.1 (dependency of `@axe-core/playwright`) | MPL-2.0 | https://github.com/dequelabs/axe-core (dev only) |

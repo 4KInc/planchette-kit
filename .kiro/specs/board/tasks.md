@@ -431,13 +431,13 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 4 AC 4, 9; Req 6 AC 2, 3, 5, 6, 7; Req 8 AC 6; Req 11 AC 1–6; P7, P8.
 
-- [-] 11. Checkpoint - all pure stores complete
+- [x] 11. Checkpoint - all pure stores complete
   - Run the root `npm test` (includes `apps/board`) and `npm run typecheck`.
     Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 12. No-network property across the pure layer
+- [x] 12. No-network property across the pure layer
 
-  - [ ]* 12.1 Write the no-network property test.
+  - [x]* 12.1 Write the no-network property test.
     - In `apps/board/test/no-network.props.test.ts`, spy on global `fetch`,
       `XMLHttpRequest`, `WebSocket`, and `navigator.sendBeacon`; generate a sequence of
       Board actions and drive them through `board-model.ts`, `prediction.ts`,
@@ -448,9 +448,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 10 AC 1, 3; P13.
 
-- [ ] 13. DOM layer: Message bar, action row, and target registration
+- [x] 13. DOM layer: Message bar, action row, and target registration
 
-  - [ ] 13.1 Implement the Message bar and action targets.
+  - [x] 13.1 Implement the Message bar and action targets.
     - Create `apps/board/src/board-dom.ts`: renders the Message bar, and registers
       `speak`, `backspace-action`, `clear`, `spell-toggle` targets (role `default`),
       `undo` (role `undo`), `cancel` (role `cancel`), and `rest-area` (role
@@ -471,9 +471,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 1 AC 1, 3, 8, 9; Req 5 AC 5, 6, 7; Req 9 AC 9, 10.
 
-- [ ] 14. DOM layer: core-vocabulary grid and Spell mode
+- [x] 14. DOM layer: core-vocabulary grid and Spell mode
 
-  - [ ] 14.1 Render the Core-vocabulary grid and register its targets.
+  - [x] 14.1 Render the Core-vocabulary grid and register its targets.
     - Extend `board-dom.ts`: render `CORE_VOCABULARY` as a fixed 6×6 grid of buttons
       (`data-planchette-target="core-<id>"`), sized and spaced from the current
       Board/skeleton profile's `targetSize`/`targetSpacing` (CSS custom properties, as
@@ -481,7 +481,7 @@ tasks that involve writing, modifying, or testing code.
       `board-model.dispatch({type:'add-word', text})`.
     - _Requirements: 2.1, 2.2, 2.3, 2.4, 9.1, 9.2_
 
-  - [ ] 14.2 Render the Letter board and Spell-mode toggle.
+  - [x] 14.2 Render the Letter board and Spell-mode toggle.
     - Extend `board-dom.ts`: on `spell-toggle` selection, unregister the
       core-vocabulary targets and register `LETTER_BOARD` targets instead (letters →
       `dispatch({type:'add-letter', char})`, Space → `add-space`, Backspace →
@@ -494,7 +494,7 @@ tasks that involve writing, modifying, or testing code.
       labels).
     - _Requirements: 3.1, 3.2_
 
-  - [ ]* 14.3 Write the property test for fixed-grid position stability.
+  - [x]* 14.3 Write the property test for fixed-grid position stability.
     - In `apps/board/test/board-dom-grid.props.test.ts`, using the fake `Planchette`
       host, generate a sequence of Board actions, Spell-mode toggles, Settings
       changes, and resize events; assert every `CORE_VOCABULARY` target's recorded
@@ -506,7 +506,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 2 AC 1–4; Req 3 AC 1, 2; Req 9 AC 1, 2; P1.
 
-- [ ] 15. Checkpoint - grid and Spell mode complete
+- [-] 15. Checkpoint - grid and Spell mode complete
   - Run the full `apps/board` test suite including the new DOM-layer tests. Ensure
     all tests pass, ask the user if questions arise.
 

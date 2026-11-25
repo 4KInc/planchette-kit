@@ -8,6 +8,30 @@ export const messages = {
   /** Shown on the About screen (Req 12). */
   notMedicalDevice:
     'The board is not a medical device and not a replacement for an AAC system assessed by a speech-language therapist.',
+  /** Page text. board-dom.ts fills every `[data-text="<key>"]` element from `page`. */
+  page: {
+    title: 'Planchette — Communication Board',
+    heading: 'Communication Board',
+    messageTitle: 'Message',
+    actionsTitle: 'Actions',
+    coreTitle: 'Core words',
+    letterTitle: 'Letters',
+    restArea: 'Rest area. Nothing here is selected.',
+  },
+  /** Labels of the action row. */
+  actions: {
+    speak: 'Speak',
+    backspace: 'Backspace',
+    clear: 'Clear',
+    undo: 'Undo',
+    spell: 'Spell',
+    cancel: 'Cancel',
+  },
+  /** Labels of the Letter board's two non-letter keys. */
+  letterBoard: {
+    space: 'Space',
+    backspace: '⌫ Backspace',
+  },
   /** Non-blocking notice when localStorage rejects a write. */
   settingsNotSaved: 'Settings could not be saved on this device',
   /** Seed list on first run, in this order. */

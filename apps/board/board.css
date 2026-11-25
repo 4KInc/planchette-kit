@@ -1,0 +1,123 @@
+/*
+ * Calm, unthemed styling for the communication board (Req 9 AC 7). Light background, dark
+ * text, one blue accent. Contrast (WCAG AA): text #1a1a1a on #f7f7f4 is about 16:1; the
+ * #1f4e8c outlines on #f7f7f4 are about 7.5:1 (needs 3:1). Text is 24px or larger on the
+ * Message bar and the action targets (Req 9 AC 2). A file, not inline, because the page's
+ * Content-Security-Policy allows styles from the same origin only.
+ */
+:root {
+  --bg: #f7f7f4;
+  --panel: #ffffff;
+  --text: #1a1a1a;
+  --accent: #1f4e8c;
+  --focus: #b3470a;
+  --target-size: 96px;
+  --target-gap: 16px;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  font: 24px/1.4 system-ui, sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 24px;
+  border-bottom: 3px solid var(--accent);
+}
+h1 { margin: 0; font-size: 32px; }
+h2 { margin: 0 0 12px; font-size: 24px; }
+main { display: flex; flex-direction: column; gap: 24px; padding: 24px; }
+section { background: var(--panel); border: 3px solid var(--accent); border-radius: 12px; padding: 16px; }
+#camera-status { min-height: 1px; }
+#camera-status [data-planchette="tracking-indicator"] {
+  padding: 8px 12px;
+  border: 3px solid var(--accent);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  max-width: 34em;
+}
+#camera-status button { margin: 8px 8px 0 0; }
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 8px 14px;
+  min-height: 48px;
+  cursor: pointer;
+}
+button:focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
+#message-bar { margin: 0; min-height: 3em; font-size: 32px; overflow-wrap: anywhere; }
+.actions { display: flex; flex-wrap: wrap; gap: var(--target-gap); }
+.target {
+  font-size: 24px;
+  font-weight: bold;
+  min-height: var(--target-size);
+  min-width: var(--target-size);
+  padding: 4px 16px;
+}
+/*
+ * Core-vocabulary grid (Req 2). Placement comes from each button's data-row / data-col
+ * (the entry's own row and column), never from DOM order. Size and spacing follow the
+ * profile through --target-size / --target-gap, set by board-dom.ts. A column grows only
+ * if a word needs more than the target size; the order never changes.
+ */
+[hidden] { display: none !important; }
+.core-grid, .letter-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(var(--target-size), max-content));
+  grid-auto-rows: minmax(var(--target-size), auto);
+  gap: var(--target-gap);
+  justify-content: start;
+}
+.core-grid .target, .letter-grid .target { padding: 4px; }
+.core-grid [data-row="0"] { grid-row: 1; }
+.letter-grid [data-row="0"] { grid-row: 1; }
+.core-grid [data-row="1"] { grid-row: 2; }
+.letter-grid [data-row="1"] { grid-row: 2; }
+.core-grid [data-row="2"] { grid-row: 3; }
+.letter-grid [data-row="2"] { grid-row: 3; }
+.core-grid [data-row="3"] { grid-row: 4; }
+.letter-grid [data-row="3"] { grid-row: 4; }
+.core-grid [data-row="4"] { grid-row: 5; }
+.letter-grid [data-row="4"] { grid-row: 5; }
+.core-grid [data-row="5"] { grid-row: 6; }
+.letter-grid [data-row="5"] { grid-row: 6; }
+.core-grid [data-col="0"] { grid-column: 1; }
+.letter-grid [data-col="0"] { grid-column: 1; }
+.core-grid [data-col="1"] { grid-column: 2; }
+.letter-grid [data-col="1"] { grid-column: 2; }
+.core-grid [data-col="2"] { grid-column: 3; }
+.letter-grid [data-col="2"] { grid-column: 3; }
+.core-grid [data-col="3"] { grid-column: 4; }
+.letter-grid [data-col="3"] { grid-column: 4; }
+.core-grid [data-col="4"] { grid-column: 5; }
+.letter-grid [data-col="4"] { grid-column: 5; }
+.core-grid [data-col="5"] { grid-column: 6; }
+.letter-grid [data-col="5"] { grid-column: 6; }
+.target[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
+.rest {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 3px dotted var(--text);
+  border-radius: 12px;
+  padding: 8px;
+}
+.rest p { margin: 0; }
+footer { padding: 0 24px 24px; }
+footer p { margin: 0; }
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

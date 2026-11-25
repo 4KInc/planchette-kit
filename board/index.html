@@ -4,11 +4,45 @@
     <meta charset="UTF-8" />
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self' 'wasm-unsafe-eval'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Planchette — Communication Board</title>
+    <title>Planchette</title>
+    <link rel="stylesheet" href="../apps/board/board.css" />
   </head>
   <body>
-    <h1>Communication Board</h1>
-    <p>Coming soon.</p>
-    <script type="module" src="../apps/board/src/main.ts"></script>
+    <header>
+      <h1 data-text="page.heading"></h1>
+      <div id="camera-status"></div>
+    </header>
+    <main>
+      <section aria-labelledby="message-title" class="message">
+        <h2 id="message-title" data-text="page.messageTitle"></h2>
+        <p id="message-bar" role="status"></p>
+      </section>
+      <section aria-labelledby="core-title" class="board">
+        <h2 id="core-title" data-text="page.coreTitle"></h2>
+        <div id="core-grid" class="core-grid"></div>
+      </section>
+      <section aria-labelledby="letter-title" class="board" hidden>
+        <h2 id="letter-title" data-text="page.letterTitle"></h2>
+        <div id="letter-grid" class="letter-grid" hidden></div>
+      </section>
+      <section aria-labelledby="actions-title" class="board">
+        <h2 id="actions-title" data-text="page.actionsTitle"></h2>
+        <div class="actions">
+          <button type="button" class="target" data-planchette-target="speak" data-text="actions.speak"></button>
+          <button type="button" class="target" data-planchette-target="backspace-action" data-text="actions.backspace"></button>
+          <button type="button" class="target" data-planchette-target="clear" data-text="actions.clear"></button>
+          <button type="button" class="target" data-planchette-target="undo" data-role="undo" data-text="actions.undo"></button>
+          <button type="button" class="target" data-planchette-target="spell-toggle" aria-pressed="false" data-text="actions.spell"></button>
+          <button type="button" class="target" data-planchette-target="cancel" data-role="cancel" data-text="actions.cancel"></button>
+        </div>
+      </section>
+      <div class="rest" id="rest-area" data-planchette-target="rest-area" data-role="rest-area">
+        <p data-text="page.restArea"></p>
+      </div>
+    </main>
+    <footer>
+      <p id="notice" data-text="notMedicalDevice"></p>
+    </footer>
+    <script type="module" src="../apps/board/src/entry.ts"></script>
   </body>
 </html>
