@@ -298,6 +298,135 @@
         "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795573068010
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795583784600
+      }
+    ],
+    "9.1 Write `messages.ts` (user-facing text) and `speech.ts`.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795583789712
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795585689656
+      }
+    ],
+    "9. Speech output": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795585689697
+      }
+    ],
+    "8.1 Implement `QuickPhrasesStore`.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795585689900
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795586043308
+      }
+    ],
+    "9.2 Write the property test for local-service-only voice selection.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795585690706
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795586043425
+      }
+    ],
+    "8. Quick phrases store": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795586043366
+      }
+    ],
+    "8.2 Write the property test for quick-phrase order stability.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795586049372
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795587961587
+      }
+    ],
+    "9.3 Write the property test for voice/rate application.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795586049469
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795587961676
+      }
+    ],
+    "10.1 Implement `board-settings.ts` and the history-update rule.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795586049544
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590206177
+      }
+    ],
+    "10. Wire the pure stores: history updates and settings model": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590206225
+      }
+    ],
+    "10.2 Write the property test for settings export/import round trip and clamping.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590206408
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590312844
+      }
+    ],
+    "10.3 Write the property test for history updates on successful speech only.": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590207002
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590313887
+      }
+    ],
+    "11. Checkpoint - all pure stores complete": [
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795590314557
       }
     ]
   }

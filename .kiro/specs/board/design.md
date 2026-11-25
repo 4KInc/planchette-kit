@@ -217,6 +217,11 @@ export function createPredictionStrip(
    each index where `isLocked(index)` is `true`, keeps the existing `SlotState`
    unchanged.
 
+History keys are normalised words (see "Spoken-word normalisation" under `speech.ts`),
+so `recompute` looks a candidate up in the history, and checks "is a key of
+`history.entries`" for the offensive-word filter, using the normalised form of the
+candidate.
+
 `isLocked` is supplied by `board-dom.ts` from three skeleton-event-derived facts, so
 the lock rule itself needs no DOM: a slot is locked while it is the current
 `pointer-move` target's id (hit-tested against the slot's last-registered rectangle,
@@ -252,20 +257,62 @@ property rely on.
 ```typescript
 export interface SpeechResult { readonly spoken: boolean; }
 export function pickLocalVoice(voices: readonly SpeechSynthesisVoice[], preferredURI: string): SpeechSynthesisVoice | null;
+export interface SpeakTimers {
+  readonly setTimeout: (fn: () => void, ms: number) => unknown;
+  readonly clearTimeout: (handle: unknown) => void;
+}
 export function speak(
   text: string,
   options: { voice: SpeechSynthesisVoice | null; rate: number },
-  synth: Pick<SpeechSynthesis, 'speak' | 'getVoices'>,
+  synth: Pick<SpeechSynthesis, 'speak' | 'cancel' | 'getVoices'>,
+  timers?: SpeakTimers, // defaults to the global setTimeout/clearTimeout
 ): Promise<SpeechResult>;
 ```
 
+Timer injection: `speak` takes an optional fourth argument `timers` holding
+`setTimeout` and `clearTimeout`. Production code omits it and gets the globals; tests
+pass a fake pair that records the delay and lets the test fire the callback by hand,
+so no test waits in real time.
+
+Resolve rule for a non-null voice: `speak` creates one `SpeechSynthesisUtterance` for
+`text` with the voice and rate, attaches `end` and `error` listeners, starts the
+watchdog timer, and calls `synth.speak` once.
+- `end` event: resolve `{ spoken: true }`.
+- `error` event, whatever its `error` code (including `canceled` and `interrupted`):
+  resolve `{ spoken: false }`.
+- Watchdog: if neither event fires within `max(10000, 150 * text.length / rate)`
+  milliseconds (`text.length` in characters), call `synth.cancel()` and resolve
+  `{ spoken: false }`.
+
+The promise settles exactly once. The first of `end`, `error`, or the watchdog wins,
+the watchdog timer is cleared on `end` or `error`, and any later event is ignored (an
+`end` that arrives after the watchdog fired does not change the result or the history).
+
 `pickLocalVoice` filters to `voices.filter(v => v.localService === true)` first, then
 picks the one matching `preferredURI`, else the first local-service voice, else
-`null`. `speak` with a `null` voice never calls `synth.speak`; it resolves
+`null`. `speak` with a `null` voice never calls `synth.speak` (and starts no timer); it resolves
 `{ spoken: false }` so `board-dom.ts` can show the large-text fallback
-(Requirement 8 AC 2). On a resolved `{ spoken: true }`, `main.ts` appends each word of
-`text` to the Spoken-word history — history is updated by `main.ts`, not inside
-`speech.ts`, keeping `speech.ts` free of storage concerns.
+(Requirement 8 AC 2). On a resolved `{ spoken: true }`, `main.ts` appends each
+normalised word of `text` to the Spoken-word history (rule below) — history is updated
+by `main.ts`, not inside `speech.ts`, keeping `speech.ts` free of storage concerns.
+
+**Spoken-word normalisation (`normaliseSpokenWord`, applied before a word is added to
+or looked up in the history).** Split the spoken message on whitespace (`/\s+/u`, empty
+tokens ignored). For each token, in order:
+1. lower-case it with `toLowerCase()` (locale-independent, not `toLocaleLowerCase`);
+2. strip leading and trailing characters that are not Unicode letters, using
+   `token.replace(/^[^\p{L}]+|[^\p{L}\p{M}]+$/gu, '')` (the `u` flag is required for
+   `\p{…}`): at the start every non-letter is removed; at the end every character that is
+   neither a letter (`\p{L}`) nor a combining mark (`\p{M}`) is removed, so a combining
+   mark attached to the last letter is kept. Inner apostrophes and inner hyphens are not
+   touched;
+3. if the result contains no letter (`!/\p{L}/u.test(result)`), drop the token.
+
+Examples: `"Hello,"` → `hello`; `"don't"` → `don't`; `"José!"` → `josé`;
+`"'quoted'"` → `quoted`; `"well-known"` → `well-known`; `"1234"` and an emoji-only token
+are dropped. History keys are always normalised words, and every history lookup
+(including the prediction ranker's) normalises its argument with the same function. The
+Message itself is never altered by this rule; it applies only to the history.
 
 ### `board-storage.ts`
 
@@ -292,7 +339,7 @@ persisting that one change).
 |---|---|---|---|
 | `planchette-board:message` | `{ version, message: string }` | 1 | saved after every Action so a reload resumes the sentence in progress; capped at 2000 characters, truncated silently if exceeded |
 | `planchette-board:history` | `{ version, words: Array<{ word: string; count: number; lastSpokenAt: number }> }` | 1 | capped at 500 distinct words; least-recently-spoken evicted first |
-| `planchette-board:quick-phrases` | `{ version, phrases: Array<{ id: string; text: string }> }` | 1 | capped at 100 phrases, each at most 500 characters; seeded on first run with a short built-in starter list (`messages.ts`) |
+| `planchette-board:quick-phrases` | `{ version, phrases: Array<{ id: string; text: string }> }` | 1 | capped at 100 phrases, each at most 500 characters; seeded on first run with the built-in starter list defined in `messages.ts`: exactly "Yes", "No", "Thank you", "I need help", "Please wait", "I want to rest", in that order |
 | `planchette-board:settings` | `{ version, profile: Partial<Profile>, board: { predictionSlotCount, voiceURI, speechRate, filterOffensiveWords } }` | 1 | `profile` is the skeleton Profile's exportable JSON shape, not re-validated here — `importProfile` does that |
 
 Cap behaviour: a Quick phrase longer than 500 characters is truncated to 500 on write
@@ -358,7 +405,15 @@ plain-language/alternatives contract (Requirement 5 AC 9, 9 AC 8).
 
 A panel (`#about`) opened from a button on the Settings screen, an ordinary focusable
 control like the rest of Settings (not a `Planchette` target). All text comes from
-`messages.ts`. It shows, in this order: the Board version (read from `package.json` at
+`messages.ts`. The not-a-medical-device notice is the sentence "The board is not a
+medical device and not a replacement for an AAC system assessed by a
+speech-language therapist." (the sentence in requirements.md's introduction). The
+links are exactly the URLs already in `THIRD_PARTY.md`:
+<https://github.com/hermitdave/FrequencyWords>,
+<https://www.med.unc.edu/healthsciences/clds/universal-core-vocabulary/>,
+<https://github.com/LDNOOBW/List-of-Dirty-Naughty-Obscene-and-Otherwise-Bad-Words>,
+<https://creativecommons.org/licenses/by-sa/4.0/>, and
+<https://creativecommons.org/licenses/by/4.0/>. It shows, in this order: the Board version (read from `package.json` at
 build time); the not-a-medical-device notice; the Universal Core vocabulary credit
 (CLDS, UNC Chapel Hill, CC BY 4.0, links to the source page and the licence); the
 Prediction word list credit (hermitdave/FrequencyWords, Hermit Dave, English
@@ -378,6 +433,10 @@ renders:
 - every Board profile / skeleton Profile field as a labelled `<input>` or `<select>`
   with its min/max shown in help text (reusing the input-core Profile fields table —
   no new range logic);
+- the control labels, all defined in `messages.ts`: "Voice" (the `voiceURI` select),
+  "Speech rate" (the range input), "Number of suggestions" (`predictionSlotCount`),
+  "Edit quick phrases" (the Quick-phrases editor), and "Filter offensive words from
+  suggestions" (the checkbox);
 - `voiceURI` as a `<select>` populated from `speechSynthesis.getVoices().filter(v =>
   v.localService)`, with a live "no local voices available" message when the list is
   empty;
@@ -707,8 +766,10 @@ computed with an empty Exclusion list.
   status area the skeleton demo uses, not a blocking dialog.
 - **No local-service speech voice**: `speak()` resolves `{ spoken: false }`;
   `board-dom.ts` shows the Message at large size (reusing the Message bar's own text,
-  scaled up, not a second text element) and the "speech output is unavailable on this
-  device" message, per Requirement 8 AC 2. This is re-checked on every Speak press
+  scaled up, not a second text element) and the message "Speech output is unavailable
+  on this device." (from `messages.ts`), per Requirement 8 AC 2. The same
+  `{ spoken: false }` result, and the same message, also covers a speech `error` and a
+  watchdog timeout. This is re-checked on every Speak press
   (voice lists can change if the OS adds a voice package), not cached as a permanent
   "no speech" mode.
 - **Camera failures (permission denied, load failure, no-face timeout)**: delegated

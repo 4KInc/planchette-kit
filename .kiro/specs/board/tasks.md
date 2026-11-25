@@ -304,13 +304,13 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 10 AC 3, 4; P12.
 
-- [-] 7. Checkpoint - prediction and storage complete
+- [x] 7. Checkpoint - prediction and storage complete
   - Run the full `apps/board` unit and property test suite. Ensure all tests pass,
     ask the user if questions arise.
 
-- [ ] 8. Quick phrases store
+- [x] 8. Quick phrases store
 
-  - [ ] 8.1 Implement `QuickPhrasesStore`.
+  - [x] 8.1 Implement `QuickPhrasesStore`.
     - Create `apps/board/src/quick-phrases.ts`: `QuickPhrase`, `QuickPhrasesStore`,
       backed by `board-storage.ts`'s `planchette-board:quick-phrases` key, seeded on
       first run from a short built-in starter list defined in `messages.ts`
@@ -321,7 +321,7 @@ tasks that involve writing, modifying, or testing code.
       wired in Task 10) does not call any `QuickPhrasesStore` mutator.
     - _Requirements: 7.1, 7.2_
 
-  - [ ]* 8.2 Write the property test for quick-phrase order stability.
+  - [x]* 8.2 Write the property test for quick-phrase order stability.
     - In `apps/board/test/quick-phrases.props.test.ts`, generate a quick-phrases list
       and a sequence of Board actions that never calls `add`/`update`/`remove`/
       `reorder`; assert the order of phrase ids is unchanged after the sequence.
@@ -330,21 +330,38 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 7 AC 1, 2, 4; P11.
 
-- [ ] 9. Speech output
+- [x] 9. Speech output
 
-  - [ ] 9.1 Write `messages.ts` (user-facing text) and `speech.ts`.
+  - [x] 9.1 Write `messages.ts` (user-facing text) and `speech.ts`.
     - Create `apps/board/src/messages.ts`: every Board-facing string in one place
-      (per structure.md), including the not-a-medical-device notice, the
-      speech-unavailable message, the quick-phrases starter list, and Settings labels.
-    - Create `apps/board/src/speech.ts`: `pickLocalVoice`, `speak`, per design.md.
+      (per structure.md), including the not-a-medical-device notice (the sentence from
+      requirements.md's introduction), the speech-unavailable message ("Speech output
+      is unavailable on this device."), the quick-phrases starter list (exactly "Yes",
+      "No", "Thank you", "I need help", "Please wait", "I want to rest", in that
+      order), and the Settings labels ("Voice", "Speech rate", "Number of suggestions",
+      "Edit quick phrases", "Filter offensive words from suggestions"), plus the
+      About-screen link URLs already in `THIRD_PARTY.md`.
+    - Create `apps/board/src/speech.ts`: `pickLocalVoice`, `speak`, per design.md
+      (`end` resolves spoken true; `error` resolves spoken false; a watchdog of
+      `max(10000, 150 * text.length / rate)` ms calls `synth.cancel()` and resolves
+      spoken false; settles once; optional fourth argument `timers` with `setTimeout`
+      and `clearTimeout`, defaulting to the globals).
     - Write `apps/board/test/speech.test.ts`: `pickLocalVoice` with a fake voice list
       containing only `localService: false` entries returns `null`; with a mix,
       returns a `localService: true` entry; `speak` with a `null` voice resolves
       `{ spoken: false }` and never calls `synth.speak`; `speak` with a voice calls
-      `synth.speak` exactly once with the given rate and voice.
+      `synth.speak` exactly once with the given rate and voice; an `end` event
+      resolves `{ spoken: true }`; an `error` event (including `interrupted`)
+      resolves `{ spoken: false }`; when no event fires, firing the injected timer
+      calls `synth.cancel` and resolves `{ spoken: false }` (fake timers passed in, no
+      real waiting), and the delay requested is `max(10000, 150 * length / rate)`; the
+      promise settles once, so an `end` after the watchdog is ignored.
+    - Write `apps/board/test/messages.test.ts`: the starter list equals the six
+      phrases in the order above; the speech-unavailable message equals the exact
+      text above.
     - _Requirements: 8.1, 8.2, 8.3_
 
-  - [ ]* 9.2 Write the property test for local-service-only voice selection.
+  - [x]* 9.2 Write the property test for local-service-only voice selection.
     - In `apps/board/test/speech.props.test.ts`, generate arbitrary voice lists
       (0–10 entries, random `localService` booleans and `voiceURI` strings) and a
       `preferredURI`; assert `pickLocalVoice` never returns a `localService: false`
@@ -352,7 +369,7 @@ tasks that involve writing, modifying, or testing code.
     - **Property 9: Local-service-only voice selection**
     - **Validates: Requirements 8.1, 8.2, 8.4**
 
-  - [ ]* 9.3 Write the property test for voice/rate application.
+  - [x]* 9.3 Write the property test for voice/rate application.
     - In the same file, generate arbitrary `BoardOnlySettings` and messages; assert
       every `speak()` call's utterance uses the resolved voice and the configured
       rate.
@@ -361,9 +378,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 8 AC 1, 2, 3, 4, 5; P9, P10.
 
-- [ ] 10. Wire the pure stores: history updates and settings model
+- [x] 10. Wire the pure stores: history updates and settings model
 
-  - [ ] 10.1 Implement `board-settings.ts` and the history-update rule.
+  - [x] 10.1 Implement `board-settings.ts` and the history-update rule.
     - Create `apps/board/src/board-settings.ts`: `BoardOnlySettings`,
       `BoardProfileFields`, `BoardExport`, export/import functions that call the
       skeleton's `exportProfile`/`importProfile` for the `profile` part and apply the
@@ -374,8 +391,9 @@ tasks that involve writing, modifying, or testing code.
       `offensive-words.json` to `createPredictionStrip`.
     - In `apps/board/src/main.ts` (first version: wiring only the pure stores, no DOM
       yet), add the rule that a word is appended to the Spoken-word history only after
-      a `speak()` call resolves `{ spoken: true }`, splitting the spoken message on
-      whitespace.
+      a `speak()` call resolves `{ spoken: true }`, splitting the spoken message into
+      normalised words per design.md "Spoken-word normalisation" (a
+      `normaliseSpokenWord` helper, also used for history lookups).
     - Write `apps/board/test/board-settings.test.ts`: export then import an in-range
       `BoardExport` returns an equal object; `resolveInitialProfile`: with a saved
       or imported profile whose `dwellTime` is 1000 the board keeps 1000, and with a
@@ -388,12 +406,15 @@ tasks that involve writing, modifying, or testing code.
     - Write `apps/board/test/main-history.test.ts`: selecting a predicted word alone
       does not change history; a `speak()` call that resolves `spoken: true` adds each
       word of the message to history; a `speak()` call that resolves `spoken: false`
-      does not change history.
+      does not change history; normalisation examples: speaking "Hello, don't José!
+      1234 'quoted' 😀" adds exactly `hello`, `don't`, `josé`, and `quoted` (the
+      `1234` and emoji-only tokens are dropped), and speaking "Hello" then "hello,"
+      raises the single history key `hello` to count 2.
     - Also in `board-settings.ts`: `resolveInitialProfile(saved)` per design.md
       "Design levers used", lever 1; `main.ts` calls it before the first `setProfile`.
     - _Requirements: 4.4, 4.9, 6.2, 6.3, 6.5, 6.6, 6.7, 6.8, 8.6, 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7_
 
-  - [ ]* 10.2 Write the property test for settings export/import round trip and clamping.
+  - [x]* 10.2 Write the property test for settings export/import round trip and clamping.
     - In `apps/board/test/board-settings.props.test.ts`, generate arbitrary valid
       `BoardExport` values and arbitrary malformed ones (out-of-range or wrong-typed
       `board` fields); assert the round-trip and clamp-or-default behaviour from
@@ -401,7 +422,7 @@ tasks that involve writing, modifying, or testing code.
     - **Property 7: Settings export/import round trip and clamping**
     - **Validates: Requirements 6.5, 6.6, 6.7, 11.1, 11.2, 11.3**
 
-  - [ ]* 10.3 Write the property test for history updates on successful speech only.
+  - [x]* 10.3 Write the property test for history updates on successful speech only.
     - In `apps/board/test/main-history.props.test.ts`, generate a sequence of
       predicted-word selections and `speak()` calls with randomised `spoken` results;
       assert history changes exactly for the `spoken: true` calls.
@@ -410,7 +431,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 4 AC 4, 9; Req 6 AC 2, 3, 5, 6, 7; Req 8 AC 6; Req 11 AC 1–6; P7, P8.
 
-- [ ] 11. Checkpoint - all pure stores complete
+- [-] 11. Checkpoint - all pure stores complete
   - Run the root `npm test` (includes `apps/board`) and `npm run typecheck`.
     Ensure all tests pass, ask the user if questions arise.
 

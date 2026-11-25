@@ -216,7 +216,8 @@ the buttons I already know by position.
    (trimmed, lower-cased, filtered) in `THIRD_PARTY.md`, in a licence notice stored
    next to the data file, and on the About screen (Requirement 12).
 9. THE Board SHALL store the Spoken-word history only in the browser's local storage
-   on the person's device.
+   on the person's device (each word lower-cased with surrounding punctuation removed;
+   tokens with no letter are not added).
 10. WHILE a Partial word is present, THE Board SHALL offer only predicted words that
     start with the Partial word (compared case-insensitively; a Slot locked under
     Requirement 4 AC 5 keeps its word), ranking words from the
@@ -355,7 +356,8 @@ or privacy risk.
 5. THE Board SHALL let the person or carer choose a speech rate on the Settings
    screen, saved as a Board-only setting, and SHALL apply it to every Speak action.
 6. WHEN Speak completes successfully, THE Board SHALL add each word of the spoken
-   Message to the Spoken-word history (Requirement 4 AC 9).
+   Message to the Spoken-word history (Requirement 4 AC 9) (each word lower-cased with
+   surrounding punctuation removed; tokens with no letter are not added).
 
 ### Requirement 9: Accessibility and theme
 

@@ -4,6 +4,7 @@
  */
 
 import { CORE_VOCABULARY } from './core-vocabulary.js';
+import { normaliseSpokenWord } from './spoken-words.js';
 
 export interface SlotState {
   readonly index: number;
@@ -42,13 +43,18 @@ const CORE_WORDS: ReadonlySet<string> = new Set(CORE_VOCABULARY.map((c) => c.lab
 
 /** 1 + ln(count) for count >= 1, else 0. No time decay. */
 export function recencyWeight(history: SpokenWordHistory, word: string): number {
-  const e = history.entries.get(word);
+  const e = history.entries.get(historyKey(word));
   if (e === undefined || !Number.isFinite(e.count) || e.count < 1) return 0;
   return 1 + Math.log(e.count);
 }
 
+/** History keys are normalised words, so every lookup normalises its argument first. */
+function historyKey(word: string): string {
+  return normaliseSpokenWord(word) ?? word;
+}
+
 function inHistory(history: SpokenWordHistory, word: string): boolean {
-  const e = history.entries.get(word);
+  const e = history.entries.get(historyKey(word));
   return e !== undefined && Number.isFinite(e.count) && e.count >= 1;
 }
 
