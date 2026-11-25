@@ -1,21 +1,11 @@
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
-import type { Profile } from "@planchette/skeleton";
-import { angularWidth, toPx } from "../src/geometry.js";
-import { poseOnSegment } from "../src/min-jerk.js";
-import { planEntry, insideRect, type EntryPlan, type PlanContext, type Segment } from "../src/plan-entry.js";
-import { planStart, type StartPlan } from "../src/plan-start.js";
+import { angularWidth } from "../src/geometry.js";
 import { resolveUser } from "../src/resolve-user.js";
-import {
-  openTrial,
-  runEntries,
-  runStartOfSession,
-  runWarmup,
-  type TrialConfig,
-  type TrialDriver,
-} from "../src/run-trial.js";
-import { MT_MIN } from "../src/fitts.js";
+import { openTrial, runEntries, runStartOfSession, runWarmup } from "../src/run-trial.js";
+import type { TrialConfig } from "../src/run-trial.js";
 import type { Layout, RawEvent, ResolvedUser } from "../src/types.js";
+import { buildCase, longestNonIntendedStay, moveEndMs, nonIntendedStays, trackStays, type Stay } from "./property-2-helpers.js";
 import { customUserArb, layoutArb, taskArb } from "./arbitraries.js";
 
 /**
@@ -28,23 +18,18 @@ import { customUserArb, layoutArb, taskArb } from "./arbitraries.js";
  *   every target is made at least that wide and high in px (`minWidth`, `minHeight`), so SD = cap;
  * - the screen centre is outside every target (`centreClear`);
  * - the calibration ranges equal the head range and the gain is at least 1, so the whole screen is reachable;
- * - `dwellTime` is the longest planned crossing of a non-intended target (start plan and entry plans) + margin,
- *   with margin = L + F(fps) = 150 ms + 1000 / fps (design, Property 2, derivation). `smoothingStrength` is the default 0.5
+ * - `dwellTime` is max(longest planned crossing of a non-intended target (start plan and entry plans), largest
+ *   (move end of entry k - planned time the path enters target k)) + margin, with margin = L + F(fps) = 150 ms + 1000 / fps
+ *   (design, Property 2, derivation). The second term makes every entry resolve during its planned holding phase, so
+ *   the next entry starts at `aim` as the plans assume; the run asserts that premise. `smoothingStrength` is the default 0.5
  *   and is never varied. Cases where crossing + margin > 3000 ms (the dwell clamp) are discarded with `fc.pre`; the discard
  *   rate is printed. The smallest dwellTime - (longest actual pointer stay on a non-intended target) is printed and must be > 0;
- *   the stays are intervals between consecutive `pointer-move` events whose positions lie inside the rect.
+ *   a stay is (last frame inside the rect) - (first frame inside the rect), the pointer held between `pointer-move` events.
  * - the analysis window is reaction + movement (slowest throughput) + dwell + post-selection pause + 1000 ms, at most 120 s.
  */
 
-const SLOWEST_THROUGHPUT = 0.3;
-const MAX_WINDOW_MS = 120_000;
 /** Most columns the generated grids have (see the screen and target limits below). */
 const MARGIN_PX = 2;
-
-/** L: smoother arrival-lag limit (ms) of the default smoothing. */
-const LAG_LIMIT_MS = 150;
-/** The dwell clamp of the profile (ms). */
-const DWELL_MAX_MS = 3000;
 
 interface Case {
   cfg: TrialConfig;
@@ -52,42 +37,9 @@ interface Case {
   /** crossing + margin exceeds the dwell clamp: the case cannot be built, the property discards it. */
   overClamp: boolean;
   crossing: number;
+  holdNeed: number;
   margin: number;
 }
-
-/** Longest time (ms, 1 ms resolution) any of `targets` is continuously under the pointer along the move segments of a plan. */
-function longestCrossing(
-  segments: readonly Segment[],
-  targets: Layout["targets"],
-  geometry: Parameters<typeof toPx>[0],
-): number {
-  let longest = 0;
-  const first = segments[0];
-  if (first === undefined) return 0;
-  const p0 = toPx(geometry, first.kind === "hold" ? first.pose : first.from);
-  for (const target of targets) {
-    // A target the pointer starts in is not crossed: its first run is the pointer leaving it.
-    let ignoreFirst = insideRect(target.rect, p0);
-    let runStart: number | null = null;
-    for (const seg of segments) {
-      if (seg.kind !== "move") continue;
-      for (let t = seg.t0; ; t += 1) {
-        const tt = Math.min(t, seg.t1);
-        const inside = insideRect(target.rect, toPx(geometry, poseOnSegment(seg, tt)));
-        if (inside && runStart === null) runStart = tt;
-        if (!inside && runStart !== null) {
-          if (ignoreFirst) ignoreFirst = false;
-          else longest = Math.max(longest, tt - runStart);
-          runStart = null;
-        }
-        if (tt >= seg.t1) break;
-      }
-    }
-    // A run that is still open when the plan's last move ends belongs to the target the pointer stops in.
-  }
-  return longest;
-}
-
 
 type Rect = Layout["targets"][number]["rect"];
 
@@ -167,101 +119,6 @@ function crossingTaskArb(layout: Layout): fc.Arbitrary<readonly string[]> {
       }
       return out;
     });
-}
-
-function buildCase(
-  base: Omit<TrialConfig, "profile" | "analysisWindowMs"> & { profile: Partial<Profile> },
-): { cfg: TrialConfig; overClamp: boolean; crossing: number; margin: number } {
-  const { layout, user, task } = base;
-  const provisional: TrialConfig = { ...base, analysisWindowMs: 10_000 };
-  const d = openTrial(provisional);
-  let crossing = 0;
-  try {
-    const ctx: PlanContext = {
-      geometry: d.geometry,
-      layout,
-      task,
-      user: user.params,
-      analysisWindowMs: provisional.analysisWindowMs,
-      streams: d.streams,
-    };
-    const start: StartPlan = planStart(ctx, 0);
-    const selectable = (exceptId: string | null): Layout["targets"] =>
-      layout.targets.filter((t) => t.role !== "rest-area" && t.id !== exceptId);
-    crossing = longestCrossing(start.segments, selectable(null), d.geometry);
-    let p0 = start.endPose;
-    for (let k = 0; k < task.length; k++) {
-      const plan: EntryPlan = planEntry(ctx, k, 0, p0);
-      crossing = Math.max(crossing, longestCrossing(plan.segments, selectable(plan.targetId), d.geometry));
-      p0 = plan.aim;
-    }
-  } finally {
-    d.pl.destroy();
-  }
-  const margin = LAG_LIMIT_MS + 1000 / base.fps;
-  const needed = Math.ceil(crossing + margin);
-  const overClamp = needed > DWELL_MAX_MS;
-  const dwellTime = Math.min(DWELL_MAX_MS, Math.max(400, needed));
-
-  // Movement: the longest possible move (screen diagonal) onto the smallest target side, at the slowest throughput.
-  const A = Math.hypot(layout.screen.width, layout.screen.height);
-  const W = Math.min(...layout.targets.map((t) => Math.min(t.rect.width, t.rect.height)));
-  const movement = Math.max(MT_MIN, (1000 * Math.log2(A / W + 1)) / SLOWEST_THROUGHPUT);
-  const pause = base.profile.postSelectionPause ?? 0;
-  const analysisWindowMs = Math.min(
-    MAX_WINDOW_MS,
-    Math.ceil(user.params.reactionTimeMs + movement + dwellTime + pause + 1000),
-  );
-  return { cfg: { ...base, profile: { ...base.profile, dwellTime }, analysisWindowMs }, overClamp, crossing, margin };
-}
-
-interface Stay {
-  targetId: string;
-  startMs: number;
-  endMs: number;
-  /** Task index in force when the stay began and when it ended (-1 before the first entry). */
-  entryAtStart: number;
-  entryAtEnd: number;
-}
-
-/**
- * Records the stays of the shown pointer on selectable targets from the `pointer-move` events:
- * a stay runs from the first event with the position inside the rect to the next event outside it.
- * Time is the frame time of the event (`k * frameMs` while the frame is fed).
- */
-function trackStays(d: TrialDriver): Stay[] {
-  const stays: Stay[] = [];
-  const open = new Map<string, { startMs: number; entry: number }>();
-  const targets = d.cfg.layout.targets.filter((t) => t.role !== "rest-area");
-  d.pl.addEventListener("pointer-move", (e) => {
-    const now = d.k * d.frameMs;
-    const entry = d.plans.length - 1;
-    for (const t of targets) {
-      const inside = insideRect(t.rect, { x: e.detail.x, y: e.detail.y });
-      const o = open.get(t.id);
-      if (inside && o === undefined) open.set(t.id, { startMs: now, entry });
-      else if (!inside && o !== undefined) {
-        stays.push({ targetId: t.id, startMs: o.startMs, endMs: now, entryAtStart: o.entry, entryAtEnd: entry });
-        open.delete(t.id);
-      }
-    }
-  });
-  return stays;
-}
-
-/** Every closed stay on a target that is not the intended one at its start or at its end. */
-function nonIntendedStays(stays: readonly Stay[], task: readonly string[]): Stay[] {
-  return stays.filter((s) => task[s.entryAtStart] !== s.targetId && task[s.entryAtEnd] !== s.targetId);
-}
-
-/** Longest closed stay on a target that is not the intended one at its start or at its end. */
-function longestNonIntendedStay(stays: readonly Stay[], task: readonly string[]): Stay | null {
-  let best: Stay | null = null;
-  for (const s of stays) {
-    if (task[s.entryAtStart] === s.targetId || task[s.entryAtEnd] === s.targetId) continue;
-    if (best === null || s.endMs - s.startMs > best.endMs - best.startMs) best = s;
-  }
-  return best;
 }
 
 type LayoutFor = (screen: { width: number; height: number }, minWidth: number, minHeight: number) => fc.Arbitrary<Layout>;
@@ -351,7 +208,7 @@ const makeCaseArb = (layoutFor: LayoutFor, taskFor: TaskFor): fc.Arbitrary<Case>
             requestSeed,
             trialIndex,
           });
-          return { cfg: built.cfg, cap, overClamp: built.overClamp, crossing: built.crossing, margin: built.margin };
+          return { cfg: built.cfg, cap, overClamp: built.overClamp, crossing: built.crossing, holdNeed: built.holdNeed, margin: built.margin };
         }),
       );
   });
@@ -368,7 +225,7 @@ function checkProperty2(arb: fc.Arbitrary<Case>, label: string, requireShare: bo
     let smallestStartMargin = Number.POSITIVE_INFINITY;
     let startStays = 0;
     fc.assert(
-      fc.property(arb, ({ cfg, overClamp, crossing, margin }) => {
+      fc.property(arb, ({ cfg, overClamp, crossing, holdNeed, margin }) => {
         calls++;
         if (overClamp) discarded++;
         fc.pre(!overClamp);
@@ -383,7 +240,7 @@ function checkProperty2(arb: fc.Arbitrary<Case>, label: string, requireShare: bo
           const s = runStartOfSession(d);
           tEntry = s.tEntry;
           runEntries(d, s);
-          result = { entries: d.entries, accidental: d.accidental, startEvents: d.startEvents, eff: d.eff };
+          result = { entries: d.entries, accidental: d.accidental, startEvents: d.startEvents, eff: d.eff, plans: d.plans };
         } finally {
           d.pl.destroy();
         }
@@ -411,13 +268,19 @@ function checkProperty2(arb: fc.Arbitrary<Case>, label: string, requireShare: bo
           if (observed <= 0) {
             throw new Error(
               `dwellTime ${cfg.profile.dwellTime} <= actual stay ${stayMs} ms on ${longest.targetId} (${isEntry ? "entry" : "start"}); ` +
-                `planned crossing ${crossing}, margin ${margin}, fps ${cfg.fps}, stay ${JSON.stringify(longest)}, ` +
+                `planned crossing ${crossing}, hold need ${holdNeed}, margin ${margin}, fps ${cfg.fps}, stay ${JSON.stringify(longest)}, ` +
                 `accidental ${JSON.stringify(result.accidental)}`,
             );
           }
         };
         check(entryStays, true);
         check(startOnly, false);
+        // Premise of the dwell rule: every entry resolves at or after its planned move end (holding phase).
+        result.entries.forEach((e, i) => {
+          const plan = result.plans[i];
+          expect(e.outcome).toBe("selected");
+          expect(plan.tMove0 + (e.timeToSelectMs as number)).toBeGreaterThanOrEqual(moveEndMs(plan) - 1e-6);
+        });
         expect(result.entries.map((e) => e.targetId)).toEqual([...cfg.task]);
         expect(result.entries.filter((e) => e.outcome === "selected")).toHaveLength(n);
         expect(result.entries.filter((e) => e.outcome === "miss")).toHaveLength(0);

@@ -578,26 +578,6 @@
     ],
     "8.7 Write property test for Property 2: clean run, no accidents, no misses.": [
       {
-        "executionId": "67f10079-916e-4d74-8779-4fb8d7d21a63",
-        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
-        "timestamp": 1795326269208
-      },
-      {
-        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
-        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
-        "timestamp": 1795329927781
-      },
-      {
-        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
-        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
-        "timestamp": 1795330041408
-      },
-      {
-        "executionId": "05fac53e-5f7c-4343-bc2c-be71a1395d6b",
-        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
-        "timestamp": 1795331056069
-      },
-      {
         "executionId": "7534dba9-9a56-4ecb-9aa6-0b421e136e5a",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795332785396
@@ -626,6 +606,26 @@
         "executionId": "2d5f59b1-389f-4b83-9b8d-aea47ab20cda",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795387609647
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795538822897
+      },
+      {
+        "executionId": "97c285af-fa54-49fb-b85c-19c1ae546232",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795565727655
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566049759
+      },
+      {
+        "executionId": "7e059320-1e54-48b6-9457-b50489f539d2",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795566813664
       }
     ],
     "8.8 Write property test for Property 8: each task entry resolves once.": [
