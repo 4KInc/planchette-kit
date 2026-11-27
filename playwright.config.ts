@@ -39,6 +39,19 @@ export default defineConfig({
       testMatch: '**/*.e2e.ts',
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${BUILT_PORT}` },
     },
+    // Séance (App B). Same arrangement as the Board's two projects.
+    {
+      name: 'seance',
+      testDir: 'apps/seance/test',
+      testMatch: '**/*.e2e.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${PORT}` },
+    },
+    {
+      name: 'seance-built',
+      testDir: 'apps/seance/test',
+      testMatch: '**/*.e2e.ts',
+      use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${BUILT_PORT}` },
+    },
   ],
   webServer: [
     {

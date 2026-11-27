@@ -22,6 +22,7 @@ export default defineConfig({
         main:  resolve(import.meta.dirname, "index.html"),
         board: resolve(import.meta.dirname, "board/index.html"),
         game:  resolve(import.meta.dirname, "game/index.html"),
+        seance: resolve(import.meta.dirname, "seance/index.html"),
       },
     },
   },

@@ -1522,7 +1522,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Comparing layout changes".
 
-- [-] 38. Final checkpoint
+- [x] 38. Final checkpoint
   - Run `npm test` and `npm run build` and `npm run test:e2e` at the repository root.
     Confirm the Task 36.2 acceptance gate still passes (metrics are deterministic for
     a fixed seed, so this should not need re-running unless source changed since

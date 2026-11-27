@@ -5,14 +5,15 @@
   "workspaces": [
     "skeleton",
     "tools/dwell-sim-mcp",
-    "apps/board"
+    "apps/board",
+    "apps/seance"
   ],
   "scripts": {
-    "typecheck": "tsc --noEmit -p skeleton/tsconfig.json && tsc --noEmit -p tools/dwell-sim-mcp/tsconfig.json && tsc --noEmit -p apps/board/tsconfig.json",
+    "typecheck": "tsc --noEmit -p skeleton/tsconfig.json && tsc --noEmit -p tools/dwell-sim-mcp/tsconfig.json && tsc --noEmit -p apps/board/tsconfig.json && tsc --noEmit -p apps/seance/tsconfig.json",
     "build:sim": "npm run build --workspace=skeleton && npm run build --workspace=tools/dwell-sim-mcp",
     "sim": "node tools/dwell-sim-mcp/dist/server.js",
     "demo:export": "npm run build && npm run demo:export --workspace=tools/dwell-sim-mcp",
-    "test": "npm run typecheck && npm run build:sim && npm run test --workspace=skeleton --workspace=tools/dwell-sim-mcp --workspace=apps/board",
+    "test": "npm run typecheck && npm run build:sim && npm run test --workspace=skeleton --workspace=tools/dwell-sim-mcp --workspace=apps/board --workspace=apps/seance",
     "test:e2e": "playwright test",
     "build": "vite build",
     "dev": "vite"
