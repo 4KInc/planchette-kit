@@ -835,6 +835,56 @@
         "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795731307683
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795740627357
+      }
+    ],
+    "27.1 Apply calm styling, contrast, reduced motion, and the required notices.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795740635197
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795779473007
+      }
+    ],
+    "27. Accessibility, theme, and notice content": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795779473069
+      }
+    ],
+    "28.1 Write the mouse- and keyboard-driven end-to-end suite.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795779473473
+      },
+      {
+        "executionId": "d3877da2-e143-4bc9-a50d-976dd727e7d7",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795781123006
+      }
+    ],
+    "28. End-to-end tests (Playwright + axe-core)": [
+      {
+        "executionId": "d3877da2-e143-4bc9-a50d-976dd727e7d7",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795781123062
+      }
+    ],
+    "29. Checkpoint - end-to-end suite complete": [
+      {
+        "executionId": "d3877da2-e143-4bc9-a50d-976dd727e7d7",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795781126379
       }
     ]
   }

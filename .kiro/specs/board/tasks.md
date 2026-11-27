@@ -1045,13 +1045,13 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 6 AC 1, 4, 11–14; Req 7 AC 3; Req 8 AC 4, 5; Req 9 AC 9; Req 12; Req 13 AC 1, 2, 6; Req 14 AC 9.
 
-- [-] 26. Checkpoint - DOM layer complete
+- [x] 26. Checkpoint - DOM layer complete
   - Run the full `apps/board` test suite and `npm run typecheck`. Ensure all tests
     pass, ask the user if questions arise.
 
-- [ ] 27. Accessibility, theme, and notice content
+- [x] 27. Accessibility, theme, and notice content
 
-  - [ ] 27.1 Apply calm styling, contrast, reduced motion, and the required notices.
+  - [x] 27.1 Apply calm styling, contrast, reduced motion, and the required notices.
     - Create `apps/board/demo.css`-equivalent stylesheet (named to match the app,
       e.g. `apps/board/board.css`) with: 24 CSS px minimum text size everywhere on the
       grid/strip/bar/list; measured 4.5:1 text contrast and 3:1 UI-part contrast
@@ -1069,9 +1069,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 9 AC 1–7, 10.
 
-- [ ] 28. End-to-end tests (Playwright + axe-core)
+- [x] 28. End-to-end tests (Playwright + axe-core)
 
-  - [ ] 28.1 Write the mouse- and keyboard-driven end-to-end suite.
+  - [x] 28.1 Write the mouse- and keyboard-driven end-to-end suite.
     - Write `apps/board/test/board.e2e.ts` (pattern from `skeleton/test/demo.e2e.ts`;
       it runs under the `board` and `board-built` projects added in Task 21.1, so do not
       edit `playwright.config.ts` again): loads
@@ -1089,7 +1089,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 1 AC 2–7; Req 3 AC 1, 2; Req 5 AC 1, 9; Req 9 AC 9.
 
-- [ ] 29. Checkpoint - end-to-end suite complete
+- [-] 29. Checkpoint - end-to-end suite complete
   - Run `npm run test:e2e` and confirm the new Board specs pass alongside the existing
     skeleton ones. Ensure all tests pass, ask the user if questions arise.
 

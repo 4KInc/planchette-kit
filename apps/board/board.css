@@ -11,6 +11,8 @@
   --text: #1a1a1a;
   --accent: #1f4e8c;
   --focus: #b3470a;
+  --pressed: #d6e4f7;
+  --muted: #595959;
   --target-size: 96px;
   --target-gap: 16px;
   --cell-w: calc(var(--target-size) * 4 / 3);
@@ -221,7 +223,13 @@ button:focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
 .phrases-grid [data-row="5"] { grid-row: 6; }
 .phrases-grid [data-col="0"] { grid-column: 1; }
 .phrases-grid [data-col="1"] { grid-column: 2; }
-.target[aria-pressed="true"] { background: var(--accent); color: #ffffff; }
+/*
+ * Pressed (toggle on): a light blue fill with dark text and a thicker border, not a dark fill.
+ * The scan highlight lays a yellow tint over a target; white text on the dark accent under that
+ * tint falls below 4.5:1, dark text on this light fill stays above it. The border is also thicker
+ * (4 px inside the same box, no layout change), so the state is not shown by colour alone.
+ */
+.target[aria-pressed="true"] { background: var(--pressed); color: var(--text); border-width: 4px; }
 .rest {
   display: flex;
   align-items: center;
@@ -265,8 +273,10 @@ footer p { margin: 0; line-height: 1.2; }
 #settings .phrase-list { list-style: none; margin: 0 0 12px; padding: 0; display: grid; gap: 8px; }
 #settings .phrase-list li { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 #settings .phrase-list input { flex: 1 1 240px; }
-#settings button:disabled { opacity: 0.6; cursor: default; }
+/* Disabled: a solid muted text colour (6:1) and a dashed border, not opacity, which would lower both. */
+#settings button:disabled { color: var(--muted); border-style: dashed; cursor: default; }
 #settings a { color: var(--accent); overflow-wrap: anywhere; }
-@media (prefers-reduced-motion: reduce) {
-  * { transition: none !important; animation: none !important; }
-}
+/*
+ * No transitions, animations or flashing anywhere in this file. prefers-reduced-motion is handled
+ * by createDwellRing and createScanHighlight themselves; the Board adds no motion of its own.
+ */

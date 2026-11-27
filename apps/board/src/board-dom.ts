@@ -287,9 +287,14 @@ export function mountBoardDom({ host, app, document: doc }: BoardDomOptions): Bo
         el.textContent = '';
         el.dataset.empty = 'true';
         el.setAttribute('aria-disabled', 'true');
+        // An empty cell has no name: keep it out of the accessibility tree and the tab order.
+        el.setAttribute('aria-hidden', 'true');
+        el.tabIndex = -1;
         delete el.dataset.planchetteTarget;
         return;
       }
+      el.removeAttribute('aria-hidden');
+      el.removeAttribute('tabindex');
       const id = `quick-phrase-${phrase.id}`;
       el.textContent = phrase.text; // the full text is the accessible name; CSS clamps what is drawn
       delete el.dataset.empty;
