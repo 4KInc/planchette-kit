@@ -14,7 +14,7 @@ export const SPEECH_RATE_MIN = 0.5;
 export const SPEECH_RATE_MAX = 2.0;
 export const DEFAULT_SLOT_COUNT = 4;
 export const DEFAULT_SPEECH_RATE = 1.0;
-export const BOARD_DEFAULT_DWELL_TIME = 1400;
+export const BOARD_DEFAULT_DWELL_TIME = 2100;
 
 /**
  * Deliberately has no start-camera field: "Start camera when the page opens" is the
@@ -168,7 +168,7 @@ export function shouldStartCameraOnLoad(profile: Partial<Profile>): boolean {
 /**
  * The profile to pass to the first `setProfile`. A saved or imported profile is
  * returned unchanged, whatever its `dwellTime`. Only when nothing was saved
- * (`usedDefault: true`) does the Board apply its own 1400 ms default dwell time.
+ * (`usedDefault: true`) does the Board apply its own 2100 ms default dwell time.
  */
 export function resolveInitialProfile(saved: StorageResult<StoredSettings>): Partial<Profile> {
   return saved.usedDefault ? { dwellTime: BOARD_DEFAULT_DWELL_TIME } : saved.value.profile;

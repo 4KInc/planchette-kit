@@ -398,7 +398,7 @@ tasks that involve writing, modifying, or testing code.
       `BoardExport` returns an equal object; `resolveInitialProfile`: with a saved
       or imported profile whose `dwellTime` is 1000 the board keeps 1000, and with a
       saved `dwellTime` of 1400 or 600 it keeps that value; with no saved profile
-      (`usedDefault: true`) it applies 1400; an out-of-range `predictionSlotCount`
+      (`usedDefault: true`) it applies 2100 (was 1400 ms until 27 Nov 2026; see design.md lever 1); an out-of-range `predictionSlotCount`
       (for example 1 or 9) is clamped to 2 or 8 on import and reported; a missing
       `speechRate` falls back to 1.0 and is reported; `filterOffensiveWords` defaults
       to `true` with no saved settings, survives export then import when `false`, and
@@ -609,7 +609,7 @@ tasks that involve writing, modifying, or testing code.
     - `apps/board/src/main.ts`: add `saveProfile(profile)` to `BoardApp` (it calls
       `writeSettings({ profile, board })` with the current Board settings). `startBoard`
       (completed in Task 19.1) calls it with `JSON.parse(planchette.exportProfile())` on
-      `mode-change` and when calibration ends, so the mode and the 1400 ms default are
+      `mode-change` and when calibration ends, so the mode and the 2100 ms default (was 1400 ms until 27 Nov 2026; see design.md lever 1) are
       remembered; the Settings screen and import call it too (Task 25.1).
     - Extend `apps/board/test/board-settings.test.ts` (the 10.1 tests): the exported
       `profile` holds `startCameraOnLoad: false` by default; importing `startCameraOnLoad:
@@ -619,7 +619,7 @@ tasks that involve writing, modifying, or testing code.
       writes the settings key; a fresh `createBoardApp` on that storage returns the saved
       profile as `initialProfile` unchanged (a saved `mode: 'mouse'` and a saved
       `dwellTime` of 1400 are kept); with nothing saved, `initialProfile` is `{ dwellTime:
-      1400 }` and `startCameraOnLoad` stays at the skeleton default `false`.
+      2100 }` (was 1400 ms until 27 Nov 2026; see design.md lever 1) and `startCameraOnLoad` stays at the skeleton default `false`.
     - _Requirements: 6.9, 6.10, 11.4, 11.8, 13.8_
 
   - [x]* 18.2 Extend the settings round-trip property test for `startCameraOnLoad`.
@@ -1414,9 +1414,9 @@ tasks that involve writing, modifying, or testing code.
     skeleton demo must still pass with its unchanged ring). Ensure all tests pass, ask the
     user if questions arise.
 
-- [ ] 35. MCP configuration for the dwell simulator
+- [x] 35. MCP configuration for the dwell simulator
 
-  - [-] 35.1 Add the workspace MCP configuration and verify the relative path.
+  - [x] 35.1 Add the workspace MCP configuration and verify the relative path.
     - Create `.kiro/settings/mcp.json` with the `dwell-sim` server entry using the
       **relative** command path `tools/dwell-sim-mcp/dist/server.js`, per design.md's
       "Configuring the MCP server" section (`command: "node"`, relative `args`,
@@ -1437,9 +1437,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Configuring the MCP server".
 
-- [ ] 36. Board layout export and the six-preset gate run
+- [x] 36. Board layout export and the six-preset gate run
 
-  - [ ] 36.1 Export the Board's four layouts.
+  - [x] 36.1 Export the Board's four layouts.
     - Write `tools/dwell-sim-mcp/scripts/export-board-layout.ts` (pattern from
       `export-demo-layout.ts`): serves the built `dist/board/index.html`, opens it at
       1920×1080 and 1366×768, reads `window.planchetteBoard.planchette.getTargets()`
@@ -1464,13 +1464,13 @@ tasks that involve writing, modifying, or testing code.
       `export-demo-layout.ts`'s own test boundary).
     - _Requirements: none (design.md "Exporting the Board's layout")_
 
-  - [ ] 36.2 Generalise the preset runner and run the six-preset gate.
+  - [-] 36.2 Generalise the preset runner and run the six-preset gate.
     - Write `tools/dwell-sim-mcp/scripts/run-board-presets.ts`: imports
       `runDemoPresets`/`DemoLayout`/`DemoHandler` from `run-demo-presets.ts` (no
       duplication), passes the four Board layouts and a `{ eachTarget: 2 }` task,
       and runs all six presets (`steady`, `slow`, `head-tremor`, `strong-head-tremor`,
       `small-range`, `reads-while-pointing`) at the Board's default profile (dwell
-      time 1400 ms, per design.md's chosen lever) against each of the four layouts.
+      time 2100 ms, per design.md's chosen lever 1; was 1400 ms until 27 Nov 2026) against each of the four layouts.
     - Write `tools/dwell-sim-mcp/test/run-board-presets.test.ts`: with a stub
       `DemoHandler`, `runBoardPresets` (the board-specific thin wrapper) calls the
       handler once per preset per layout (24 calls total) with the documented task and
@@ -1479,7 +1479,8 @@ tasks that involve writing, modifying, or testing code.
       (append step driven by the same `--append` flag pattern as
       `run-demo-presets.ts`).
     - **Acceptance gate**: the `reads-while-pointing` preset's `accidentalPer100Intended`
-      metric must be at or below 10 on all four Board layouts. The gate is not changed.
+      metric must be at or below 10 on all four Board layouts, run at the Board default
+      (2100 ms), seed 1. The rule is unchanged.
       **If it is missed: stop and report the numbers to the user** (the preset, the
       layout, `accidentalPer100Intended`, the causes found) with the options, and wait.
       Do not loosen the gate, and do not change the design levers in design.md's "Design
@@ -1494,6 +1495,10 @@ tasks that involve writing, modifying, or testing code.
       re-runs that exact `simulate` call (preset, layout file, seed, task) and asserts
       the metric now passes. Skip this sub-task entirely if no such counterexample is
       found.
+    - No pins needed (27 Nov 2026): every accidental selection whose cause is not
+      reading-pause is far below the rate (pass-over 9–13, waiting 2–6, other 1–3 per
+      layout on reads-while-pointing; tremor-at-edge 1–3 on the tremor presets).
+      small-range's "other" accidents (31–46 per layout) are logged as an open question.
     - _Requirements: none (design.md "Counterexample policy")_
 
   - **Covers:** design.md "Running the six presets", "The acceptance target", "Counterexample policy".
@@ -1503,13 +1508,16 @@ tasks that involve writing, modifying, or testing code.
   - [ ] 37.1 Record a `compare` baseline-vs-chosen-defaults run.
     - Using the `compare` MCP tool (via a script or an ad hoc MCP call recorded in the
       journal, not a new source file, mirroring how dwell-sim-mcp's README documents
-      `compare` usage), compare the Board's core-grid layout at the input-core global
-      default dwell time (1000 ms) against the Board's chosen default (1400 ms, Task
-      24.2), same seed, same task, for the `reads-while-pointing` preset, isolating
-      the effect of lever 1 (dwell time) from design.md.
+      `compare` usage), run two comparisons on the Board's core-grid layout, same seed,
+      same task, for the `reads-while-pointing` preset, isolating the effect of lever 1
+      (dwell time) from design.md: (a) 1400 ms against 2100 ms (the Board default) on
+      core-1366x768, reporting reads-while-pointing (the demo comparison); and (b) the
+      input-core global default dwell time (1000 ms) against the Board default
+      (2100 ms).
     - Append the `compare` verdict and the `pairs` time-to-select deltas to
       `docs/kiro-journal.md`, including the expected `slow`-preset time-to-select
-      trade-off noted in design.md.
+      trade-off noted in design.md: about +700 ms per selection (core-1366 `steady`
+      median 2533 → 3233 ms, `slow` 3967 → 4667 ms).
     - _Requirements: none (design.md "Comparing layout changes")_
 
   - **Covers:** design.md "Comparing layout changes".

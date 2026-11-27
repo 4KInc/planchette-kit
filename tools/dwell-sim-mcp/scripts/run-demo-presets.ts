@@ -43,7 +43,21 @@ export interface PresetEntryInput {
   preset: string;
   settings: DemoSettings;
   runs: readonly DemoRun[];
+  /** Wording and links; the defaults are the demo run's. */
+  wording?: EntryWording;
 }
+export interface EntryWording {
+  runLabel: string; // "dwell-sim-mcp demo run" in `<date>: <runLabel>: <preset>.`
+  layoutPhrase: string; // "the demo layout"
+  profileText: string; // "default profile"
+  linkFiles: readonly string[];
+}
+const DEMO_WORDING: EntryWording = {
+  runLabel: "dwell-sim-mcp demo run",
+  layoutPhrase: "the demo layout",
+  profileText: "default profile",
+  linkFiles: DEMO_LAYOUT_FILES,
+};
 
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 /** Local calendar day as `YYYY-MM-DD` (what `date +%F` prints), from the local getters, never from toISOString (UTC). */
@@ -113,19 +127,20 @@ function describeRun(run: DemoRun, notes: string[]): string {
  */
 export function formatPresetEntry(input: PresetEntryInput): string {
   const { date, preset, settings, runs } = input;
+  const w = input.wording ?? DEMO_WORDING;
   const notes: string[] = [];
   const parts = runs.map((run, i) => `${i === 0 ? "Result" : "Second line"} (${run.layoutName}): ${describeRun(run, notes)}.`);
   const names = runs.map((r) => r.layoutName).join(" and ");
   const did =
-    `What Kiro did: ran simulate through handleSimulate on the demo layout ${names} for the preset ${preset}, ` +
-    `default profile, task { eachTarget: ${String(settings.eachTarget)} }, seed ${String(settings.seed)}, fps ${String(settings.fps)}, ` +
+    `What Kiro did: ran simulate through handleSimulate on ${w.layoutPhrase} ${names} for the preset ${preset}, ` +
+    `${w.profileText}, task { eachTarget: ${String(settings.eachTarget)} }, seed ${String(settings.seed)}, fps ${String(settings.fps)}, ` +
     `analysis window ${String(settings.analysisWindowS)} s, ${String(settings.trialsPerUser)} trials.`;
   const surprised = `What went wrong or surprised us: ${notes.length > 0 ? notes.join("; ") : "nothing reported by the run itself (to be completed when the results are recorded)"}.`;
   const changed = "What we changed: nothing, measurement only.";
   const links =
-    `Links: tools/dwell-sim-mcp/${DEMO_LAYOUT_FILES[0]}, tools/dwell-sim-mcp/${DEMO_LAYOUT_FILES[1]}, ` +
+    `Links: ${w.linkFiles.map((f) => `tools/dwell-sim-mcp/${f}`).join(", ")}, ` +
     "commit: the one that adds this entry.";
-  return `${date}: dwell-sim-mcp demo run: ${preset}. ${did} ${parts.join(" ")} ${surprised} ${changed} ${links}`;
+  return `${date}: ${w.runLabel}: ${preset}. ${did} ${parts.join(" ")} ${surprised} ${changed} ${links}`;
 }
 
 export interface RunDemoOptions {
@@ -134,6 +149,11 @@ export interface RunDemoOptions {
   /** Parses the raw request like the tool does (zod defaults). Identity when omitted. */
   parse?: (raw: Record<string, unknown>) => Record<string, unknown>;
   date?: string;
+  /** Task per intended selection. Default `{ eachTarget: 3 }`. */
+  eachTarget?: number;
+  /** Partial profile sent with every call. Omitted: the skeleton default. */
+  profile?: Record<string, unknown>;
+  wording?: EntryWording;
 }
 
 /** Calls the handler once per preset and layout (presets in the fixed order) and returns six entries. */
@@ -141,18 +161,19 @@ export function runDemoPresets(options: RunDemoOptions): string[] {
   const { layouts, handler } = options;
   const parse = options.parse ?? ((raw) => raw);
   const date = options.date ?? journalDate(new Date());
+  const eachTarget = options.eachTarget ?? DEMO_EACH_TARGET;
   const entries: string[] = [];
   for (const preset of DEMO_PRESETS) {
     const runs: DemoRun[] = [];
     let settings: DemoSettings | undefined;
     for (const { name, layout } of layouts) {
-      const parsed = parse({ layout, users: [preset], task: { eachTarget: DEMO_EACH_TARGET }, seed: DEMO_SEED });
+      const parsed = parse({ layout, users: [preset], task: { eachTarget }, seed: DEMO_SEED, ...(options.profile ? { profile: options.profile } : {}) });
       settings ??= {
         seed: typeof parsed.seed === "number" ? parsed.seed : DEMO_SEED,
         fps: typeof parsed.fps === "number" ? parsed.fps : 30,
         analysisWindowS: typeof parsed.analysisWindowS === "number" ? parsed.analysisWindowS : 10,
         trialsPerUser: typeof parsed.trialsPerUser === "number" ? parsed.trialsPerUser : 10,
-        eachTarget: DEMO_EACH_TARGET,
+        eachTarget,
       };
       runs.push({ layoutName: name, result: handler(parsed) });
     }
@@ -160,8 +181,9 @@ export function runDemoPresets(options: RunDemoOptions): string[] {
       formatPresetEntry({
         date,
         preset,
-        settings: settings ?? { seed: DEMO_SEED, fps: 30, analysisWindowS: 10, trialsPerUser: 10, eachTarget: DEMO_EACH_TARGET },
+        settings: settings ?? { seed: DEMO_SEED, fps: 30, analysisWindowS: 10, trialsPerUser: 10, eachTarget },
         runs,
+        wording: options.wording,
       }),
     );
   }

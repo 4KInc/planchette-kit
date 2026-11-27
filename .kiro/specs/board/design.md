@@ -563,12 +563,12 @@ outline" below; *user decision, 27 Nov 2026*).
 **Persistence of the mode.** *(Saving the Profile through `saveProfile()`: proposed by
 Kiro, accepted by the user on 27 Nov 2026.)* The mode is the Profile's `mode` field (default
 `'head + dwell'`), so it needs no new storage field. Today nothing writes
-`planchette-board:settings`, so neither a changed mode nor the 1400 ms dwell default is
+`planchette-board:settings`, so neither a changed mode nor the 2100 ms dwell default is
 remembered. `main.ts` therefore gets `saveProfile()`: it reads `planchette.exportProfile()`
 and calls `writeSettings({ profile, board })`. It runs on `mode-change`, when
 calibration ends, after a Profile import, and after a Settings change. Once a Profile is
 saved, `resolveInitialProfile` returns it unchanged on the next visit (Requirement 11
-AC 6), including `dwellTime`, which is then the 1400 ms the Board applied the first
+AC 6), including `dwellTime`, which is then the 2100 ms the Board applied the first
 time.
 
 **Tests never start a real camera.** `board-controls` tests use a fake Planchette whose
@@ -1218,7 +1218,8 @@ It renders:
   `<select>` controls with their min/max shown in help text. The dialog has no input-mode
   control: the Controls-row mode selector covers it. The skeleton does not export its
   field limits, so the help text comes from a static table in the Board copied from the
-  input-core Profile fields table. The table is display only: a change goes through
+  input-core Profile fields table. The dwellTime field's shown default is the Board
+  default (2100 ms, `BOARD_DEFAULT_DWELL_TIME`), not the skeleton's 1000 ms. The table is display only: a change goes through
   `setProfile`, and the dialog then shows back the value the skeleton kept (so a clamped
   value is shown clamped). `predictionSlotCount` is saved immediately and applies on the
   next page load, because the Prediction strip is fixed for the life of the page;
@@ -1849,22 +1850,40 @@ user's approval.
 **Design levers used, and why each acts on reading-pause accidents specifically (never
 by changing the simulator):**
 
-1. **Raise the Board's default dwell time to 1400 ms** (a `Board profile` default
+1. **Raise the Board's default dwell time to 2100 ms** (user decision, 27 Nov 2026; a `Board profile` default
    applied via `setProfile` only when no saved or imported profile exists, within
    input-core's existing 400–3000 ms range — no new field). The rule lives in
    `board-settings.ts` as `resolveInitialProfile(saved)`: if `planchette-board:settings`
    holds a profile (saved by the person, or written by an import), return it unchanged,
    including its `dwellTime` whatever the value (a saved 1000 stays 1000); only when
-   `readJSON` reports `usedDefault: true` for that key does it return `{ dwellTime: 1400 }`
-   (Requirement 11 AC 5, 6). A person's or carer's chosen dwell time is never overwritten. A reading pause of 300–900 ms is now 500–1100 ms short of
-   completing a selection on its own, instead of 100–700 ms short at 1000 ms; the
-   `compare` run (Task 37) must show the accidental rate drop as a direct result of
-   this one change before any other lever is added, isolating its effect. Trade-off:
-   `compare`'s own `slow`-preset time-to-select metric is expected to rise by roughly
-   the same 400 ms per *intentional* selection (a slower, deliberate dwell costs every
-   selection equally, not just the accidental ones) — acceptable because `slow`'s risk
-   is time, not safety, and product.md Principle 1 (never select something not meant)
-   ranks above speed.
+   `readJSON` reports `usedDefault: true` for that key does it return `{ dwellTime: 2100 }`
+   (Requirement 11 AC 5, 6). A person's or carer's chosen dwell time is never overwritten. A person can change it in
+   Settings (400–3000 ms, step 50).
+
+   *The design's original reasoning was disproved by the simulator.* It said a reading
+   pause of 300–900 ms would be 500–1100 ms short of completing a selection at 1400 ms
+   (and 100–700 ms short at 1000 ms). The simulator showed otherwise: the slow crossing
+   into and out of a reading pause counts toward dwell as well, so pauses of 300–900 ms
+   still complete 1400 ms dwells. At 1400 ms the gate measured 50.6–58.6 accidental
+   selections per 100 intended on `reads-while-pointing` (core-1920 52.1, core-1366 50.6,
+   spell-1920 58.6, spell-1366 57.6; seed 1, `eachTarget` 2).
+
+   **Decision (user decision, 27 Nov 2026): 2100 ms.** The rule that chose it: the
+   smallest of 2000, 2100 and 2200 ms whose worst seed (1–10) of `reads-while-pointing`
+   is at or below 10 accidental per 100 intended on all four Board layouts. 2000 ms fails
+   (worst seed 10.6/8.2/12.7/9.5), 2100 ms passes (7.9/4.9/8.3/6.1), 2200 ms passes
+   (5.4/4.0/5.9/4.3), in the order core-1920, core-1366, spell-1920, spell-1366. At
+   2100 ms, seed 1, the rate is 3.6/2.4/5.8/3.8; the other five presets stay at 0.5 or
+   below, except `small-range` at 4.4–6.3. With no reading pauses, accidents are 0–0.5.
+   With the pause capped at 600 ms they are still 39–47 per 100, so a shorter pause does
+   not fix it. The full tables (the 1000–2200 ms sweep and the multi-seed runs) are in
+   `docs/board-gate.md`.
+
+   **Cost:** about 700 ms per intentional selection (core-1366: `steady` median
+   2533 → 3233 ms, `slow` 3967 → 4667 ms). A slower dwell costs every selection equally,
+   not just the accidental ones. It is accepted because `slow`'s risk is time, not
+   safety, and product.md Principle 1 (never select something not meant) ranks above
+   speed. The `compare` run (Task 37) shows this effect.
 2. **Group related buttons with a visually and spatially distinct gap (at least double
    the profile's target spacing) between groups**, and place the rest area between the
    Core-vocabulary grid and the action row/Prediction strip rather than off in a
@@ -1923,6 +1942,10 @@ policy.
   bar text" and "Scaling to the viewport". One point is for the user to confirm: with the
   taller bar the Spell view's own content is 87% of the 1080 px height, so the `.page` box is
   held to the Core view's height (Requirement 14 AC 17) to keep the 90% of AC 13.
+- **`small-range` "other" accidents: open, not investigated (27 Nov 2026).** At the 2100 ms
+  default the `small-range` preset has 31–46 accidental selections per layout (4.4–6.3
+  per 100 intended) whose cause is not `reading-pause`. Almost all are misses where the
+  aim lands outside the target. The cause is unknown and no change was made.
 - **`reads-while-pointing` 10-per-100 target is a proposal**, not a figure from a
   cited human-factors source (unlike the simulator's own movement-model figures, which
   are cited in METHODOLOGY.md) — it is this design's own choice, justified above. The

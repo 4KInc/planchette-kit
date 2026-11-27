@@ -334,7 +334,7 @@ describe('Profile fields', () => {
     const { host, syncTargets } = setup();
     const dwell = byLabel(messages.settings.fields.dwellTime) as HTMLInputElement;
     expect(dwell.value).toBe('1400');
-    expect(document.getElementById(dwell.getAttribute('aria-describedby')!)!.textContent).toBe('Allowed: 400 to 3000 ms. Default: 1000 ms.');
+    expect(document.getElementById(dwell.getAttribute('aria-describedby')!)!.textContent).toBe('Allowed: 400 to 3000 ms. Default: 2100 ms.');
     dwell.value = '99999';
     change(dwell);
     expect(host.setProfile).toHaveBeenCalledWith({ dwellTime: 99999 });

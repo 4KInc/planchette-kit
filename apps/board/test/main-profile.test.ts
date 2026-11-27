@@ -48,9 +48,9 @@ describe("saveProfile", () => {
 });
 
 describe("nothing saved", () => {
-  it("initialProfile is { dwellTime: 1400 } and startCameraOnLoad stays false", () => {
+  it("initialProfile is { dwellTime: 2100 } and startCameraOnLoad stays false", () => {
     const a = boardApp(memory());
-    expect(a.initialProfile).toEqual({ dwellTime: 1400 });
+    expect(a.initialProfile).toEqual({ dwellTime: 2100 });
     const p = createPlanchette({ screen: { width: 1000, height: 800 } });
     p.setProfile(a.initialProfile);
     expect(p.getProfile().startCameraOnLoad).toBe(false);

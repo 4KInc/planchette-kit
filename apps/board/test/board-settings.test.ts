@@ -129,9 +129,9 @@ describe("resolveInitialProfile", () => {
     expect(resolveInitialProfile(readSettings(s)).dwellTime).toBe(1000);
   });
 
-  it("applies 1400 ms when nothing is saved", () => {
+  it("applies 2100 ms when nothing is saved", () => {
     const r = readSettings(memory());
     expect(r.usedDefault).toBe(true);
-    expect(resolveInitialProfile(r)).toEqual({ dwellTime: 1400 });
+    expect(resolveInitialProfile(r)).toEqual({ dwellTime: 2100 });
   });
 });

@@ -19,7 +19,7 @@
  */
 import type { Planchette, Profile } from '@planchette/skeleton';
 import packageJson from '../package.json';
-import { exportBoardSettings, importBoardSettings, SLOT_COUNT_MAX, SLOT_COUNT_MIN, SPEECH_RATE_MAX, SPEECH_RATE_MIN } from './board-settings.js';
+import { BOARD_DEFAULT_DWELL_TIME, exportBoardSettings, importBoardSettings, SLOT_COUNT_MAX, SLOT_COUNT_MIN, SPEECH_RATE_MAX, SPEECH_RATE_MIN } from './board-settings.js';
 import { QUICK_PHRASE_MAX_CHARS } from './board-storage.js';
 import type { BoardApp } from './main.js';
 import { messages } from './messages.js';
@@ -68,7 +68,7 @@ const FIELDS: readonly FieldSpec[] = [
   { key: 'headGain', group: 'pointing', kind: 'number', unit: '', def: 1, min: 1, max: 2, step: '0.1' },
   { key: 'headDeadZone', group: 'pointing', kind: 'number', unit: 'degrees', def: 0.5, min: 0, maxNote: 'deadZoneNote', step: '0.1' },
   { key: 'smoothingStrength', group: 'pointing', kind: 'number', unit: '', def: 0.5, min: 0, max: 1, step: '0.05' },
-  { key: 'dwellTime', group: 'timing', kind: 'number', unit: 'ms', def: 1000, min: 400, max: 3000, step: '50' },
+  { key: 'dwellTime', group: 'timing', kind: 'number', unit: 'ms', def: BOARD_DEFAULT_DWELL_TIME, min: 400, max: 3000, step: '50' },
   { key: 'graceTime', group: 'timing', kind: 'number', unit: 'ms', def: 150, min: 0, max: 500, step: '10' },
   { key: 'postSelectionPause', group: 'timing', kind: 'number', unit: 'ms', def: 500, min: 200, max: 3000, step: '50' },
   { key: 'autoRepeatInterval', group: 'timing', kind: 'number', unit: 'ms', def: 1000, min: 500, max: 3000, step: '50' },

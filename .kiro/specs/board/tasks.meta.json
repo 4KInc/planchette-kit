@@ -1129,6 +1129,54 @@
         "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795808539968
+      },
+      {
+        "executionId": "4b5cad62-f64f-407a-aa38-fd03a0c37aea",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795817030736
+      }
+    ],
+    "35. MCP configuration for the dwell simulator": [
+      {
+        "executionId": "4b5cad62-f64f-407a-aa38-fd03a0c37aea",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795817030793
+      }
+    ],
+    "36.1 Export the Board's four layouts.": [
+      {
+        "executionId": "4b5cad62-f64f-407a-aa38-fd03a0c37aea",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795817034080
+      },
+      {
+        "executionId": "4b5cad62-f64f-407a-aa38-fd03a0c37aea",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795817158662
+      }
+    ],
+    "36.2 Generalise the preset runner and run the six-preset gate.": [
+      {
+        "executionId": "4b5cad62-f64f-407a-aa38-fd03a0c37aea",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795817161581
+      },
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818016944
+      },
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818025160
+      }
+    ],
+    "36. Board layout export and the six-preset gate run": [
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818017007
       }
     ]
   }

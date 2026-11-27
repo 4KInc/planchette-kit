@@ -1,0 +1,459 @@
+{
+  "screen": {
+    "width": 1366,
+    "height": 768
+  },
+  "targets": [
+    {
+      "id": "speak",
+      "rect": {
+        "x": 876,
+        "y": 120,
+        "width": 148.65625,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "backspace-action",
+      "rect": {
+        "x": 1040.65625,
+        "y": 120,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "clear",
+      "rect": {
+        "x": 1205.328125,
+        "y": 120,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "undo",
+      "rect": {
+        "x": 876,
+        "y": 232,
+        "width": 148.65625,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "undo"
+    },
+    {
+      "id": "spell-toggle",
+      "rect": {
+        "x": 1040.65625,
+        "y": 232,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "cancel",
+      "rect": {
+        "x": 1205.328125,
+        "y": 232,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "cancel"
+    },
+    {
+      "id": "camera-toggle",
+      "rect": {
+        "x": 876,
+        "y": 344,
+        "width": 148.65625,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "phrases-toggle",
+      "rect": {
+        "x": 1040.65625,
+        "y": 344,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "rest-area",
+      "rect": {
+        "x": 1205.328125,
+        "y": 344,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "rest-area"
+    },
+    {
+      "id": "prediction-slot-0",
+      "rect": {
+        "x": 876,
+        "y": 8,
+        "width": 107.5,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "prediction-slot-1",
+      "rect": {
+        "x": 999.5,
+        "y": 8,
+        "width": 107.5,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "prediction-slot-2",
+      "rect": {
+        "x": 1123,
+        "y": 8,
+        "width": 107.5,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "prediction-slot-3",
+      "rect": {
+        "x": 1246.5,
+        "y": 8,
+        "width": 107.5,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-e",
+      "rect": {
+        "x": 12,
+        "y": 104,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-t",
+      "rect": {
+        "x": 156,
+        "y": 104,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-a",
+      "rect": {
+        "x": 300,
+        "y": 104,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-o",
+      "rect": {
+        "x": 444,
+        "y": 104,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-i",
+      "rect": {
+        "x": 588,
+        "y": 104,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-n",
+      "rect": {
+        "x": 732,
+        "y": 104,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-s",
+      "rect": {
+        "x": 12,
+        "y": 216,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-h",
+      "rect": {
+        "x": 156,
+        "y": 216,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-r",
+      "rect": {
+        "x": 300,
+        "y": 216,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-d",
+      "rect": {
+        "x": 444,
+        "y": 216,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-l",
+      "rect": {
+        "x": 588,
+        "y": 216,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-c",
+      "rect": {
+        "x": 732,
+        "y": 216,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-u",
+      "rect": {
+        "x": 12,
+        "y": 328,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-m",
+      "rect": {
+        "x": 156,
+        "y": 328,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-w",
+      "rect": {
+        "x": 300,
+        "y": 328,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-f",
+      "rect": {
+        "x": 444,
+        "y": 328,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-g",
+      "rect": {
+        "x": 588,
+        "y": 328,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-y",
+      "rect": {
+        "x": 732,
+        "y": 328,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-p",
+      "rect": {
+        "x": 12,
+        "y": 440,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-b",
+      "rect": {
+        "x": 156,
+        "y": 440,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-v",
+      "rect": {
+        "x": 300,
+        "y": 440,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-k",
+      "rect": {
+        "x": 444,
+        "y": 440,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-j",
+      "rect": {
+        "x": 588,
+        "y": 440,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-x",
+      "rect": {
+        "x": 732,
+        "y": 440,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-q",
+      "rect": {
+        "x": 12,
+        "y": 552,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "letter-z",
+      "rect": {
+        "x": 156,
+        "y": 552,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "space",
+      "rect": {
+        "x": 300,
+        "y": 552,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "backspace",
+      "rect": {
+        "x": 444,
+        "y": 552,
+        "width": 128,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    }
+  ]
+}

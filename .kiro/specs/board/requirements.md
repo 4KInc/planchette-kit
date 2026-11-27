@@ -578,9 +578,9 @@ setting, its default, and its range, so that Settings, storage, and tests agree.
    target size, target spacing, mode, and so on) directly from the skeleton Profile
    fields table in the input-core requirements, introducing no duplicate field.
 5. WHEN the Board starts and no saved or imported Profile exists, THE Board SHALL set
-   the dwell time to 1400 ms through `setProfile`.
+   the dwell time to 2100 ms through `setProfile`.
 6. WHEN the Board starts and a saved or imported Profile exists, THE Board SHALL keep
-   that Profile's dwell time, whatever its value, and SHALL NOT apply the 1400 ms
+   that Profile's dwell time, whatever its value, and SHALL NOT apply the 2100 ms
    default.
 7. THE Board SHALL define `filterOffensiveWords` as a Board-only boolean setting,
    default on.

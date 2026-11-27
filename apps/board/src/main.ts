@@ -95,7 +95,7 @@ export function createBoardApp(deps: BoardAppDeps): BoardApp {
   let board: StoredBoardSettings = settingsResult.value.board;
   const initialProfile = resolveInitialProfile(settingsResult);
   // What a Board-only save writes next to the settings. Starts as the profile the page starts with
-  // (so the 1400 ms dwell default is kept when nothing was saved) and follows `saveProfile`.
+  // (so the 2100 ms dwell default is kept when nothing was saved) and follows `saveProfile`.
   let currentProfile: Partial<Profile> = initialProfile;
 
   const history = new Map<string, { count: number; lastSpokenAt: number }>();
@@ -196,7 +196,7 @@ export function startBoard(
       return speak(text, { voice, rate: speechRate }, win.speechSynthesis);
     },
   });
-  // First: the saved or imported Profile, or the Board's 1400 ms dwell default (Req 11 AC 5, 6).
+  // First: the saved or imported Profile, or the Board's 2100 ms dwell default (Req 11 AC 5, 6).
   planchette.setProfile(app.initialProfile);
   // Remember the mode and the dwell default. board-controls.ts calls this on a mode change
   // and when a calibration run ends (the one place those two saves happen).
