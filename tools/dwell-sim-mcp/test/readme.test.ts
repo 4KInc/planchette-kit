@@ -30,15 +30,18 @@ function configBlock(): { mcpServers: Record<string, { command: string; args: st
 }
 
 describe("README configuration snippet", () => {
-  it("launches node with the package bin path as the last argument", () => {
+  it("launches node with the relative package bin path as the last argument", () => {
     const servers = Object.values(configBlock().mcpServers);
     expect(servers).toHaveLength(1);
     const server = servers[0]!;
     expect(server.command).toBe("node");
     const bin = pkg.bin["dwell-sim-mcp"]!;
     expect(bin).toBe("dist/server.js");
-    expect(server.args.at(-1)!.endsWith(bin)).toBe(true);
-    expect(server.args.at(-1)!.startsWith("/")).toBe(true);
+    const last = server.args.at(-1)!;
+    expect(last).toBe("tools/dwell-sim-mcp/dist/server.js");
+    expect(last.endsWith(bin)).toBe(true);
+    expect(last.startsWith("/")).toBe(false);
+    expect(/^[A-Za-z]:/.test(last)).toBe(false);
   });
 });
 

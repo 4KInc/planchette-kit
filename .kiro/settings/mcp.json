@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "dwell-sim": {
+      "command": "node",
+      "args": ["tools/dwell-sim-mcp/dist/server.js"],
+      "disabled": false
+    }
+  }
+}

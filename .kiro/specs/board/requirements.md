@@ -143,8 +143,10 @@ that I can review it before I speak it.
    (Backspace, Clear, Add word, Complete word, Add letter, Add space), restoring the Message to its
    state immediately before that Action.
 8. THE Board SHALL provide a Cancel target or input in every mode, per Requirement 5.
-9. THE Message bar, Speak, Backspace, Clear, Undo, and Cancel SHALL be reachable in
-   every input mode offered by Requirement 5.
+9. THE Message bar SHALL be visible in every view and in every input mode offered by
+   Requirement 5 (it is display-only and is not a target), AND THE Speak, Backspace,
+   Clear, Undo, and Cancel targets SHALL be reachable in every input mode offered by
+   Requirement 5.
 
 ### Requirement 2: Fixed core-vocabulary grid
 

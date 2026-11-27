@@ -35,21 +35,23 @@ npx dwell-sim-mcp
 
 Kiro reads MCP servers from `.kiro/settings/mcp.json` (workspace) or `~/.kiro/settings/mcp.json` (user). Each entry under `mcpServers` takes `command`, `args` and optionally `env`, `disabled`, `autoApprove` and `disabledTools`. The format is as documented on [Kiro: MCP configuration](https://kiro.dev/docs/mcp/configuration/) (checked on the day this README was written).
 
+This repository's workspace config is `.kiro/settings/mcp.json`:
+
 ```json
 {
   "mcpServers": {
     "dwell-sim": {
       "command": "node",
-      "args": [
-        "/ABSOLUTE/PATH/TO/planchette-kit/tools/dwell-sim-mcp/dist/server.js"
-      ],
+      "args": ["tools/dwell-sim-mcp/dist/server.js"],
       "disabled": false
     }
   }
 }
 ```
 
-Replace `/ABSOLUTE/PATH/TO` with the real location of the repository. The path must be absolute because the client's working directory is not the repository. Kiro reconnects when you save the file.
+Verified in Kiro's MCP panel on 27 Nov 2026: `dwell-sim` is connected and lists `list_users`, `simulate` and `compare`. Kiro starts the server from the workspace root, so the relative path resolves. Run `npm run build:sim` first, because the config points at `dist/server.js`.
+
+The server must start from the repository root. Started from another directory (tested from `/tmp` and `~`), it fails with "Connection closed". The [Kiro MCP documentation](https://kiro.dev/docs/mcp/configuration/) does not state the working directory of a server, so this behaviour was found by testing, not read from the docs. If your client starts servers elsewhere, use an absolute path in `args` instead. Kiro reconnects when you save the file.
 
 ## Tools
 

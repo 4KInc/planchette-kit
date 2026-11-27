@@ -1408,7 +1408,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 14 AC 14–17 (new); Req 14 AC 3, 11–13; Req 9 AC 2.
 
-- [-] 34. Checkpoint - ring, scaling, first-run hint and Message bar complete
+- [x] 34. Checkpoint - ring, scaling, first-run hint and Message bar complete
   - Run the full `apps/board` test suite, the skeleton tests, `npm run typecheck` and
     `npm run test:e2e` (the `chromium`, `built`, `board` and `board-built` projects; the
     skeleton demo must still pass with its unchanged ring). Ensure all tests pass, ask the
@@ -1416,7 +1416,7 @@ tasks that involve writing, modifying, or testing code.
 
 - [ ] 35. MCP configuration for the dwell simulator
 
-  - [ ] 35.1 Add the workspace MCP configuration and verify the relative path.
+  - [-] 35.1 Add the workspace MCP configuration and verify the relative path.
     - Create `.kiro/settings/mcp.json` with the `dwell-sim` server entry using the
       **relative** command path `tools/dwell-sim-mcp/dist/server.js`, per design.md's
       "Configuring the MCP server" section (`command: "node"`, relative `args`,
