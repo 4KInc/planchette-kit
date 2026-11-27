@@ -1170,6 +1170,11 @@
         "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795818025160
+      },
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818450949
       }
     ],
     "36. Board layout export and the six-preset gate run": [
@@ -1177,6 +1182,32 @@
         "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795818017007
+      }
+    ],
+    "37.1 Record a `compare` baseline-vs-chosen-defaults run.": [
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818451642
+      },
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818534554
+      }
+    ],
+    "37. Compare runs for layout-affecting changes made in this spec": [
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818534610
+      }
+    ],
+    "38. Final checkpoint": [
+      {
+        "executionId": "af3e757b-c669-4e5e-8122-36f3304e5dfa",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795818537571
       }
     ]
   }

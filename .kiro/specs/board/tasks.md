@@ -1464,7 +1464,7 @@ tasks that involve writing, modifying, or testing code.
       `export-demo-layout.ts`'s own test boundary).
     - _Requirements: none (design.md "Exporting the Board's layout")_
 
-  - [-] 36.2 Generalise the preset runner and run the six-preset gate.
+  - [x] 36.2 Generalise the preset runner and run the six-preset gate.
     - Write `tools/dwell-sim-mcp/scripts/run-board-presets.ts`: imports
       `runDemoPresets`/`DemoLayout`/`DemoHandler` from `run-demo-presets.ts` (no
       duplication), passes the four Board layouts and a `{ eachTarget: 2 }` task,
@@ -1503,9 +1503,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Running the six presets", "The acceptance target", "Counterexample policy".
 
-- [ ] 37. Compare runs for layout-affecting changes made in this spec
+- [x] 37. Compare runs for layout-affecting changes made in this spec
 
-  - [ ] 37.1 Record a `compare` baseline-vs-chosen-defaults run.
+  - [x] 37.1 Record a `compare` baseline-vs-chosen-defaults run.
     - Using the `compare` MCP tool (via a script or an ad hoc MCP call recorded in the
       journal, not a new source file, mirroring how dwell-sim-mcp's README documents
       `compare` usage), run two comparisons on the Board's core-grid layout, same seed,
@@ -1522,7 +1522,7 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Comparing layout changes".
 
-- [ ] 38. Final checkpoint
+- [-] 38. Final checkpoint
   - Run `npm test` and `npm run build` and `npm run test:e2e` at the repository root.
     Confirm the Task 36.2 acceptance gate still passes (metrics are deterministic for
     a fixed seed, so this should not need re-running unless source changed since

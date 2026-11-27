@@ -91,3 +91,11 @@ Median / p90 in ms, 1400 ms → 2100 ms.
 ## Open question
 
 small-range makes 4.4 to 6.3 accidental selections per 100 intended at both dwell times. At 2100 ms that is 31 to 46 per layout, all with cause "other". It is under the gate of 10, and it was not investigated.
+## Compare runs
+Task 37.1, 27 Nov 2026. `compare` on core-1366, seed 1, task `{ eachTarget: 2 }`, 10 trials, 30 fps, called through the tool handler. Per-100 rates come from `simulate` with the same inputs. They match the seed-1 numbers above. The counts are not a test of statistical significance.
+| Run | Accidental verdict | Accidental per 100 | Misses verdict | Time-to-select verdict | `pairs` delta (median / p90) |
+| --- | --- | --- | --- | --- | --- |
+| reads-while-pointing, 1400 → 2100 ms | b did better (10 of 10) | 50.6 → 2.4 (−48.2) | a did better (4 wins, 6 ties) | a did better (10 of 10) | +700 / +700 ms (range 500–700) |
+| reads-while-pointing, 1000 → 2100 ms | b did better (10 of 10) | 78.2 → 2.4 (−75.8) | a did better (6 wins, 4 ties) | a did better (10 of 10) | +1100 / +1100 ms (range 1033–1100) |
+| slow, 1400 → 2100 ms | tie (10 of 10) | 0.1 → 0.1 | tie | a did better (10 of 10) | +700 / +700 ms |
+`slow` absolute time-to-select, median / p90: 3967 / 4967 ms → 4667 / 5667 ms. `steady`: median 2533 → 3233 ms. The delta median and p90 are computed from the `pairs` list, because `compare` gives only win counts and verdicts.
