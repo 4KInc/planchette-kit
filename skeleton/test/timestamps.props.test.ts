@@ -41,6 +41,29 @@ const TYPES: PlanchetteEventType[] = [
   'calibration-step',
 ];
 const RAF = 1000 / 60;
+const CANCEL_HOLD_TIME = 1000;
+/**
+ * A hold the engine measures from its first held sample to the first released sample, so
+ * the measured hold can exceed the physical one by up to one sample interval (RAF). Keep
+ * it below the cancel hold time with that slack, and at most 300 ms.
+ */
+const SHORT_HOLD = Math.min(300, CANCEL_HOLD_TIME - 2 * RAF);
+
+/**
+ * Sorted, non-overlapping short holds, each followed by a gap of at least one sample
+ * interval before the next press. Overlapping holds would merge (see `held`) into one long
+ * hold that the engine correctly cancels (input-core Req 6 AC 2).
+ */
+function shortHolds(presses: Array<[number, number]>): Array<[number, number]> {
+  const out: Array<[number, number]> = [];
+  let earliest = 0;
+  for (const [from] of [...presses].sort((a, b) => a[0] - b[0])) {
+    const start = Math.max(from, earliest);
+    out.push([start, SHORT_HOLD]);
+    earliest = start + SHORT_HOLD + RAF;
+  }
+  return out;
+}
 
 interface Delivered {
   at: number; // delivery time (orders the merged stream)
@@ -137,7 +160,7 @@ function buildStreams(c: Streams, which: { camera: boolean; switches: boolean; i
 }
 
 function runEvents(mode: InputMode, samples: TimestampedSample[]): Array<{ type: string; detail: unknown }> {
-  const p = createPlanchette({ screen: SCREEN, profile: { mode, cancelByHold: true, cancelHoldTime: 1000, scanInterval: 500, dwellTime: 600 } });
+  const p = createPlanchette({ screen: SCREEN, profile: { mode, cancelByHold: true, cancelHoldTime: CANCEL_HOLD_TIME, scanInterval: 500, dwellTime: 600 } });
   p.registerTarget('a', { x: 0, y: 0, width: 500, height: 400 });
   p.registerTarget('b', { x: 500, y: 0, width: 500, height: 400 });
   p.registerTarget('c', { x: 0, y: 400, width: 500, height: 400 });
@@ -165,9 +188,9 @@ describe('P16: bad timestamps are ignored per source', () => {
   it('P16b: a valid camera frame is never dropped because of a switch timestamp', () => {
     fc.assert(
       fc.property(streamArb, fc.constantFrom<InputMode>('head + dwell', 'head + gesture'), fc.boolean(), (c, mode, inject) => {
-        // Switch presses in head modes only act through hold-to-cancel. Keep holds shorter
-        // than the cancel hold time so the switches emit nothing, and compare everything.
-        const short = { ...c, keyPresses: c.keyPresses.map(([f]): [number, number] => [f, 300]), padPresses: c.padPresses.map(([f]): [number, number] => [f, 300]) };
+        // Switch presses in head modes only act through hold-to-cancel. Use separate holds,
+        // each shorter than the cancel hold time, so the switches emit nothing, and compare everything.
+        const short = { ...c, keyPresses: shortHolds(c.keyPresses), padPresses: shortHolds(c.padPresses) };
         const alone = runEvents(mode, buildStreams(short, { camera: true, switches: false, inject }));
         const mixed = runEvents(mode, buildStreams(short, { camera: true, switches: true, inject }));
         expect(mixed).toEqual(alone);
@@ -176,6 +199,32 @@ describe('P16: bad timestamps are ignored per source', () => {
       }),
       { numRuns: 200 },
     );
+  });
+
+  // Per input-core Req 6 AC 2 and design.md "edge-case decisions": a hold that reaches
+  // cancelHoldTime cancels. Overlapping presses merge in `held()` into one hold.
+  it('P16b regression (27 Nov 2026): overlapping 300 ms presses at 0, 89, 389, 689 merge into one hold that reaches the cancel hold time', () => {
+    const c: Streams = {
+      duration: 2500,
+      cameraStart: 0,
+      camJitter: Array(200).fill(0),
+      camDelay: Array(200).fill(20),
+      poses: Array(8).fill(null),
+      scores: Array(8).fill(0),
+      keyPresses: [[0, 300], [89, 300], [389, 300], [689, 300]],
+      padPresses: [],
+      keyDelay: Array(400).fill(0),
+      padDelay: Array(400).fill(0),
+      inject: { camera: [], keyboard: [], gamepad: [] },
+    };
+    const log = runEvents('head + dwell', buildStreams(c, { camera: true, switches: true, inject: false }));
+    const types = log.map((e) => e.type);
+    expect(types.filter((t) => t === 'select')).toHaveLength(0);
+    expect(types.filter((t) => t === 'cancel')).toHaveLength(1);
+    expect(types.indexOf('calibration-step')).toBeGreaterThanOrEqual(0);
+    expect(types.indexOf('calibration-step')).toBeLessThan(types.indexOf('cancel'));
+    const cancel = log.find((e) => e.type === 'cancel')?.detail as { now: number };
+    expect(cancel.now).toBeCloseTo(1005, 0);
   });
 
   it('P16c: a valid switch sample is never dropped because of a camera or another switch timestamp', () => {

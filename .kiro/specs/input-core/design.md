@@ -325,6 +325,7 @@ COOLDOWN
   samples could turn a hold that reached the cancel hold time into a press, which
   Property 18 forbids. With a sample every frame the result is the same as the
   simple reading of the table.
+  A hold is measured from the first held sample to the first sample at or after release, so the measured hold can exceed the physical hold by up to one sample interval (P16b, 27 Nov 2026).
 - **The input timeout is applied when the next sample arrives.** The machine has no
   clock, so it cannot notice silence by itself. On each sample, if
   `now − t_last ≥ inputTimeout`, the state is reset silently to IDLE (no `cancel`, no
