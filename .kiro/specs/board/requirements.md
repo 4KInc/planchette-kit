@@ -24,8 +24,9 @@ a speech-language therapist; this notice is shown in the app.
 - **Message**: the sequence of words and letters the person has built but not yet
   spoken, shown in the message bar.
 - **Message bar**: the on-screen area that shows the current Message.
-- **Action**: one change to the Message or to spoken output: Add word, Add letter,
-  Add space, Backspace, Clear, Speak. Mode switches, settings changes and prediction
+- **Action**: one change to the Message or to spoken output: Add word, Complete word
+  (a predicted word replacing the Partial word), Add letter, Add space, Backspace,
+  Clear, Speak. Mode switches, settings changes and prediction
   updates are not Actions.
 - **Undo**: reverses the most recent Action, including a Clear, restoring the Message
   (and, for a spoken Action, nothing is un-spoken; see Requirement 8).
@@ -67,8 +68,21 @@ a speech-language therapist; this notice is shown in the app.
   licences, the not-a-medical-device notice, and the Board version (Requirement 12).
 - **Carer**: a person who sets up or adjusts the Board on the person's behalf, by
   keyboard, mouse, or screen reader.
-- **Controls row**: the group of input controls (mode selector, camera toggle,
-  Calibrate button, and the status panel) described in Requirement 13.
+- **Controls row**: the single row holding the mode selector (with its label) and the
+  Settings button (Requirement 13). The camera toggle sits in the Camera row, and the
+  Calibrate button sits in the Settings dialog.
+- **Camera row**: the row of three equal targets: camera toggle, Phrases toggle, and the
+  rest area (Requirement 14).
+- **View**: which grid fills the grid area. There are three: the Core view (the
+  core-vocabulary grid, the default), the Spell view (the Letter board; this is Spell
+  mode), and the Phrases view (the Quick phrases). Exactly one view is shown, and only
+  that view's grid targets are registered, at any time.
+- **Phrases view**: the view that shows the Quick-phrases list as a fixed 2-column page
+  of wide cells with fixed Previous and Next page targets (Requirement 7).
+- **Page**: the up to 10 Quick phrases shown at one time in the Phrases view.
+- **Settings dialog**: the Settings screen, shown as a modal `<dialog>` opened by the
+  Settings button in the Controls row (Requirement 6). It holds the settings controls,
+  the Calibrate button, the Quick-phrases editor, and the About screen.
 - **Status panel**: the fixed area that holds the skeleton's tracking indicator
   (Requirement 13).
 - **Viewport**: the browser window's visible area, in CSS px (Requirement 14).
@@ -110,7 +124,8 @@ that I can review it before I speak it.
 2. WHEN the person selects a core-vocabulary button, a predicted word, or a Quick
    phrase, THE Board SHALL append the corresponding word or phrase text to the
    Message, with one space inserted between words where the existing Message does not
-   already end in whitespace. A Letter-board letter follows Requirement 3 AC 4.
+   already end in whitespace. A Letter-board letter follows Requirement 3 AC 4. A
+   predicted word selected while a Partial word is present follows Requirement 4 AC 18.
 3. THE Board SHALL provide a Speak action target that sends the current Message to
    speech output (Requirement 9) without clearing the Message.
 4. THE Board SHALL provide a Backspace action target that removes the last word, or,
@@ -119,7 +134,7 @@ that I can review it before I speak it.
    with no effect on the Message and no call to speech output.
 6. THE Board SHALL provide a Clear action target that empties the Message.
 7. THE Board SHALL provide an Undo target that reverses the most recent Action
-   (Backspace, Clear, Add word, Add letter, Add space), restoring the Message to its
+   (Backspace, Clear, Add word, Complete word, Add letter, Add space), restoring the Message to its
    state immediately before that Action.
 8. THE Board SHALL provide a Cancel target or input in every mode, per Requirement 5.
 9. THE Message bar, Speak, Backspace, Clear, Undo, and Cancel SHALL be reachable in
@@ -141,7 +156,10 @@ automatic and is never disrupted by what the Board is doing.
    or off, any Prediction strip content, any window size), THE Core-vocabulary grid
    SHALL show every button at its assigned row and column, scaled uniformly with the
    grid and never reordered, hidden, replaced, or resized relative to the other
-   buttons.
+   buttons. The Core-vocabulary grid is shown in the Core view only. In the Spell view
+   and the Phrases view it is not shown and its targets are not registered, and when
+   the person returns to the Core view every button is back at its assigned row and
+   column.
 4. THE Board SHALL never choose a core-vocabulary button's position or presence from
    word frequency, prediction, or recency of use.
 5. THE Board SHALL record the Core word list's source, licence (CC BY 4.0), and link
@@ -154,10 +172,12 @@ prediction strip, I want to spell it letter by letter, so that I can say anythin
 
 #### Acceptance Criteria
 
-1. THE Board SHALL provide a Spell-mode target that, when selected, shows the Letter
-   board in place of the Core-vocabulary grid.
-2. THE Board SHALL provide an exit-Spell-mode target that, when selected while in
-   Spell mode, shows the Core-vocabulary grid in place of the Letter board.
+1. THE Board SHALL provide a Spell-mode target (the Spell toggle) that, when selected
+   in the Core view or the Phrases view, shows the Letter board in place of that view's
+   grid.
+2. WHEN the Spell toggle is selected while in Spell mode, THE Board SHALL show the
+   Core-vocabulary grid in place of the Letter board (the Spell toggle is also the
+   exit-Spell-mode target). The view rules are in Requirement 7 AC 7.
 3. THE Letter board SHALL be a fixed grid of 6 columns by 5 rows that shows the 26 English letters in frequency order (most
    frequent first: E, T, A, O, I, N, S, H, R, D, L, C, U, M, W, F, G, Y, P, B, V, K, J,
    X, Q, Z, per written-English single-letter frequency) in plain row-major order from row 0, column 0, so that row 4 holds Q, Z, then a Space button and a
@@ -207,9 +227,11 @@ the buttons I already know by position.
 3. THE Board SHALL never show the core-vocabulary grid's 36 words in the Prediction
    strip to avoid two buttons for one word; the ranked list SHALL exclude every Core
    word list entry.
-4. WHEN a predicted word is selected, THE Board SHALL perform the same Add-word Action
-   as a core-vocabulary selection (Requirement 1 AC 2) and SHALL add the spoken word to
-   the Spoken-word history only when it is later sent to speech output (Requirement 9).
+4. WHEN a predicted word is selected and no Partial word is present, THE Board SHALL
+   perform the same Add-word Action as a core-vocabulary selection (Requirement 1 AC 2);
+   WHEN a Partial word is present, Requirement 4 AC 18 applies instead. THE Board SHALL
+   add the spoken word to the Spoken-word history only when it is later sent to speech
+   output (Requirement 9).
 5. WHILE a Slot has the pointer on it, or is the currently highlighted scan item, or is
    mid-press (a switch or gesture press in progress targeting it), THE Board SHALL NOT
    change that Slot's displayed word, so a prediction update never changes what is
@@ -263,6 +285,13 @@ the buttons I already know by position.
     the whole word, case-insensitively, after the same normalisation as the Prediction
     word list, and SHALL ignore Exclusion list entries made of more than one word,
     because they cannot equal a single predicted word.
+18. WHEN a Slot is selected while a Partial word is being spelled, THE Board SHALL
+    replace the Partial word with the selected word as one undoable action (Complete
+    word): the Partial word is removed from the end of the Message, the selected word
+    is appended with the spacing rule of Requirement 1 AC 2, and the Partial word
+    becomes empty. Undo SHALL restore the exact Message and Partial word from before
+    the selection. WHEN no Partial word is present, selecting a Slot SHALL be the same
+    as Add word.
 
 ### Requirement 5: Input modes
 
@@ -305,7 +334,10 @@ rate, and keep those settings, so that the Board fits my body and my voice prefe
 #### Acceptance Criteria
 
 1. THE Board SHALL provide a Settings screen that lets the person or carer view and
-   change every Board profile field in Requirement 11.
+   change every Board profile field in Requirement 11. THE Settings screen SHALL be
+   opened by a plain "Settings" button in the Controls row (an ordinary focusable
+   button, not a Target) and SHALL be shown as a modal dialog (the Settings dialog)
+   over the page.
 2. WHEN a skeleton Profile field (for example dwell time, target size, target
    spacing) is changed on the Settings screen, THE Board SHALL apply it through the
    Planchette's `setProfile`, so the same clamping rules as input-core apply.
@@ -338,6 +370,20 @@ rate, and keep those settings, so that the Board fits my body and my voice prefe
     `startCameraOnLoad`) to local storage whenever it changes through the mode
     selector, calibration, the Settings screen, or an import, so the next visit starts
     with it (Requirement 13 AC 8).
+11. WHILE the Settings dialog is open, THE keyboard focus SHALL stay inside it (Tab and
+    Shift+Tab cycle through its controls only), and the page behind it SHALL NOT be
+    reachable by keyboard or screen reader.
+12. WHEN Escape is pressed, or a visible Close button is selected, while the Settings
+    dialog is open, THE Board SHALL close it and return keyboard focus to the Settings
+    button.
+13. WHILE the Settings dialog is open, THE Board SHALL ignore every Target selection
+    (from dwell, gesture, scanning, switch, gamepad, or a mouse click that lands on a
+    Target's rectangle behind the dialog): no Message, view, page, camera, or speech
+    change results. The skeleton has no pause or modal API, so the Board ignores the
+    skeleton's `select` events itself while the dialog is open.
+14. THE Settings dialog SHALL have an accessible name, SHALL hold the Calibrate button,
+    the About screen button, and the Close button, and SHALL not change the Message,
+    the view, or the Quick-phrases page when opened or closed.
 
 ### Requirement 7: Quick phrases
 
@@ -351,14 +397,15 @@ every time.
    (add, edit, remove, reorder), stored only in local storage on the device.
 2. WHEN a Quick phrase is selected, THE Board SHALL replace the current Message with
    that phrase's text, as one Action undoable by Requirement 1 AC 7.
-3. THE Quick-phrases list SHALL be reachable and editable in every input mode listed
-   in Requirement 5, through the same Settings screen keyboard and screen-reader
-   support as Requirement 6 AC 4.
-4. WHERE the Quick-phrases list has at least one entry, THE Board SHALL show the
-   Quick-phrases entries at fixed positions among themselves for the duration of the
-   session (their order may only change when the person edits the list through
-   Settings), so pointing to a quick phrase does not move while the person points at
-   it.
+3. THE Quick phrases SHALL be selectable in every input mode listed in Requirement 5,
+   through the Phrases view (AC 7 to 13). THE Quick-phrases list SHALL be editable by a
+   Carer in the Settings dialog, with the keyboard and screen-reader support of
+   Requirement 6 AC 4.
+4. THE Board SHALL show the Quick phrases in the Phrases view, a fixed layout of
+   2 columns by 5 rows of phrase cells per page (AC 8). A phrase's cell on a page is
+   determined only by its position in the list and the page number, so a phrase does
+   not move while the person points at it. The list order changes only when the person
+   edits the list through Settings.
 5. WHEN the Quick-phrases list already holds 100 phrases and a new phrase is added,
    THE Board SHALL refuse the new phrase, leave the list unchanged, and show the
    message "The quick-phrases list is full (100). Remove a phrase to add a new one."
@@ -368,6 +415,44 @@ every time.
    characters, THE Board SHALL keep the first 100 entries and cut each text to 500
    characters, rather than discarding the list, and SHALL NOT write that shortened list
    back until the person edits the list.
+7. THE Board SHALL provide a Phrases toggle target (id `phrases-toggle`, role
+   `default`, label from `messages.ts`) in the Camera row, and the Spell toggle of
+   Requirement 3, with these view rules: exactly one view (Core, Spell, Phrases) is
+   shown at a time and only that view's grid targets are registered. Each toggle
+   switches to its own view, or back to the Core view when its own view is already
+   shown: the Spell toggle goes Core or Phrases to Spell, and Spell to Core; the Phrases
+   toggle goes Core or Spell to Phrases, and Phrases to Core. Selecting a phrase or
+   pressing Speak does not change the view. These are the only view changes, and each is
+   an allowed transition in the sense of Requirement 2 AC 3.
+8. THE Phrases view SHALL show the current page as a fixed grid of 2 columns by 6 rows
+   inside the grid area: rows 0 to 4 hold up to 10 phrase cells (10 phrases per page),
+   placed in list order, row-major from row 0, column 0 (list index `i` on a page is at
+   row `floor(i / 2)`, column `i % 2`), and row 5 holds the page controls (AC 9). The 10
+   cells per page do not depend on how many phrases the list holds.
+9. THE Phrases view SHALL hold a Previous-page target (`phrases-prev`, row 5, column
+   0) and a Next-page target (`phrases-next`, row 5, column 1) at those fixed
+   positions on every page, so no position changes between pages. WHEN there is no
+   previous page (the first page) or no next page (the last page), the Board SHALL
+   draw that control as a dashed, `aria-disabled` placeholder in the same position and
+   SHALL NOT register it as a Target. WHEN fewer than 10 phrases fill a page, the unused
+   cells SHALL be dashed placeholders with no Target.
+10. WHEN the person selects Previous or Next, THE Board SHALL show the previous or next
+    page, which changes which phrase Targets are registered. WHEN the Phrases view is
+    entered, THE Board SHALL show page 0. WHEN the list is edited so that the shown page
+    no longer exists, THE Board SHALL show the last page.
+11. A phrase cell SHALL show the phrase text at 24 CSS px, wrapped at spaces, as many
+    lines as fit the cell (two lines at the default sizes, about 70 characters of
+    ordinary English; wide-letter text fits fewer), and SHALL end the last visible line
+    with an ellipsis when the text is longer. The button's accessible name and its
+    text content SHALL be the full phrase, and selecting the cell SHALL replace the
+    Message with the full phrase (AC 2), so no word is lost: the Message bar shows
+    the whole phrase before Speak is selected.
+12. THE Board SHALL re-register the phrase Targets only when the Quick-phrases list is
+    edited, the page changes, or the view changes, and SHALL NOT re-register them on any
+    Message, prediction, speech, or Core or Spell action.
+13. THE Previous and Next targets and every phrase cell SHALL be at least the Profile's
+    target size, spaced at least the Profile's target spacing, with the same text size
+    and contrast rules as Requirement 9.
 
 ### Requirement 8: Speech output
 
@@ -512,16 +597,20 @@ the box in whichever mode fits.
 
 #### Acceptance Criteria
 
-1. THE Board SHALL show a Controls row with: a mode selector that offers every
+1. THE Board SHALL show a Controls row with a mode selector that offers every
    skeleton input mode (head + dwell, head + gesture, switch scanning, gesture
-   scanning, mouse), a camera toggle that reads "Start camera" while the camera is
-   off and "Stop camera" while it is on, a Calibrate button, and the Status panel.
-2. THE mode selector and the Calibrate button SHALL be ordinary focusable form
-   controls with visible labels, as on the skeleton demo page, and SHALL NOT be
-   Planchette targets. THE camera toggle SHALL also be a Planchette target of role
-   `default` (id `camera-toggle`), at least the Profile's target size, so that a
-   head-pointer, gesture, scanning, or mouse user can stop the camera, and start it
-   again, without a carer.
+   scanning, mouse) and, beside it, the Settings button (Requirement 6 AC 1), all on
+   one line. THE Board SHALL show a camera toggle in the Camera row that reads "Start
+   camera" while the camera is off and "Stop camera" while it is on, and the Status
+   panel. THE Calibrate button SHALL be in the Settings dialog, because the Controls
+   row (478 CSS px wide at 1366×768) cannot hold the label, the selector, Calibrate,
+   and Settings at 24 CSS px (about 598 px needed).
+2. THE mode selector, the Settings button, and the Calibrate button SHALL be ordinary
+   focusable form controls with visible labels, as on the skeleton demo page, and
+   SHALL NOT be Planchette targets. THE camera toggle SHALL also be a Planchette
+   target of role `default` (id `camera-toggle`), at least the Profile's target size,
+   so that a head-pointer, gesture, scanning, or mouse user can stop the camera, and
+   start it again, without a carer.
 3. WHEN the mode selector changes, THE Board SHALL call `setMode`, and WHEN the
    Profile's mode changes by any route (import, calibration, the selector) THE Board
    SHALL show that mode in the selector.
@@ -533,9 +622,11 @@ the box in whichever mode fits.
    camera. WHEN tracking reports a failure (permission denied, load failure, no face),
    THE Board SHALL show the toggle as "Start camera" again, and the Status panel SHALL
    show the plain-language message and the mode alternatives (Requirement 5 AC 9).
-6. WHEN Calibrate is pressed while the camera is off, THE Board SHALL not start
-   calibration, and SHALL say that calibration uses the camera and that Start camera
-   comes first. WHEN the camera is on, THE Board SHALL call `startCalibration`.
+6. WHEN Calibrate is pressed in the Settings dialog while the camera is off, THE Board
+   SHALL not start calibration, SHALL keep the dialog open, and SHALL say in the dialog
+   that calibration uses the camera and that Start camera comes first. WHEN the camera
+   is on, THE Board SHALL close the Settings dialog, return focus to the Settings
+   button, and call `startCalibration`, so the calibration steps show on the page.
 7. THE Board SHALL show the dwell progress ring and the scan highlight by creating
    them with `createDwellRing` and `createScanHighlight` for the Planchette (Requirement
    9 AC 3), and SHALL show a hint, as the demo does, that head and gesture modes need
@@ -557,17 +648,20 @@ board.
 1. WITH the default Profile sizes (target size 96 CSS px, target spacing 16 CSS px) and
    the default `predictionSlotCount` (4), THE Board SHALL show the Message bar, the
    active grid (Core-vocabulary grid or Letter board), the Prediction strip, the
-   action row, the Controls row with its Status panel, the rest area, and the
+   action row, the Camera row, the Controls row with its Status panel, and the
    not-a-medical-device notice entirely inside a 1366×768 and a 1920×1080 viewport,
-   with no page scroll in either axis, in the Core view and in Spell mode.
+   with no page scroll in either axis, in the Core view, the Spell view, and the
+   Phrases view (on any page).
 2. EVERY registered Planchette target's rectangle SHALL lie fully inside the viewport
-   in both views, at both sizes.
-3. THE Message bar SHALL stay visible, at the same position and size, while the person
-   is in Spell mode; a Message longer than the bar SHALL scroll inside the bar and
-   show its end, never scroll the page.
+   in all three views, at both sizes.
+3. THE Message bar SHALL stay visible, at the same position and size, in every view; a
+   Message longer than the bar SHALL scroll inside the bar and show its end, never
+   scroll the page.
 4. EACH grid SHALL use equal-width columns and equal-height rows, so that every cell
    of a grid has the same size. EVERY label SHALL fit inside its cell with no overflow
-   and at 24 CSS px or larger: a label wraps at spaces, and no word is split.
+   and at 24 CSS px or larger: a label wraps at spaces, and no word is split. The one
+   exception is a Quick-phrase cell, whose text may be clamped with an ellipsis under
+   Requirement 7 AC 11 (its full text stays in the accessible name).
 5. THE Prediction strip's slots SHALL each have a reserved position in the layout,
    whether or not the slot holds a word.
 6. THE Board SHALL NOT shrink any target below the Profile's target size, or any gap
@@ -576,6 +670,19 @@ board.
    `predictionSlotCount` larger than the default, THE Board SHALL keep every target at
    the chosen size and MAY need more than one screen; the guarantee in AC 1 is for the
    defaults only.
+8. THE Camera row SHALL hold three equal-width targets (camera toggle, Phrases toggle,
+   rest area), each at least the Profile's target size, with at least the Profile's
+   target spacing between them. THE rest area's rectangle SHALL be at least the
+   Profile's target size in both directions (about 148×96 CSS px at the defaults) and
+   SHALL carry no selectable content. Its visible text SHALL fit it at 24 CSS px
+   without being clipped.
+9. THE Controls row SHALL fit on one line within its column: the label and mode
+   selector at their natural width and the Settings button, with no wrapping and no
+   clipped text.
+10. THE Phrases view's cells SHALL be equal size (416×96 CSS px at the defaults: two
+    columns of (848 − 16) / 2), rows 0 to 5 SHALL total the same height as the Core
+    grid (656 CSS px), and no cell's text SHALL overflow the cell.
+
 
 ## Properties for property-based tests
 
@@ -585,7 +692,10 @@ and any valid Board profile.
 
 1. **Core grid never moves**: for any sequence of actions, every core-vocabulary
    button's row, column, and label at the end of the sequence equals its row, column,
-   and label at the start.
+   and label at the start (whenever the Core view is shown at both). The same holds
+   for every Letter-board key in the Spell view, and, for a given page of an unedited
+   Quick-phrases list, for every phrase cell and for Previous and Next in the Phrases
+   view.
 2. **Clear then undo is identity**: for any Message state, performing Clear and then
    Undo restores the exact Message that existed before Clear.
 3. **Undo restores the previous Message**: for any Message state and any undoable
@@ -615,3 +725,7 @@ and any valid Board profile.
 11. **Spelling after a word**: for any core word `w` and any non-empty letter sequence
     `s`, Add word `w` on an empty Message, then Add letter for each letter of `s`,
     gives the Message "`w` `s`" with `s` in lower case.
+12. **Completing a word**: for any Message with no trailing whitespace, any spelled
+    Partial word, and any predicted word, Complete word gives the same Message as Add
+    word would have given before the letters were spelled, with an empty Partial word;
+    Undo restores the spelled Message and Partial word.

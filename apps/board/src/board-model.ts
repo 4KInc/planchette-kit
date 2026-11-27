@@ -5,6 +5,7 @@
 
 export type BoardAction =
   | { type: 'add-word'; text: string }
+  | { type: 'complete-word'; text: string } // predicted word replaces the partial word
   | { type: 'add-letter'; char: string }
   | { type: 'add-space' }
   | { type: 'backspace' } // word in grid mode, character in spell mode
@@ -72,6 +73,14 @@ export function createBoardModel(initial = ''): BoardModel {
           if (action.text === '') return; // nothing to append: no-op
           const sep = message !== '' && !/\s$/u.test(message) ? ' ' : '';
           apply(message + sep + action.text, '');
+          return;
+        }
+        case 'complete-word': {
+          if (action.text === '') return; // nothing to append: no-op
+          // The message ends with partialWord whenever partialWord is non-empty.
+          const rest = message.slice(0, message.length - partialWord.length);
+          const sep = rest !== '' && !/\s$/u.test(rest) ? ' ' : '';
+          apply(rest + sep + action.text, '');
           return;
         }
         case 'add-letter': {

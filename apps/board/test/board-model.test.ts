@@ -30,6 +30,73 @@ describe('board-model: appending', () => {
   });
 });
 
+describe('board-model: complete-word', () => {
+  const letter = (char: string) => ({ type: 'add-letter', char }) as const;
+
+  it('"he" then hello gives "hello"', () => {
+    const m = createBoardModel();
+    m.dispatch(letter('h'), true);
+    m.dispatch(letter('e'), true);
+    m.dispatch({ type: 'complete-word', text: 'hello' }, true);
+    expect(m.message).toBe('hello');
+    expect(m.partialWord).toBe('');
+  });
+
+  it('"I want he" then help gives "I want help"; Undo restores "I want he"', () => {
+    const m = createBoardModel('I want');
+    m.dispatch(letter('h'), true);
+    m.dispatch(letter('e'), true);
+    expect(m.message).toBe('I want he');
+    m.dispatch({ type: 'complete-word', text: 'help' }, true);
+    expect(m.message).toBe('I want help');
+    expect(m.partialWord).toBe('');
+    m.undo();
+    expect(m.message).toBe('I want he');
+    expect(m.partialWord).toBe('he');
+  });
+
+  it('with an empty partial word it equals add-word', () => {
+    for (const init of ['', 'I want', 'a\n', 'Hello,']) {
+      const a = createBoardModel(init);
+      const b = createBoardModel(init);
+      a.dispatch({ type: 'complete-word', text: 'more' }, false);
+      b.dispatch({ type: 'add-word', text: 'more' }, false);
+      expect(a.message).toBe(b.message);
+      expect(a.partialWord).toBe('');
+    }
+  });
+
+  it('empty text is a no-op and pushes nothing', () => {
+    const m = createBoardModel();
+    m.dispatch(letter('h'), true);
+    m.undo();
+    m.dispatch(letter('h'), true);
+    m.dispatch({ type: 'complete-word', text: '' }, true);
+    expect(m.message).toBe('h');
+    expect(m.partialWord).toBe('h');
+    m.undo();
+    expect(m.canUndo()).toBe(false);
+  });
+
+  it('is one undoable step', () => {
+    const m = createBoardModel();
+    m.dispatch(letter('h'), true);
+    m.dispatch({ type: 'complete-word', text: 'hello' }, true);
+    m.undo();
+    expect(m.message).toBe('h');
+    expect(m.partialWord).toBe('h');
+  });
+
+  it('completes a letter sequence after add-space without a doubled space', () => {
+    const m = createBoardModel('I');
+    m.dispatch({ type: 'add-space' }, true);
+    m.dispatch(letter('w'), true);
+    expect(m.message).toBe('I w');
+    m.dispatch({ type: 'complete-word', text: 'want' }, true);
+    expect(m.message).toBe('I want');
+  });
+});
+
 describe('board-model: spelling after a word', () => {
   const letter = (char: string) => ({ type: 'add-letter', char }) as const;
 

@@ -24,10 +24,12 @@ const SIZES = [
   { width: 1920, height: 1080 },
 ] as const;
 
-/** Core view: 36 grid targets + speak, backspace, clear, undo, spell, cancel, camera toggle, rest area. */
-const CORE_TARGETS = 36 + 8;
-/** Spell mode: 28 letter-board targets + the same 8. */
-const SPELL_TARGETS = 28 + 8;
+/** Prediction slots registered with the default 4 slots (a slot with no word is not a target). */
+const SLOTS = 4;
+/** Core view: 36 grid targets + speak, backspace, clear, undo, spell, cancel, camera toggle, Phrases toggle, rest area + filled slots. */
+const CORE_TARGETS = 36 + 9 + SLOTS;
+/** Spell mode: 28 letter-board targets + the same 9 + slots (filled while the Partial word is empty). */
+const SPELL_TARGETS = 28 + 9 + SLOTS;
 
 const REGIONS = [
   ['Message bar', '#message-bar'],
@@ -83,7 +85,8 @@ async function checkFits(page: Page, activeGrid: string, expectedTargets: number
   const targets = await page.evaluate(() => (window as unknown as Win).planchetteBoard.planchette.getTargets());
   expect(targets.length, 'registered targets').toBe(expectedTargets);
   const ids = targets.map((t) => t.id);
-  for (const id of ['speak', 'backspace-action', 'clear', 'undo', 'spell-toggle', 'cancel', 'camera-toggle', 'rest-area']) {
+  for (let i = 0; i < SLOTS; i++) expect(ids, `target prediction-slot-${i}`).toContain(`prediction-slot-${i}`);
+  for (const id of ['speak', 'backspace-action', 'clear', 'undo', 'spell-toggle', 'cancel', 'camera-toggle', 'phrases-toggle', 'rest-area']) {
     expect(ids, `target ${id}`).toContain(id);
   }
   for (const t of targets) {
@@ -93,6 +96,8 @@ async function checkFits(page: Page, activeGrid: string, expectedTargets: number
   const overflowing = await page.evaluate(() =>
     Array.from(document.querySelectorAll<HTMLElement>('.target'))
       .filter((e) => e.offsetParent !== null)
+      // Phrase cells are clamped to two lines by design (scrollHeight > clientHeight); they get their own check.
+      .filter((e) => !e.classList.contains('phrase'))
       .filter((e) => e.scrollWidth > e.clientWidth || e.scrollHeight > e.clientHeight)
       .map((e) => `${e.dataset.planchetteTarget} "${e.textContent}" scroll ${e.scrollWidth}x${e.scrollHeight} client ${e.clientWidth}x${e.clientHeight}`),
   );
@@ -109,6 +114,215 @@ async function clickTarget(page: Page, id: string): Promise<void> {
   await page.mouse.move(x, y);
   await page.waitForTimeout(30);
   await page.mouse.click(x, y);
+}
+
+type Hook = {
+  planchetteBoard: {
+    planchette: { getTargets(): Array<{ id: string; rect: Box }> };
+    quickPhrases: { phrases: ReadonlyArray<{ id: string; text: string }>; add(t: string): unknown; remove(id: string): void };
+  };
+};
+
+const CELL_W = 416;
+const CELL_H = 96;
+const near = (a: number, b: number, tol = 0.5): boolean => Math.abs(a - b) <= tol;
+const LONG_PHRASE =
+  'I would like to talk with the doctor about my medicine, my pain at night, and whether the new schedule for visits can start earlier this week please';
+
+const targetsOf = (page: Page): Promise<Array<{ id: string; rect: Box }>> =>
+  page.evaluate(() => (window as unknown as Win).planchetteBoard.planchette.getTargets());
+
+/** Replace the Quick phrases through the store the hook exposes: `count` phrases, the long one at index 2. */
+async function loadPhrases(page: Page, count: number): Promise<string[]> {
+  const texts = Array.from({ length: count }, (_, i) => (i === 2 ? LONG_PHRASE : `Phrase number ${i + 1}`));
+  await page.evaluate((list) => {
+    const store = (window as unknown as Hook).planchetteBoard.quickPhrases;
+    for (const p of [...store.phrases]) store.remove(p.id);
+    for (const t of list) store.add(t);
+  }, texts);
+  return texts;
+}
+
+/** The Camera row: three 148.7 x 96 targets with 16 px gaps; the rest area is one unclipped line "Rest area". */
+async function checkCameraRow(page: Page): Promise<void> {
+  const rects = [];
+  for (const id of ['camera-toggle', 'phrases-toggle', 'rest-area']) {
+    const b = (await page.locator(`[data-planchette-target="${id}"]`).boundingBox())!;
+    expect(near(b.width, 148.7), `${id} width ${b.width}`).toBe(true);
+    expect(near(b.height, CELL_H), `${id} height ${b.height}`).toBe(true);
+    rects.push(b);
+  }
+  expect(near(rects[1]!.x - (rects[0]!.x + rects[0]!.width), 16), 'gap camera/phrases').toBe(true);
+  expect(near(rects[2]!.x - (rects[1]!.x + rects[1]!.width), 16), 'gap phrases/rest').toBe(true);
+  const rest = page.locator('#rest-area');
+  await expect(rest).toBeVisible();
+  await expect(rest).toHaveText('Rest area');
+  await expect(rest).toHaveAttribute('aria-label', 'Rest area. Nothing here is selected.');
+  const p = await page.evaluate(() => {
+    const el = document.querySelector<HTMLElement>('#rest-area p')!;
+    const r = el.getBoundingClientRect();
+    const box = document.getElementById('rest-area')!.getBoundingClientRect();
+    const lh = parseFloat(getComputedStyle(el).lineHeight);
+    return { h: r.height, lh, scrollW: el.scrollWidth, clientW: el.clientWidth, inside: r.left >= box.left && r.right <= box.right && r.top >= box.top && r.bottom <= box.bottom };
+  });
+  expect(p.h, 'rest area text is one line').toBeLessThanOrEqual(p.lh * 1.5);
+  expect(p.scrollW).toBeLessThanOrEqual(p.clientW);
+  expect(p.inside, 'rest area text inside its box').toBe(true);
+}
+
+/**
+ * Phrase cells: each is 416 x 96 and shows the full phrase as text content. A long phrase is clamped, so
+ * scrollHeight > clientHeight is expected; instead assert that nothing is drawn outside the cell: the cell
+ * is overflow:hidden with computed line-clamp 2, its first two text line boxes lie fully inside it (a third
+ * line is laid out but clamped away by the browser, so it is not asserted on), and its rect stays 416 x 96.
+ * The 25-phrase test also compares screenshots of the 16 px gap under a clamped cell and under a short one.
+ */
+async function checkPhraseCells(page: Page, expected: string[]): Promise<void> {
+  const cells = await page.evaluate(() =>
+    Array.from(document.querySelectorAll<HTMLElement>('#phrases-grid .phrase[data-planchette-target]')).map((el) => {
+      const cell = el.getBoundingClientRect();
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const lines = Array.from(range.getClientRects());
+      const visible = lines.filter((r) => r.width > 0).sort((a, b) => a.top - b.top || a.left - b.left);
+      // The first two line boxes (distinct tops) are the lines that can be drawn; a third, if laid out, is clamped away.
+      const tops = [...new Set(visible.map((r) => Math.round(r.top)))].slice(0, 2);
+      const drawn = visible.filter((r) => tops.includes(Math.round(r.top)));
+      const cs = getComputedStyle(el);
+      return {
+        text: el.textContent ?? '',
+        w: cell.width,
+        h: cell.height,
+        clamp: cs.getPropertyValue('-webkit-line-clamp') || cs.getPropertyValue('line-clamp'),
+        overflow: cs.overflow,
+        partial: drawn.filter((r) => r.top < cell.top - 0.5 || r.bottom > cell.bottom + 0.5 || r.left < cell.left - 0.5 || r.right > cell.right + 0.5).length,
+      };
+    }),
+  );
+  expect(cells.map((c) => c.text)).toEqual(expected);
+  for (const c of cells) {
+    expect(near(c.w, CELL_W) && near(c.h, CELL_H), `phrase cell ${c.w}x${c.h} "${c.text.slice(0, 20)}"`).toBe(true);
+    expect(c.clamp).toBe('2');
+    expect(c.overflow).toBe('hidden');
+    expect(c.partial, `first two line boxes of "${c.text.slice(0, 20)}" outside the cell`).toBe(0);
+  }
+}
+
+/** Rows 96 apart + 16 gap, two columns 416 wide + 16 gap, Previous/Next (or their placeholders) at row 5. */
+async function checkPhraseGeometry(page: Page, ids: string[]): Promise<Box[]> {
+  const rects = await targetsOf(page).then((ts) => ids.map((id) => ts.find((t) => t.id === id)!.rect));
+  const grid = (await page.locator('#phrases-grid').boundingBox())!;
+  rects.forEach((r, i) => {
+    const col = i % 2;
+    const row = Math.floor(i / 2);
+    expect(near(r.x, grid.x + col * (CELL_W + 16)), `${ids[i]} x`).toBe(true);
+    expect(near(r.y, grid.y + row * (CELL_H + 16)), `${ids[i]} y`).toBe(true);
+  });
+  return rects;
+}
+
+/** Previous and Next, or the dashed placeholder in their place, always at row 5. */
+async function navRects(page: Page): Promise<Box[]> {
+  const out: Box[] = [];
+  for (const col of [0, 1]) out.push((await page.locator(`#phrases-grid [data-row="5"][data-col="${col}"]`).boundingBox())!);
+  return out;
+}
+
+const phraseIds = (ts: Array<{ id: string }>): string[] => ts.map((t) => t.id).filter((id) => id.startsWith('quick-phrase-'));
+
+for (const size of SIZES) {
+  test.describe(`${size.width}x${size.height} Phrases view`, () => {
+    test('starter phrases: fits, one page, Camera row, view toggles', async ({ page }) => {
+      await openBoard(page, size);
+      await expect(page.locator('#core-grid')).toBeVisible();
+      const coreBar = await barRect(page);
+      await checkCameraRow(page);
+
+      await clickTarget(page, 'phrases-toggle');
+      await expect(page.locator('#phrases-grid')).toBeVisible();
+      await expect(page.locator('#core-grid')).toBeHidden();
+      const starters = await page.evaluate(() => (window as unknown as Hook).planchetteBoard.quickPhrases.phrases.map((p) => p.text));
+      expect(starters.length).toBe(6);
+      // 6 phrases, no Previous, no Next: 9 actions + 4 slots + 6 phrases.
+      await checkFits(page, '#phrases-grid', 9 + SLOTS + 6);
+      const ts = await targetsOf(page);
+      expect(phraseIds(ts).length).toBe(6);
+      expect(ts.map((t) => t.id)).not.toContain('phrases-next');
+      expect(ts.map((t) => t.id)).not.toContain('phrases-prev');
+      await checkPhraseCells(page, starters);
+      expect(await barRect(page), 'Message bar unchanged in the Phrases view').toEqual(coreBar);
+      await checkCameraRow(page);
+
+      // Toggle back goes to Core; Spell from Phrases goes to the Letter board.
+      await clickTarget(page, 'phrases-toggle');
+      await expect(page.locator('#core-grid')).toBeVisible();
+      await expect(page.locator('#phrases-grid')).toBeHidden();
+      await clickTarget(page, 'phrases-toggle');
+      await expect(page.locator('#phrases-grid')).toBeVisible();
+      await clickTarget(page, 'spell-toggle');
+      await expect(page.locator('#letter-grid')).toBeVisible();
+      await expect(page.locator('#phrases-grid')).toBeHidden();
+      expect(await page.evaluate(() => (window as unknown as Win).__gum)).toBe(0);
+    });
+
+    test('25 phrases: three pages, fixed Previous/Next, clamped long phrase', async ({ page }) => {
+      await openBoard(page, size);
+      const coreBar = await barRect(page);
+      const texts = await loadPhrases(page, 25);
+      await clickTarget(page, 'phrases-toggle');
+      await expect(page.locator('#phrases-grid')).toBeVisible();
+
+      const pageSizes = [10, 10, 5];
+      let nav0: Box[] = [];
+      for (let p = 0; p < 3; p++) {
+        const expectedTexts = texts.slice(p * 10, p * 10 + pageSizes[p]!);
+        const extra = (p > 0 ? 1 : 0) + (p < 2 ? 1 : 0); // Previous and Next
+        await checkFits(page, '#phrases-grid', 9 + SLOTS + pageSizes[p]! + extra);
+        const ts = await targetsOf(page);
+        const ids = ts.map((t) => t.id);
+        expect(phraseIds(ts).length, `phrase targets on page ${p}`).toBe(pageSizes[p]);
+        expect(ids.includes('phrases-prev'), `Previous on page ${p}`).toBe(p > 0);
+        expect(ids.includes('phrases-next'), `Next on page ${p}`).toBe(p < 2);
+        await checkPhraseGeometry(page, phraseIds(ts));
+        await checkPhraseCells(page, expectedTexts);
+        expect(await barRect(page), `Message bar on page ${p}`).toEqual(coreBar);
+        await checkCameraRow(page);
+        const nav = await navRects(page);
+        for (const b of nav) expect(near(b.width, CELL_W) && near(b.height, CELL_H), `nav ${JSON.stringify(b)}`).toBe(true);
+        for (const id of ['phrases-prev', 'phrases-next']) {
+          const t = ts.find((x) => x.id === id);
+          if (t === undefined) continue;
+          const b = nav[id === 'phrases-prev' ? 0 : 1]!;
+          expect(near(t.rect.x, b.x) && near(t.rect.y, b.y), `${id} target is where the placeholder slot is`).toBe(true);
+        }
+        if (p === 0) nav0 = nav;
+        else expect(nav, `Previous/Next slots on page ${p} match page 0`).toEqual(nav0);
+        if (p < 2) await clickTarget(page, 'phrases-next');
+      }
+
+      // Back to page 0, where the long phrase is.
+      await clickTarget(page, 'phrases-prev');
+      await clickTarget(page, 'phrases-prev');
+      await expect(page.locator('#phrases-grid .phrase[data-planchette-target]').first()).toHaveText(texts[0]!);
+      const longCell = page.locator('#phrases-grid .phrase[data-planchette-target]').nth(2);
+      await expect(longCell).toHaveText(LONG_PHRASE);
+      expect(await longCell.evaluate((e) => e.scrollHeight > e.clientHeight), 'the long phrase is clamped').toBe(true);
+      // Nothing is drawn below the clamped cell: the gap strip under it looks the same as under a short cell.
+      const strip = async (idx: number): Promise<Buffer> => {
+        const ts = await targetsOf(page);
+        const id = phraseIds(ts)[idx]!;
+        const r = ts.find((t) => t.id === id)!.rect;
+        return page.screenshot({ clip: { x: r.x, y: r.y + r.height + 1, width: r.width, height: 14 } });
+      };
+      expect((await strip(2)).equals(await strip(4)), 'nothing drawn under the clamped cell').toBe(true);
+      const longId = phraseIds(await targetsOf(page))[2]!;
+      await clickTarget(page, longId);
+      await expect(page.locator('#message-bar')).toHaveText(LONG_PHRASE);
+      await expect(page.locator('#phrases-grid')).toBeVisible(); // the view does not change
+      await clickTarget(page, 'clear');
+      expect(await page.evaluate(() => (window as unknown as Win).__gum)).toBe(0);
+    });
+  });
 }
 
 for (const size of SIZES) {
@@ -130,6 +344,21 @@ for (const size of SIZES) {
       await expect(page.locator('#letter-grid')).toBeVisible();
       await expect(page.locator('#core-grid')).toBeHidden();
       await checkFits(page, '#letter-grid', SPELL_TARGETS);
+      // Spelling "he": the slots show words starting with "he" (some may be empty); the layout holds.
+      await clickTarget(page, 'letter-h');
+      await clickTarget(page, 'letter-e');
+      await expect(page.locator('#message-bar')).toHaveText('he');
+      const spelling = await page.locator('#prediction-strip > button').allTextContents();
+      expect(spelling.filter((w) => w !== '').every((w) => w.startsWith('he')), `slots while spelling "he": ${spelling}`).toBe(true);
+      const spellingTargets = await page.evaluate(() => (window as unknown as Win).planchetteBoard.planchette.getTargets().length);
+      await checkFits(page, '#letter-grid', spellingTargets);
+      expect(spellingTargets).toBe(SPELL_TARGETS - SLOTS + spelling.filter((w) => w !== '').length);
+      // Selecting a filled slot replaces the spelled "he" with that word.
+      const filled = spelling.findIndex((w) => w !== '');
+      expect(filled, 'a filled slot while spelling "he"').toBeGreaterThanOrEqual(0);
+      await clickTarget(page, `prediction-slot-${filled}`);
+      await expect(page.locator('#message-bar')).toHaveText(spelling[filled]!);
+      await clickTarget(page, 'clear');
       const backspaceKey = page.locator('[data-planchette-target="backspace"]');
       await expect(backspaceKey).toHaveText('⌫ Backspace');
       await expect(backspaceKey).toBeVisible();

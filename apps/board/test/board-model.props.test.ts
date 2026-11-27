@@ -22,10 +22,14 @@ const setupArb = fc.record({
   withLetters: fc.boolean(),
 });
 
+/** Non-empty predicted word: letters and apostrophes. */
+const wordArb = fc.stringMatching(/^[a-zA-Z']{1,12}$/u);
+
 const nonEmpty = fc.string({ unit: 'grapheme', minLength: 1, maxLength: 12 });
 const actionArb: fc.Arbitrary<BoardAction> = fc.oneof(
   nonEmpty.map((text): BoardAction => ({ type: 'add-word', text })),
   fc.string({ unit: 'grapheme', minLength: 1, maxLength: 1 }).map((char): BoardAction => ({ type: 'add-letter', char })),
+  wordArb.map((text): BoardAction => ({ type: 'complete-word', text })),
   fc.constant<BoardAction>({ type: 'add-space' }),
   fc.constant<BoardAction>({ type: 'backspace' }),
   fc.constant<BoardAction>({ type: 'clear' }),
@@ -125,6 +129,28 @@ describe('board-model properties', () => {
         expect(m.message).toBe(msg);
         expect(m.partialWord).toBe('');
         expect(m.canUndo()).toBe(false);
+      }),
+    );
+  });
+
+  it('Property 17: Completing a word replaces the partial word', () => {
+    // **Validates: Requirements 4.18**
+    const m0Arb = fc.oneof(messageArb, wordsMessageArb).filter((m) => !/\s$/u.test(m));
+    fc.assert(
+      fc.property(m0Arb, fc.stringMatching(/^[a-zA-Z]{1,12}$/u), wordArb, (m0, p, w) => {
+        const m = createBoardModel(m0);
+        for (const c of p) m.dispatch({ type: 'add-letter', char: c }, true);
+        m.dispatch({ type: 'complete-word', text: w }, true);
+
+        const ref = createBoardModel(m0);
+        ref.dispatch({ type: 'add-word', text: w }, false);
+        expect(m.message).toBe(ref.message);
+        expect(m.partialWord).toBe('');
+
+        const sep = m0 === '' ? '' : ' ';
+        m.undo();
+        expect(m.message).toBe(m0 + sep + p.toLowerCase());
+        expect(m.partialWord).toBe(p.toLowerCase());
       }),
     );
   });

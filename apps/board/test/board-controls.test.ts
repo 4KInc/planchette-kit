@@ -7,7 +7,7 @@ import { mountBoardControls, type BoardControls, type ControlsHost } from '../sr
 import { KEY_SETTINGS, readSettings, writeSettings } from '../src/board-storage';
 import { startBoard } from '../src/main';
 import { messages } from '../src/messages';
-import { FakeHost as DomFakeHost } from './board-dom-helpers';
+import { FakeHost as DomFakeHost, installDialogStub } from './board-dom-helpers';
 
 const html = readFileSync(resolve(import.meta.dirname, '../../../board/index.html'), 'utf8');
 const bodyHtml = /<body>([\s\S]*)<\/body>/.exec(html)![1]!.replace(/<script[\s\S]*?<\/script>/g, '');
@@ -49,6 +49,7 @@ const click = (el: HTMLElement, detail: number): void => {
 };
 
 beforeEach(() => {
+  installDialogStub();
   document.body.innerHTML = bodyHtml;
   getUserMedia.mockClear();
   Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia }, configurable: true });
@@ -139,16 +140,29 @@ describe('mountBoardControls', () => {
     expect(toggle().textContent).toBe(messages.controls.startCamera);
   });
 
-  it('Calibrate with the camera off does not calibrate and says why', () => {
+  it('Calibrate with the camera off keeps the dialog open and says why in the dialog line', () => {
+    const dialog = $<HTMLDialogElement>('settings');
+    dialog.showModal();
     $('calibrate').click();
     expect(host.startCalibration).not.toHaveBeenCalled();
-    expect($<HTMLElement>('controls-message').textContent).toBe(messages.controls.calibrateNeedsCamera);
+    expect(dialog.open).toBe(true);
+    expect($<HTMLElement>('settings-message').textContent).toBe(messages.controls.calibrateNeedsCamera);
+    expect($<HTMLElement>('controls-message').textContent).not.toBe(messages.controls.calibrateNeedsCamera);
   });
 
-  it('Calibrate with the camera on calls startCalibration', () => {
+  it('Calibrate with the camera on closes the dialog, focuses the Settings button, then calibrates', () => {
+    const dialog = $<HTMLDialogElement>('settings');
     host.emitSelect('camera-toggle');
+    dialog.showModal();
+    const order: string[] = [];
+    dialog.addEventListener('close', () => order.push('close'));
+    host.startCalibration.mockImplementation(() => {
+      order.push(`calibrate (focus on ${document.activeElement?.id})`);
+    });
     $('calibrate').click();
     expect(host.startCalibration).toHaveBeenCalledTimes(1);
+    expect(dialog.open).toBe(false);
+    expect(order).toEqual(['close', 'calibrate (focus on settings-button)']);
   });
 
   it('shows the calibration step text, and saves the Profile when calibration ends', () => {
@@ -179,6 +193,12 @@ describe('mountBoardControls', () => {
     expect(ids).toEqual(['camera-toggle']);
     expect($('mode').hasAttribute('data-planchette-target')).toBe(false);
     expect($('calibrate').hasAttribute('data-planchette-target')).toBe(false);
+    expect($('settings-button').hasAttribute('data-planchette-target')).toBe(false);
+  });
+
+  it('keeps Calibrate in the Settings dialog, not in the Controls row', () => {
+    expect($('calibrate').closest('#settings')).not.toBeNull();
+    expect(document.querySelector('.controls-row #calibrate')).toBeNull();
   });
 
   describe('carer clicks on the camera toggle', () => {

@@ -9,7 +9,7 @@ then wire them together behind the DOM layer, then add the data files
 with the dwell-sim-mcp layout validation gated on the `reads-while-pointing`
 acceptance target from design.md. Each task names the file(s) it writes and the test
 file next to it. Unit tests are `apps/board/test/<thing>.test.ts`, property tests are
-`<thing>.props.test.ts`. Each of the sixteen properties in design.md is its own
+`<thing>.props.test.ts`. Each of the seventeen properties in design.md is its own
 required sub-task, placed right after the component it checks.
 
 Convert the feature design into a series of prompts for a code-generation LLM that
@@ -766,14 +766,14 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 14 AC 1–5; Req 13 AC 9.
 
-- [-] 22. Checkpoint - spelling, quick phrases, controls and layout complete
+- [x] 22. Checkpoint - spelling, quick phrases, controls and layout complete
   - Run the full `apps/board` test suite, `npm run typecheck`, and `npm run test:e2e`
     (the new `board` and `board-built` projects with the existing skeleton ones). Ensure
     all tests pass, ask the user if questions arise.
 
-- [ ] 23. DOM layer: Prediction strip wiring
+- [x] 23. DOM layer: Prediction strip wiring
 
-  - [ ] 23.1 Register Prediction-strip targets and implement the slot-lock rule.
+  - [x] 23.1 Register Prediction-strip targets and implement the slot-lock rule.
     - Extend `board-dom.ts`: render `predictionSlotCount` fixed-position slot buttons
       inside the `#prediction-strip` container reserved in Task 20.1 (do not add a new
       container),
@@ -791,28 +791,193 @@ tasks that involve writing, modifying, or testing code.
       lock is updated; selecting a slot dispatches `add-word` with that slot's word.
     - _Requirements: 4.1, 4.5_
 
-  - **Covers:** Req 4 AC 1, 5.
+  - [x] 23.2 Implement `complete-word` and use it for prediction-slot selection.
+    - `apps/board/src/board-model.ts`: add `{ type: 'complete-word'; text: string }` to
+      `BoardAction`. Empty `text` is a no-op (pushes nothing). When `partialWord === ''`
+      it behaves exactly like `add-word`. Otherwise remove the trailing `partialWord`
+      from the message (`message.slice(0, message.length - partialWord.length)`; the
+      message always ends with a non-empty `partialWord`, see design.md), append `text`
+      with the `add-word` spacing rule applied to the remainder, set `partialWord` to
+      `''`, and push one undo snapshot through `apply`.
+    - `apps/board/src/board-dom.ts`: the `prediction-slot-<i>` handler dispatches
+      `{ type: 'complete-word', text: word }` instead of `add-word` (the pending-press
+      lock stays). `apps/board/src/main.ts`: `BoardApp.selectPrediction` dispatches
+      `complete-word` too (update its comment). Core-word selection stays `add-word`.
+    - Update `apps/board/test/board-model.test.ts`: a named test `"he" then hello gives
+      "hello"` (spell `h`, `e` on an empty model, `complete-word` `hello` gives message
+      `hello`, `partialWord` `''`); a named test `"I want he" then help gives "I want
+      help"` and Undo restores "I want he" with `partialWord` `'he'`; with an empty
+      `partialWord` it equals `add-word` (including the spacing); empty text is a no-op
+      and pushes nothing onto the undo stack; it is one undoable step; a spaced letter
+      sequence after a space (`add-space`, then letters) completes without a doubled
+      space.
+    - Update `apps/board/test/board-dom-prediction.test.ts`: the test named "selecting a
+      slot dispatches add-word..." now expects `complete-word` (rename it); add a case
+      where a slot is selected while "ho" is spelled and the message equals that word
+      alone (not "ho" followed by the word), `partialWord` `''`, and Undo brings "ho"
+      back; the existing check that no slot moves during the press stays.
+    - Update `apps/board/test/board-viewport.e2e.ts`: in the step that spells "he", after
+      the existing slot checks, click the first non-empty slot (`#prediction-strip >
+      button` with text) and check `#message-bar` has exactly that word as its text, then
+      keep the existing `clear` step. Check any other test that asserts `add-word` from a
+      slot (`apps/board/test/main-history*.test.ts` use `selectPrediction`; fix if they
+      spell a partial word first).
+    - _Requirements: 4.4, 4.18, 1.7_
 
-- [ ] 24. DOM layer: Quick phrases
+  - [x]* 23.3 Write the property test for completing a word.
+    - In `apps/board/test/board-model.props.test.ts`: generate `m0` (empty, or a string with
+      no trailing whitespace), a non-empty letter string `p` (a-z, A-Z), and a non-empty word
+      `w` (letters and apostrophes). Spell `p` after `m0` with `add-letter`, dispatch
+      `complete-word` `w`, and compare with a second model that got `add-word` `w` on `m0`
+      (same message, `partialWord` `''`); then `undo()` and check message
+      `m0 + separator + p.toLowerCase()` and `partialWord` `p.toLowerCase()`, where the
+      separator is one space when `m0` is non-empty and none otherwise.
+    - Extend the Property 3 action generator (`actionArb`) with a `complete-word` arm
+      (non-empty text), so the existing dispatch-then-undo property covers it.
+    - **Property 17: Completing a word replaces the partial word**
+    - **Validates: Requirements 4.18**
 
-  - [ ] 24.1 Render and wire the Quick-phrases list in the Board view.
-    - Extend `board-dom.ts`: render `QuickPhrasesStore.phrases` as fixed-position
-      targets (`quick-phrase-<id>`), re-registered only on store changes (never on
-      message/prediction changes), wired to
-      `dispatch({type:'replace', text: phrase.text})`.
-    - Write `apps/board/test/board-dom-quick-phrases.test.ts` (fake host): selecting a
-      quick phrase replaces the message and is one undoable action (via
-      `board-model.undo()`); a prediction recompute or a core-grid selection does not
-      re-register quick-phrase targets.
-    - _Requirements: 7.2, 7.3_
+  - **Covers:** Req 4 AC 1, 4, 5, 18; Req 1 AC 7; P17 (P3 extended).
 
-  - **Covers:** Req 7 AC 2, 3.
+- [x] 24. DOM layer: Phrases view
 
-- [ ] 25. DOM layer: Settings screen
+  - [x] 24.1 Build the Phrases view, the Camera row, the view toggles and paging.
+    - Decisions (requirements.md Req 7 AC 7 to 13; design.md "Input-mode integration",
+      "Paging", "Phrase cell text", "Viewport layout"): three views `'core' | 'spell' |
+      'phrases'`, one grid's targets registered at a time. `spell-toggle` takes core or
+      phrases to spell and spell to core; `phrases-toggle` takes core or spell to
+      phrases and phrases to core (toggle back always goes to Core). The Phrases view
+      shows 10 phrases per page in 2 columns x 5 rows, row-major in list order (index `i`
+      on a page at row `floor(i / 2)`, column `i % 2`), with `phrases-prev` (row 5,
+      column 0) and `phrases-next` (row 5, column 1) on every page. A control with no
+      page to go to is a dashed `aria-disabled` placeholder in the same place and is not
+      registered. Entering the view shows page 0; an edit that removes the shown page
+      shows the last page. Empty phrase cells are dashed placeholders with no target.
+    - `board/index.html`: split the camera row into three columns: the camera toggle, a
+      new `<button class="target" data-planchette-target="phrases-toggle"
+      aria-pressed="false" data-text="actions.phrases">`, and the rest area. Add a third
+      `<section class="board" hidden>` with `<div id="phrases-grid" class="phrases-grid"
+      hidden>` in the grid area, and a visually hidden live region for "Page N of M".
+      Change the rest area's visible text to `page.restArea` = "Rest area" and give the
+      element `aria-label` = `page.restAreaHelp` ("Rest area. Nothing here is selected.").
+    - `apps/board/src/messages.ts`: `actions.phrases: 'Phrases'`, `phrases.previous:
+      'Previous'`, `phrases.next: 'Next'`, `phrases.pageOf: (n, m) => 'Page n of m'`,
+      `page.phrasesTitle`, `page.restArea: 'Rest area'`, `page.restAreaHelp`.
+    - `apps/board/board.css`: `.camera-rest` becomes `grid-template-columns: repeat(3,
+      1fr)` with each item in one column (remove the `grid-column: 2 / span 2` rule, so
+      the three targets are 148.7 x 96); `.phrases-grid { display: grid;
+      grid-template-columns: repeat(2, calc((var(--cell-w) * 6 + var(--target-gap) * 4) /
+      2)); grid-auto-rows: var(--target-size); gap: var(--target-gap) }` with
+      `data-row`/`data-col` placement like the other grids; phrase cells: `display:
+      -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow:
+      hidden; text-align: left`, 24 px, normal weight, 2 px border, 4 px / 2 px padding.
+    - `apps/board/src/board-dom.ts`: add `type View`, a `view` variable, `phrasesPage`,
+      `PHRASES_PER_PAGE = 10`, and one `setView(next)` that unregisters the old view's
+      grid targets and registers the new view's; `spellMode` is true only for `'spell'`
+      (check that Spell-mode Backspace and the exit rules still hold). Render the page
+      from `QuickPhrasesStore.phrases` (button text content = the full phrase, so the
+      accessible name is the full phrase), register `quick-phrase-<id>` targets wired to
+      `dispatch({type:'replace', text: phrase.text})` with the full text (one undoable
+      action), register `phrases-prev` / `phrases-next` only when their page exists, and
+      keep `aria-pressed` on both toggles in step with the view. Re-register phrase
+      targets only on a store change, a page change, or a view change (subscribe to the
+      store; never on message, prediction, speech or core/spell action). Update
+      `syncTargets` so it covers the new view and `phrases-toggle` and has no `ACTIONS`
+      entry gaps.
+    - Update `apps/board/test/board-layout.test.ts` for the new camera-row structure: the
+      DOM order (Message bar, core section, letter section, phrases section,
+      `#prediction-strip`, action row, camera row holding `camera-toggle`,
+      `phrases-toggle` and the rest area in that order, Controls row, Status panel,
+      footer); CSS: `.camera-rest` has three equal columns and no `span 2`, `.phrases-grid`
+      has two columns of `calc((var(--cell-w) * 6 + var(--target-gap) * 4) / 2)`, no font
+      size below 24px for phrase cells; the rest area's visible text is "Rest area".
+    - Write `apps/board/test/board-dom-quick-phrases.test.ts` (fake host, in-memory
+      storage): entering the Phrases view registers exactly the first page's phrase
+      targets plus `phrases-next` when there are more than 10 phrases, and unregisters
+      the Core targets (and the reverse on toggling back); the toggle rules in all six
+      transitions (core to spell, spell to core, core to phrases, phrases to core,
+      phrases to spell, spell to phrases) with exactly one grid registered each time;
+      cells are at row `floor(i / 2)`, column `i % 2`, `phrases-prev` / `phrases-next`
+      at row 5 columns 0 and 1; with 25 phrases there are 3 pages, page 2 holds 5
+      phrases, Previous is unregistered on page 0 and Next on page 2 (both drawn as
+      `aria-disabled` placeholders in place), paging does not change any cell's
+      position, and entering the view again shows page 0; selecting a phrase replaces
+      the message with its full text (a 200-character phrase too) as one action undone
+      by `board-model.undo()`, and the view does not change; a phrase over two lines has
+      its full text as the button's text content; removing phrases so the shown page
+      vanishes shows the last page; a prediction recompute, a core or letter selection, a
+      Speak, and a message change do not re-register any phrase target (spy on
+      `registerTarget`/`unregisterTarget`); an `add`/`remove`/`reorder` on the store
+      re-registers them; `phrases-toggle` and `spell-toggle` `aria-pressed` follow the
+      view.
+    - _Requirements: 7.2, 7.3, 7.4, 7.7, 7.8, 7.9, 7.10, 7.11, 7.12, 7.13, 3.1, 3.2, 14.8, 14.10_
 
-  - [ ] 25.1 Build the Settings panel.
+  - [x] 24.2 Test the Phrases view and the Camera row at both viewport sizes.
+    - Update `apps/board/test/board-viewport.e2e.ts` (both sizes, mouse mode, camera
+      never started): after the existing Core and Spell checks, fill the Quick-phrases
+      store with 25 phrases through the store the test hook exposes (add
+      `window.planchetteBoard.quickPhrases` if the hook does not have it yet; do not
+      write `localStorage` by hand), including one phrase longer than two lines (about
+      150 characters), click Phrases, and check: no page scroll in either axis; every
+      region and every target from `getTargets()` inside the viewport; exactly 10 phrase
+      targets plus `phrases-next` on page 0, with the Message bar rectangle identical to
+      the Core view's; each phrase cell and Previous/Next is 416 x 96 (within 0.5 px)
+      and the rows are 96 apart + 16 gap; the page count is 3 (click Next twice, the last
+      page holds 5 phrases and `phrases-next` is absent, `phrases-prev` present, and
+      the placeholder is in the same place); no phrase cell overflows (`scrollHeight <=
+      clientHeight` and `scrollWidth <= clientWidth`) and the long phrase's button text
+      content is the full phrase, and clicking it makes `#message-bar` show the full text;
+      the Camera row has three targets of 148.7 x 96 (within 0.5 px) with 16 px gaps, the
+      rest area is at least 96 x 96, its visible text is one line ("Rest area") and not
+      clipped; clicking Phrases again returns to the Core view and Spell from Phrases goes
+      to the Letter board. Run in both the `board` and `board-built` projects.
+    - _Requirements: 14.1, 14.2, 14.3, 14.8, 14.10, 7.7, 7.8, 7.9, 7.10, 7.11_
+
+  - [x]* 24.3 Extend the fixed-grid property test to the Phrases view.
+    - In `apps/board/test/board-dom-grid.props.test.ts`, extend the generator with
+      Phrases-toggle, Spell-toggle, Next and Previous actions and a randomly sized,
+      unedited phrase list (0 to 100 phrases). Assert, with the fake `Planchette`
+      host's registry: exactly one view's grid targets registered after every step, and
+      the view after each toggle follows the toggle rule; the Core targets keep their
+      `(row, col, label)` whenever the Core view is shown at both ends, likewise the
+      Letter targets in the Spell view; for each page, a phrase target's `(row, col,
+      label)` is a function of its list index only (page `floor(n / 10)`, row
+      `floor((n % 10) / 2)`, column `n % 2`) and `phrases-prev` / `phrases-next` are at
+      (5, 0) and (5, 1) whenever registered; the same page shown at the start and the
+      end of a sequence has identical registrations.
+    - **Property 1: Fixed-grid position stability**
+    - **Validates: Requirements 2.2, 2.3, 2.4, 3.3, 3.7, 7.4, 7.7, 7.8, 7.9, 7.10, 7.12**
+
+  - **Covers:** Req 7 AC 2, 3, 4, 7–13; Req 3 AC 1, 2; Req 14 AC 1, 2, 3, 8, 10; Req 13 AC 1 (Camera row); P1 (extended).
+
+- [x] 25. DOM layer: Settings screen
+
+  - [x] 25.1 Build the Settings dialog, opened from the Controls row.
+    - Layout change first (design.md "Controls row widths": the four controls need 598 px
+      in a 478 px row, so Calibrate moves into the dialog). `board/index.html`: the
+      Controls row holds `<label for="mode">`, `<select id="mode">` and a new plain
+      `<button type="button" id="settings-button">` (label `controls.settings` =
+      "Settings"), on one line, and no `#calibrate`; add `<dialog id="settings"
+      aria-labelledby="settings-title">` containing the settings sections, the
+      relocated `<button id="calibrate">` with its own message line, an "About" button,
+      the `#about` section (shown in place of the settings sections, with a "Back"
+      button) and a "Close" button. None of these is a `data-planchette-target`.
+      `board-controls.ts`: bind `#calibrate` where it now is; with the camera on it closes
+      the dialog, focuses `#settings-button`, then calls `startCalibration()`; with the
+      camera off it keeps the dialog open and shows `calibrateNeedsCamera` in the
+      dialog's message line (the step text still goes to `#controls-message`). Update
+      `board-controls.test.ts` (Task 19.2's tests) for the new place, and
+      `board-layout.test.ts` for the Controls row structure (label, select, Settings
+      button, no Calibrate) and the dialog's presence in the DOM.
+    - Dialog behaviour (design.md "Settings UI"): the Settings button calls
+      `showModal()`; Escape and Close close it; on `close`, `board-dom` calls
+      `settingsButton.focus()`; `board-dom` keeps a `settingsOpen` flag (set on open,
+      cleared on `close`) and its `select` listener returns immediately while it is set,
+      so no Target selection (any id, any input source) has an effect while the dialog is
+      open; `cancel` is not ignored. The skeleton has no pause or modal API, so nothing
+      else is done to the registered targets.
     - Extend `board-dom.ts` (or a new `apps/board/src/board-settings-dom.ts` if the
-      file grows large): a keyboard-and-screen-reader-operable panel with labelled
+      file grows large): a keyboard-and-screen-reader-operable dialog with labelled
       controls for every Board/skeleton profile field (reusing the input-core Profile
       fields table's min/max as help text), the `voiceURI` `<select>` populated from
       `speechSynthesis.getVoices().filter(v => v.localService)`, the `speechRate`
@@ -824,13 +989,26 @@ tasks that involve writing, modifying, or testing code.
       demo's profile box), and the Quick-phrases editor (add/edit/remove, Move
       up/Move down buttons for keyboard-operable reordering; when `add` returns `{ added:
       false }` the editor shows `messages.quickPhrases.full` and the list is unchanged).
-    - Write `apps/board/test/settings-dom.test.ts` (jsdom): every control has an
-      accessible name; Tab order reaches every control; the voice `<select>` shows
+    - Write `apps/board/test/settings-dom.test.ts` (jsdom, with a small stub for
+      `HTMLDialogElement.showModal`/`close` that sets or clears `open` and fires
+      `close`, because jsdom lacks them): the dialog has an accessible name; the
+      Settings button opens it and Close closes it; **focus return**: after Close and
+      after the stub's Escape-style close, `document.activeElement` is
+      `#settings-button`; **selects ignored while open**: with the dialog open, firing
+      `select` on the fake host for `core-*`, a prediction slot, `speak`, `clear`,
+      `undo`, `spell-toggle`, `phrases-toggle`, `camera-toggle` and a phrase target
+      changes nothing (message, view, page, no `startCamera`/`stopCamera`, no `speak()`
+      call), and the same selects work again after it closes; Calibrate with the camera
+      off leaves the dialog open and shows the message and does not call
+      `startCalibration`; with the camera on it closes the dialog, focuses the Settings
+      button and calls `startCalibration` once; opening and closing change neither the
+      view nor the phrases page; the About button swaps in `#about` and Back returns;
+      every control has an accessible name; Tab order reaches every control; the voice `<select>` shows
       "no local voices available" when `getVoices()` returns none with
       `localService: true`; Export populates the text box with the current
       `BoardExport` JSON; Import with a valid JSON string updates the model and
       reports no changes; Import with an out-of-range value reports the clamp.
-    - Add the About screen (`#about`, opened from a Settings button), text from
+    - Add the About screen (`#about`, a section of the Settings dialog opened by an About button inside it), text from
       `messages.ts`: version, not-a-medical-device notice, Universal Core vocabulary
       credit (CC BY 4.0, links), Prediction word list credit (hermitdave/FrequencyWords,
       Hermit Dave, OpenSubtitles 2018 via OPUS, CC BY-SA 4.0, changes made, links), the
@@ -845,11 +1023,29 @@ tasks that involve writing, modifying, or testing code.
       `apps/board/test/about-dom.test.ts` (jsdom): the About button is reachable by Tab;
       the screen contains each credit, licence name, and link `href`, the notice, and a
       non-empty version string.
-    - _Requirements: 6.1, 6.4, 6.8, 7.3, 8.4, 8.5, 9.9, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7_
+    - Write `apps/board/test/board-settings-dialog.e2e.ts` (Playwright, real
+      Chromium, mouse mode, camera never started; runs in the `board` and `board-built`
+      projects): **focus trapping**: after opening the dialog, press Tab more times than
+      the dialog has controls and check `document.activeElement` is always inside
+      `#settings`, and Shift+Tab from the first control wraps within it; the page
+      controls behind it are not focusable (`#mode`, `#settings-button` are not reachable
+      by Tab); **Escape**: Escape closes it (`dialog.open` false) and focus is on
+      `#settings-button`; **focus return** also after the Close button; **selects ignored
+      while open**: with a Message of "I" in the bar, open the dialog and mouse-click at
+      the coordinates of a registered target's rectangle that lies under the dialog (read
+      from `getTargets()`; the dialog is a modal, so the click lands on the dialog or its
+      backdrop) and check the Message is unchanged and `getUserMedia` was not called; after
+      closing, the same click on a core button adds its word; **layout**: at 1366 x 768
+      and 1920 x 1080 the Settings button, the label and the mode selector lie in the
+      Controls row, on one line (their `getBoundingClientRect().top` values are within 2
+      px and none wraps), the row's `scrollWidth <= clientWidth`, and the Settings button
+      is fully inside the viewport; the dialog itself fits inside the viewport or scrolls
+      inside itself (the page does not scroll); an axe-core scan of the open dialog passes.
+    - _Requirements: 6.1, 6.4, 6.8, 6.11, 6.12, 6.13, 6.14, 7.3, 8.4, 8.5, 9.9, 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 13.1, 13.2, 13.6, 14.9_
 
-  - **Covers:** Req 6 AC 1, 4; Req 7 AC 3; Req 8 AC 4, 5; Req 9 AC 9; Req 12.
+  - **Covers:** Req 6 AC 1, 4, 11–14; Req 7 AC 3; Req 8 AC 4, 5; Req 9 AC 9; Req 12; Req 13 AC 1, 2, 6; Req 14 AC 9.
 
-- [ ] 26. Checkpoint - DOM layer complete
+- [-] 26. Checkpoint - DOM layer complete
   - Run the full `apps/board` test suite and `npm run typecheck`. Ensure all tests
     pass, ask the user if questions arise.
 
@@ -998,7 +1194,7 @@ tasks that involve writing, modifying, or testing code.
 
 - Tasks marked with `*` (property and regression tests) are optional sub-tasks and
   can be skipped for a faster MVP, except that skipping Task 31.3 is only valid when
-  no counterexample was found (noted inline on that task). All sixteen numbered
+  no counterexample was found (noted inline on that task). All seventeen numbered
   properties in design.md are implemented as required sub-tasks regardless of the
   `*` marking convention used elsewhere in this plan for clarity; the `*` here follows
   this workflow's own convention that test-only sub-tasks may be marked optional, but
@@ -1052,18 +1248,21 @@ tasks that involve writing, modifying, or testing code.
     { "id": 30, "tasks": ["21.2"] },
     { "id": 31, "tasks": ["22"] },
     { "id": 32, "tasks": ["23.1"] },
-    { "id": 33, "tasks": ["24.1"] },
-    { "id": 34, "tasks": ["25.1"] },
-    { "id": 35, "tasks": ["26"] },
-    { "id": 36, "tasks": ["27.1"] },
-    { "id": 37, "tasks": ["28.1"] },
-    { "id": 38, "tasks": ["29"] },
-    { "id": 39, "tasks": ["30.1"] },
-    { "id": 40, "tasks": ["31.1"] },
-    { "id": 41, "tasks": ["31.2"] },
-    { "id": 42, "tasks": ["31.3"] },
-    { "id": 43, "tasks": ["32.1"] },
-    { "id": 44, "tasks": ["33"] }
+    { "id": 33, "tasks": ["23.2"] },
+    { "id": 34, "tasks": ["23.3"] },
+    { "id": 35, "tasks": ["24.1"] },
+    { "id": 36, "tasks": ["24.2", "24.3"] },
+    { "id": 37, "tasks": ["25.1"] },
+    { "id": 38, "tasks": ["26"] },
+    { "id": 39, "tasks": ["27.1"] },
+    { "id": 40, "tasks": ["28.1"] },
+    { "id": 41, "tasks": ["29"] },
+    { "id": 42, "tasks": ["30.1"] },
+    { "id": 43, "tasks": ["31.1"] },
+    { "id": 44, "tasks": ["31.2"] },
+    { "id": 45, "tasks": ["31.3"] },
+    { "id": 46, "tasks": ["32.1"] },
+    { "id": 47, "tasks": ["33"] }
   ]
 }
 ```

@@ -9,6 +9,11 @@
  *  - This module never starts the camera by itself. `startBoard` calls `startCamera()` once
  *    on load, and only when the Profile says so; it then tells this module with `setCameraOn`.
  *
+ * Calibrate is in the Settings dialog. With the camera off it keeps the dialog open and says
+ * why in the dialog's own message line (`#settings-message`); with the camera on it closes the
+ * dialog, focuses `#settings-button` and calls `startCalibration()`. Step text still goes to
+ * `#controls-message`.
+ *
  * Plain mouse clicks on the toggle. The skeleton turns a mouse press into a `select` only in
  * mouse mode (the mouse adapter counts the button as the switch only there). In every other
  * mode a carer's click would do nothing, so the toggle also has a DOM `click` handler. In
@@ -18,6 +23,7 @@
  */
 import type { InputMode, Planchette } from '@planchette/skeleton';
 import { messages } from './messages.js';
+import { createSettingsGate } from './settings-gate.js';
 
 export type ControlsHost = Pick<
   Planchette,
@@ -56,6 +62,11 @@ function byId<T extends HTMLElement>(doc: Document, id: string): T {
 export function mountBoardControls({ host, document: doc, saveProfile }: BoardControlsOptions): BoardControls {
   const modeSelect = byId<HTMLSelectElement>(doc, 'mode');
   const calibrateButton = byId<HTMLButtonElement>(doc, 'calibrate');
+  // Calibrate lives in the Settings dialog (Req 13 AC 1, 6), with its own message line.
+  const settingsDialog = doc.getElementById('settings') as HTMLDialogElement | null;
+  const settingsButton = doc.getElementById('settings-button');
+  const settingsMessage = doc.getElementById('settings-message');
+  const gate = createSettingsGate(doc);
   const toggle = doc.querySelector<HTMLButtonElement>('[data-planchette-target="camera-toggle"]');
   if (toggle === null) throw new Error('board: the camera-toggle target is missing from board/index.html');
   const messageLine = byId(doc, 'controls-message');
@@ -110,7 +121,15 @@ export function mountBoardControls({ host, document: doc, saveProfile }: BoardCo
     saveProfile();
   };
   const onCalibrate = (): void => {
-    if (!cameraOn) return say(messages.controls.calibrateNeedsCamera);
+    if (!cameraOn) {
+      // The dialog stays open and says why in its own line.
+      if (settingsMessage !== null) settingsMessage.textContent = messages.controls.calibrateNeedsCamera;
+      return;
+    }
+    if (settingsMessage !== null) settingsMessage.textContent = '';
+    // Close the dialog first so the steps and the overlay show on the page, then return focus.
+    if (settingsDialog?.open === true) settingsDialog.close();
+    settingsButton?.focus();
     host.startCalibration();
   };
   const onStep = (e: CustomEvent<{ step: string; completed: boolean }>): void => {
@@ -125,7 +144,8 @@ export function mountBoardControls({ host, document: doc, saveProfile }: BoardCo
     if (s === 'found' || s === 'lost' || s === 'low-confidence') setCameraOn(true);
     else setCameraOn(false); // permission denied, load failed, no face: the indicator explains
   };
-  const onSelect = (e: CustomEvent<{ targetId: string }>): void => {
+  const onSelect = (e: CustomEvent<{ targetId: string; now: number }>): void => {
+    if (settingsDialog?.open === true || gate.isStale(e.detail.now)) return; // no Target selection has any effect while Settings is open
     if (e.detail.targetId === 'camera-toggle') toggleCamera();
   };
   const onClick = (e: MouseEvent): void => {
@@ -159,6 +179,7 @@ export function mountBoardControls({ host, document: doc, saveProfile }: BoardCo
       host.removeEventListener('tracking-status', onTracking);
       host.removeEventListener('select', onSelect);
       observer?.disconnect();
+      gate.destroy();
     },
   };
 }

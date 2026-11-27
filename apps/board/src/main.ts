@@ -9,6 +9,7 @@ import { createPlanchette, type Planchette, type Profile } from '@planchette/ske
 import { createDwellRing, createScanHighlight } from '@planchette/skeleton/ui';
 import { mountBoardControls } from './board-controls.js';
 import { mountBoardDom, type BoardDom } from './board-dom.js';
+import { mountBoardSettings } from './board-settings-dom.js';
 import offensiveWordsData from '../data/offensive-words.json';
 import predictionWordListData from '../data/prediction-word-list.json';
 import { resolveInitialProfile, shouldStartCameraOnLoad } from './board-settings.js';
@@ -28,8 +29,10 @@ import {
   createPredictionStrip,
   type PredictionStrip,
   type PredictionWordList,
+  type SlotLock,
   type SpokenWordHistory,
 } from './prediction.js';
+import { createQuickPhrasesStore, type QuickPhrasesStore } from './quick-phrases.js';
 import { pickLocalVoice, speak, type SpeechResult } from './speech.js';
 import { normaliseSpokenWords } from './spoken-words.js';
 
@@ -44,19 +47,35 @@ export interface BoardAppDeps {
   readonly wordList?: PredictionWordList;
   /** Defaults to the bundled Exclusion list. */
   readonly excluded?: ReadonlySet<string>;
+  /** Defaults to a store over `storage`. */
+  readonly quickPhrases?: QuickPhrasesStore;
 }
 
 export interface BoardApp {
   readonly model: BoardModel;
   readonly strip: PredictionStrip;
+  /** The person's Quick phrases; the Phrases view (board-dom.ts) renders and pages them. */
+  readonly quickPhrases: QuickPhrasesStore;
   /** Pass this to the first `planchette.setProfile(...)` (task 13.1). */
   readonly initialProfile: Partial<Profile>;
+  /** The current Board-only settings (changes made with `updateBoardSettings` are included). */
   getSettings(): StoredBoardSettings;
+  /**
+   * Changes Board settings and saves them at once (Req 6 AC 3, 8). A new `filterOffensiveWords`
+   * applies to the next recompute, which runs now. `predictionSlotCount` is saved but the strip
+   * keeps its slot count until the page opens again (the strip is fixed for the page's life, Req 4 AC 1).
+   */
+  updateBoardSettings(patch: Partial<StoredBoardSettings>): void;
   /** Snapshot of the Spoken-word history, as stored. */
   getHistory(): readonly HistoryEntry[];
+  /**
+   * Sets the slot-lock rule the next recomputes use (board-dom.ts supplies it from skeleton
+   * events). Until set, no slot is locked.
+   */
+  setSlotLock(isLocked: SlotLock): void;
   /** Saves the Profile (with the current Board settings) under the settings key. */
   saveProfile(profile: Partial<Profile>): void;
-  /** Adds the predicted word in `slotIndex` to the message. Never touches history. */
+  /** Completes the message with the predicted word in `slotIndex` (replacing any Partial word). Never touches history. */
   selectPrediction(slotIndex: number, spellMode?: boolean): void;
   /**
    * Speaks the current message (nothing is spoken for an empty message). Only when the
@@ -71,8 +90,11 @@ export function loadBundledWordList(): PredictionWordList {
 
 export function createBoardApp(deps: BoardAppDeps): BoardApp {
   const settingsResult = readSettings(deps.storage);
-  const settings = settingsResult.value;
+  let board: StoredBoardSettings = settingsResult.value.board;
   const initialProfile = resolveInitialProfile(settingsResult);
+  // What a Board-only save writes next to the settings. Starts as the profile the page starts with
+  // (so the 1400 ms dwell default is kept when nothing was saved) and follows `saveProfile`.
+  let currentProfile: Partial<Profile> = initialProfile;
 
   const history = new Map<string, { count: number; lastSpokenAt: number }>();
   for (const e of readHistory(deps.storage).value) {
@@ -82,15 +104,16 @@ export function createBoardApp(deps: BoardAppDeps): BoardApp {
 
   const model = createBoardModel(readMessage(deps.storage).value);
   const strip = createPredictionStrip(
-    settings.board.predictionSlotCount,
+    board.predictionSlotCount,
     deps.wordList ?? loadBundledWordList(),
     spoken,
     {
       excluded: deps.excluded ?? new Set<string>(offensiveWordsData as string[]),
-      enabled: () => settings.board.filterOffensiveWords,
+      enabled: () => board.filterOffensiveWords,
     },
   );
-  const recompute = (): void => strip.recompute(model.message, model.partialWord, () => false);
+  let slotLock: SlotLock = () => false;
+  const recompute = (): void => strip.recompute(model.message, model.partialWord, (i) => slotLock(i));
   model.subscribe(recompute);
   recompute();
 
@@ -100,16 +123,26 @@ export function createBoardApp(deps: BoardAppDeps): BoardApp {
   return {
     model,
     strip,
+    quickPhrases: deps.quickPhrases ?? createQuickPhrasesStore(deps.storage === undefined ? {} : { storage: deps.storage }),
     initialProfile,
-    getSettings: () => settings.board,
+    getSettings: () => board,
+    updateBoardSettings(patch) {
+      board = { ...board, ...patch };
+      writeSettings({ profile: currentProfile, board }, deps.storage);
+      recompute();
+    },
     getHistory: snapshot,
+    setSlotLock(isLocked) {
+      slotLock = isLocked;
+    },
     saveProfile(profile) {
-      writeSettings({ profile, board: settings.board }, deps.storage);
+      currentProfile = profile;
+      writeSettings({ profile, board }, deps.storage);
     },
     selectPrediction(slotIndex, spellMode = false) {
       const word = strip.slots[slotIndex]?.word;
       if (word === null || word === undefined) return;
-      model.dispatch({ type: 'add-word', text: word }, spellMode);
+      model.dispatch({ type: 'complete-word', text: word }, spellMode);
     },
     async speakMessage() {
       const text = model.message;
@@ -171,12 +204,25 @@ export function startBoard(
   // Mounted before the DOM layer so the toggle has its label (and size) when it is registered.
   // The Profile is saved here, on a mode change and when calibration ends (Task 18.1).
   const controls = mountBoardControls({ host: planchette, document: doc, saveProfile: saveCurrentProfile });
+  // The Settings dialog's contents. Saved Board-only settings go through the app; Profile changes
+  // are applied with `setProfile` / `importProfile`, then saved and the targets re-measured.
+  mountBoardSettings({
+    host: planchette,
+    app,
+    document: doc,
+    saveProfile: saveCurrentProfile,
+    syncTargets: () => dom.syncTargets(),
+    synth: win.speechSynthesis ?? null,
+  });
   // The camera starts nowhere else, and only when the person's Profile asks for it.
   if (shouldStartCameraOnLoad(planchette.getProfile())) {
     controls.setCameraOn(true);
     planchette.startCamera().catch(() => controls.setCameraOn(false)); // the indicator shows the failure
   }
   // For the end-to-end tests and for people trying the Board in the console.
-  (win as unknown as { planchetteBoard: { planchette: Planchette } }).planchetteBoard = { planchette };
+  (win as unknown as { planchetteBoard: { planchette: Planchette; quickPhrases: QuickPhrasesStore } }).planchetteBoard = {
+    planchette,
+    quickPhrases: app.quickPhrases,
+  };
   return { planchette, app, dom };
 }

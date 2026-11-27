@@ -38,7 +38,7 @@ export class FakeHost extends EventTarget {
     return this.profile;
   }
   select(targetId: string): void {
-    this.dispatchEvent(new CustomEvent('select', { detail: { targetId, now: 0, source: 'mouse', role: 'default' } }));
+    this.dispatchEvent(new CustomEvent('select', { detail: { targetId, now: performance.now(), source: 'mouse', role: 'default' } }));
   }
 }
 
@@ -51,6 +51,33 @@ export function stubRectWith(el: HTMLElement, size: number, gap: number): DOMRec
   const col = el.dataset.col;
   const inLetters = el.closest('#letter-grid') !== null;
   if (el.closest('[hidden]') !== null) return new DOMRect(0, 0, 0, 0);
+  // Phrases view: 2 columns of 416px, offset by 2000px vertically.
+  if (el.closest('#phrases-grid') !== null && row !== undefined && col !== undefined) {
+    return new DOMRect(Number(col) * (416 + gap), 2000 + Number(row) * (size + gap), 416, size);
+  }
   if (row === undefined || col === undefined) return new DOMRect(5000, 0, size, size); // action targets
   return new DOMRect(Number(col) * (size + gap), (inLetters ? 1000 : 0) + Number(row) * (size + gap), size, size);
+}
+
+/**
+ * jsdom has no `showModal` / `close` on `<dialog>`. This stub sets and clears `open` and fires
+ * `close` (as the browser does after Escape or `close()`). `escape()` mimics the Escape key:
+ * a `cancel` event, then close. The real focus trap and Escape handling are checked in Playwright.
+ */
+export function installDialogStub(): { escape(dialog: HTMLDialogElement): void } {
+  const proto = HTMLDialogElement.prototype as unknown as Record<string, unknown>;
+  proto.showModal = function (this: HTMLDialogElement) {
+    this.setAttribute('open', '');
+  };
+  proto.close = function (this: HTMLDialogElement) {
+    if (!this.hasAttribute('open')) return;
+    this.removeAttribute('open');
+    this.dispatchEvent(new Event('close'));
+  };
+  return {
+    escape(dialog) {
+      dialog.dispatchEvent(new Event('cancel', { cancelable: true }));
+      dialog.close();
+    },
+  };
 }

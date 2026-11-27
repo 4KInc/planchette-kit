@@ -24,6 +24,11 @@
         <h2 id="letter-title" class="visually-hidden" data-text="page.letterTitle"></h2>
         <div id="letter-grid" class="letter-grid" hidden></div>
       </section>
+      <section aria-labelledby="phrases-title" class="board" hidden>
+        <h2 id="phrases-title" class="visually-hidden" data-text="page.phrasesTitle"></h2>
+        <div id="phrases-grid" class="phrases-grid" hidden></div>
+      </section>
+      <p id="phrases-page" class="visually-hidden" role="status" aria-live="polite"></p>
       <div class="side">
         <div id="prediction-strip" class="prediction-strip"></div>
         <section aria-labelledby="actions-title" class="actions-section">
@@ -39,7 +44,8 @@
         </section>
         <div class="camera-rest">
           <button type="button" class="target" data-planchette-target="camera-toggle" aria-pressed="false"></button>
-          <div class="rest" id="rest-area" data-planchette-target="rest-area" data-role="rest-area">
+          <button type="button" class="target" data-planchette-target="phrases-toggle" aria-pressed="false" data-text="actions.phrases"></button>
+          <div class="rest" id="rest-area" data-planchette-target="rest-area" data-role="rest-area" role="group" data-aria-label="page.restAreaHelp">
             <p data-text="page.restArea"></p>
           </div>
         </div>
@@ -48,7 +54,7 @@
           <div class="controls-row">
             <label for="mode"></label>
             <select id="mode"></select>
-            <button type="button" id="calibrate"></button>
+            <button type="button" id="settings-button" data-text="controls.settings"></button>
           </div>
         </section>
         <div id="status-panel">
@@ -60,6 +66,27 @@
         </footer>
       </div>
     </main>
+    <dialog id="settings" aria-labelledby="settings-title">
+      <h2 id="settings-title" data-text="settings.title"></h2>
+      <div id="settings-main">
+        <div id="settings-sections"></div>
+        <section aria-labelledby="settings-calibrate-title" class="settings-group">
+          <h3 id="settings-calibrate-title" data-text="controls.calibrate"></h3>
+          <p class="help" data-text="settings.calibrateHelp"></p>
+          <button type="button" id="calibrate"></button>
+          <p id="settings-message" role="status"></p>
+        </section>
+      </div>
+      <section id="about" aria-labelledby="about-title" hidden>
+        <h3 id="about-title" data-text="aboutScreen.title"></h3>
+        <div id="about-body"></div>
+        <button type="button" id="about-back" data-text="settings.back"></button>
+      </section>
+      <div class="dialog-actions">
+        <button type="button" id="about-button" data-text="settings.about"></button>
+        <button type="button" id="settings-close" data-text="settings.close"></button>
+      </div>
+    </dialog>
     <script type="module" src="../apps/board/src/entry.ts"></script>
   </body>
 </html>

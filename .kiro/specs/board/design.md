@@ -36,7 +36,10 @@ apps/board/src/
   messages.ts            every user-facing string, one file (structure.md convention)
   board-dom.ts            the only file that registers targets: renders grid/strip/bar/settings,
                           registers targets, listens to Planchette events
-  board-controls.ts       the Controls row (mode selector, camera toggle, Calibrate, Status
+  board-settings-dom.ts   the Settings dialog: fields, Tab wrap, Quick-phrases editor, About
+  settings-gate.ts        ignores a `select` stamped at or before the dialog's last close
+  board-controls.ts       the input controls (mode selector, camera toggle, Calibrate in the
+                          Settings dialog, Settings button, Status
                           panel hint); takes the Planchette and the DOM, no other state
   main.ts                 creates Planchette, createBoardModel, createPredictionStrip,
                           wires board-dom and board-controls to both, saves the Profile
@@ -130,6 +133,7 @@ alphabetical" is explicitly **not** offered in v1, to keep exactly one fixed lay
 ```typescript
 export type BoardAction =
   | { type: 'add-word'; text: string }
+  | { type: 'complete-word'; text: string } // predicted word replaces the partial word
   | { type: 'add-letter'; char: string }
   | { type: 'add-space' }
   | { type: 'backspace' }      // word in grid mode, character in spell mode
@@ -150,7 +154,7 @@ export function createBoardModel(initial?: string): BoardModel;
 
 `dispatch` is the single mutation point. `partialWord` is
 tracked beside the message: `add-letter` appends the lower-cased character to it; `add-word`,
-`add-space`, `clear`, and `replace` reset it to `''`; spell-mode `backspace` removes its
+`complete-word`, `add-space`, `clear`, and `replace` reset it to `''`; spell-mode `backspace` removes its
 last character (and does nothing to it when it is already empty); grid-mode `backspace`
 resets it. Every branch pushes `{ message, partialWord }` (the pre-action values) onto a bounded undo stack (cap 50, oldest dropped; a conversational
 tool has no need to undo further back, and an unbounded stack would grow for the
@@ -163,7 +167,26 @@ gets the same result and the Letter board's upper-case labels stay display-only.
 inserts one space first exactly when `partialWord === '' && message !== '' &&
 !/\s$/.test(message)`: a new spelled word after a word gets a separator ("I want" + H
 gives "I want h"), and a spelled word in progress gets none ("I want h" + E gives
-"I want he"). `add-space` never inserts an extra space. After a spell-mode Backspace
+"I want he"). `add-space` never inserts an extra space.
+
+`complete-word` (Requirement 4 AC 18) is what a Prediction-strip slot selection
+dispatches. A Core-grid selection stays `add-word`. Empty `text` is a no-op and pushes
+nothing, as for `add-word`. Otherwise: when `partialWord === ''` it behaves exactly like
+`add-word`. When `partialWord !== ''`, it removes the trailing `partialWord` from the
+message (`message.slice(0, message.length - partialWord.length)`), then appends `text`
+with the `add-word` spacing rule applied to the remaining message (one space first only
+when the remainder is non-empty and does not end in whitespace), and sets `partialWord`
+to `''`. It pushes one snapshot, so Undo restores the exact previous message and
+partial word ("he" comes back). The remainder normally ends in the space that
+`add-letter` inserted before the first letter, so "I want he" + `help` gives
+"I want help", and "he" + `hello` gives "hello".
+
+Invariant (checked against `board-model.ts`): whenever `partialWord !== ''`, `message`
+ends with `partialWord`. `add-letter` appends the same lower-cased string to both;
+spell-mode `backspace` drops the last code point from both; `add-word`, `add-space`,
+`clear`, `replace`, grid-mode `backspace` reset `partialWord` to `''`; `undo` restores a
+snapshot taken when the invariant held; the initial `partialWord` is `''`. So the
+removal above is always well defined, and no fallback rule is needed. After a spell-mode Backspace
 removes the first letter of a word, the inserted space stays ("I want h" becomes
 "I want "), and the next letter adds no second space. `backspace` in grid mode removes the content after the last run of
 non-whitespace plus the whitespace before it (i.e., the last "word"); in spell mode it
@@ -405,14 +428,22 @@ property test exists to catch a regression (for example, an off-by-one in which
 | Target id(s) | Role | Source |
 |---|---|---|
 | `core-<word>` × 36 | `default` | `CORE_VOCABULARY` |
-| `letter-<a-z>`, `space`, `backspace` × 28 | `default` | `LETTER_BOARD`, shown only while Spell mode is on; unregistered while off, re-registered on re-entry at the same ids and rectangles (Spell mode is a single on/off state, so there is only ever one of the two grids registered at a time — this, not a shared 64-button grid, is how Requirement 2 AC 3's "never hidden" is reconciled with having two fixed grids: each grid is internally fixed, and the switch between them is the one state transition that is allowed to add/remove targets) |
-| `prediction-slot-<0..N-1>` | `default` | `PredictionStrip`, registered at a fixed rectangle each; `autoRepeat: false` |
-| `quick-phrase-<id>` | `default` | `QuickPhrasesStore`, re-registered (ids may change) only on `reorder`/`add`/`remove`, never on message/prediction changes |
-| `speak`, `backspace-action`, `clear`, `spell-toggle` | `default` | Board-level action buttons |
-| `camera-toggle` | `default` | Controls row: Start camera / Stop camera (Requirement 13 AC 2) |
+| `letter-<a-z>`, `space`, `backspace` × 28 | `default` | `LETTER_BOARD`, registered only in the Spell view; unregistered in the other views, re-registered on re-entry at the same ids and rectangles |
+| `quick-phrase-<id>` × up to 10 | `default` | the current page of `QuickPhrasesStore.phrases`, registered only in the Phrases view: list index `i` on the page at row `floor(i / 2)`, column `i % 2`, each cell 416 × 96 at the defaults. Unused cells are dashed placeholders with no target |
+| `phrases-prev`, `phrases-next` | `default` | Phrases view only, fixed at row 5, columns 0 and 1 (416 × 96 each). Registered only when that page exists; otherwise a dashed `aria-disabled` placeholder at the same place with no target |
+| `phrases-toggle` | `default` | the Camera row, middle column (148.7 × 96), label `messages.actions.phrases` ("Phrases"), `aria-pressed` true only in the Phrases view |
+| `prediction-slot-<0..N-1>` | `default` | `PredictionStrip`, registered at a fixed rectangle each; `autoRepeat: false`. A selection dispatches `complete-word` with the slot's word, in Spell mode and in the Core view alike (with no Partial word it equals `add-word`); both `board-dom.ts` and `BoardApp.selectPrediction` in `main.ts` use it |
+| `speak`, `backspace-action`, `clear`, `spell-toggle` | `default` | Board-level action buttons; `spell-toggle` has `aria-pressed` true only in the Spell view |
+| `camera-toggle` | `default` | Camera row, left column (148.7 × 96): Start camera / Stop camera (Requirement 13 AC 2) |
 | `undo` | `undo` | Requirement 1 AC 7, 5 AC 6 |
 | `cancel` | `cancel` | Requirement 5 AC 5 |
-| `rest-area` | `rest-area` | Requirement 5 AC 7, a quiet strip below the grid |
+| `rest-area` | `rest-area` | Requirement 5 AC 7, Camera row, right column (148.7 × 96) |
+
+**Three views, one registered at a time.** The view is `'core' | 'spell' | 'phrases'`, held in `board-dom.ts` (default `'core'`). Each toggle goes to its own view, or back to `'core'` when already in it: `spell-toggle` takes core or phrases to spell, and spell to core; `phrases-toggle` takes core or spell to phrases, and phrases to core. This is a deliberately simple rule ("toggle back goes to Core, never to where you came from") so a person can always predict where the next press leads, and so there is no hidden history to test. Only the shown view's grid targets are registered, so Requirement 2 AC 3's "never hidden" is reconciled with three fixed grids the same way as before: each grid is fixed in itself, and switching view is the one transition allowed to add and remove grid targets. `spellMode` (passed to `dispatch`) is true only in the Spell view. Entering the Phrases view shows page 0. The Prediction strip, the action row, the Camera row, and the Message bar are registered in every view. Phrase targets are re-registered only on a store change, a page change, or a view change; never on a Message, prediction, or speech change (Requirement 7 AC 12).
+
+**Paging.** A page holds 10 phrases (`PHRASES_PER_PAGE = 10`), whatever the list length, so the cell of list index `n` is always page `floor(n / 10)`, index `n % 10` on it. The page count is `max(1, ceil(count / 10))`. `phrases-prev` is registered when `page > 0`, `phrases-next` when `page < pageCount - 1`. Entering the view sets `page = 0`; a store edit that leaves `page >= pageCount` sets `page = pageCount - 1`. Previous and Next live on row 5 on every page (chosen over "12 per page, nav only when needed", which would move row 5 between a phrase row and a nav row as the list grew past 12). The page position is announced to screen readers by a visually hidden live region ("Page 2 of 3"), not drawn, because all of row 5 is page controls.
+
+**Phrase cell text.** A cell is 416 × 96 with a 2 px border and 2 px side padding, so the text box is 408 px wide; 24 px text at line-height 1.3 is 31.2 px a line, and the 84 px of height inside the border and 4 px top and bottom padding holds two lines (62.4 px) but not three (93.6 px). Measured in Chromium with `system-ui` (ordinary English, words wrapped at spaces), two lines hold about 70 characters (about 36 per line; 22-px-wide capitals like "W" would fit about 18 per line, so all-capitals text fits fewer). The cell uses `display: -webkit-box; -webkit-line-clamp: 2; overflow: hidden`, so a longer phrase shows its first two lines ending with an ellipsis. This hides words from view, so: the button's text content is the full phrase (so its accessible name is the full phrase, and a screen reader reads all of it), selecting it replaces the Message with the full phrase, and the Message bar then shows the whole text (scrolling inside the bar if long) before the person decides to Speak. Selecting is not speaking, so nothing is spoken unseen. The Settings editor shows full text. A phrase over about 70 characters is therefore shown abbreviated but never altered or lost.
 
 Scan order: the skeleton has no scan `order` option, so the Board passes none. Targets
 are scanned in reading order (by rectangle: top to bottom, left to right), and the
@@ -435,9 +466,10 @@ events and the toggle's own presses, as in the demo).
 
 | Control | Kind | Behaviour |
 |---|---|---|
-| Mode selector (`#mode`, label "Input mode") | plain `<select>`, **not** a target | options: Head + dwell, Head + gesture, Switch scanning, Gesture scanning, Mouse (the five `InputMode` values); `change` calls `setMode`; `mode-change` and calibration end update `select.value` |
-| Camera toggle (`camera-toggle`) | plain `<button>` **and** a registered target, role `default` | label "Start camera" while off, "Stop camera" while on; selecting (click, dwell, gesture, scan, mouse) while off calls `startCamera()`, while on calls `stopCamera()`; a `tracking-status` failure sets it back to "Start camera" |
-| Calibrate (`#calibrate`) | plain `<button>`, **not** a target | camera off: no call, the message line says calibration uses the camera and Start camera comes first; camera on: `startCalibration()`; step text from `calibration-step` is shown in the message line |
+| Mode selector (`#mode`, label "Input mode") | plain `<select>`, **not** a target, in the Controls row | options: Head + dwell, Head + gesture, Switch scanning, Gesture scanning, Mouse (the five `InputMode` values); `change` calls `setMode`; `mode-change` and calibration end update `select.value` |
+| Camera toggle (`camera-toggle`) | plain `<button>` **and** a registered target, role `default`, in the Camera row | label "Start camera" while off, "Stop camera" while on; selecting (click, dwell, gesture, scan, mouse) while off calls `startCamera()`, while on calls `stopCamera()`; a `tracking-status` failure sets it back to "Start camera" |
+| Settings button (`#settings-button`) | plain `<button>`, **not** a target, in the Controls row | `showModal()` on the Settings dialog; see "Settings UI" |
+| Calibrate (`#calibrate`) | plain `<button>`, **not** a target, **inside the Settings dialog** (moved from the Controls row, which cannot hold it; see "Viewport layout") | camera off: no call, the dialog's message line says calibration uses the camera and Start camera comes first, and the dialog stays open; camera on: the dialog closes, focus returns to the Settings button, and `startCalibration()` is called; step text from `calibration-step` is shown in the page's `#controls-message` line (the Status panel) |
 | Status panel | `#camera-status` (the skeleton's tracking indicator, passed as `trackingIndicator`) and `#controls-message` (hint and calibration text) | the message line shows only while the indicator element is empty |
 
 **Which controls are targets (decision).** The skeleton demo registers only its grid,
@@ -508,14 +540,14 @@ every target; if it fails on a platform, raise `--cell-w`.
 
 **Arrangement.** A two-column page, 12 px side padding and 8 px top and bottom
 padding, with the DOM in this order (which is also the Tab and reading order):
-Message bar, grid, then the right column (prediction strip, action row, camera toggle and
-rest area, Controls row, Status panel, notice). CSS grid areas place them. Left column:
+Message bar, grid, then the right column (prediction strip, action row, Camera row of camera
+toggle, Phrases toggle and rest area, Controls row, Status panel, notice). CSS grid areas place them. Left column:
 Message bar on top, the active grid under it. Right column: everything else.
 
 **Arithmetic at 1366 x 768 (default values).**
 
 Horizontal: 12 + grid width + 16 gap + right column + 12 = 1366.
-- Grid width = 6 x 128 + 5 x 16 = 768 + 80 = 848 (both grids use 6 columns).
+- Grid width = 6 x 128 + 5 x 16 = 768 + 80 = 848 (the Core and Letter grids use 6 columns; the Phrases view uses 2 columns filling the same 848).
 - Right column = 1366 - 12 - 848 - 16 - 12 = 478.
 
 Vertical, left column (usable height 768 - 8 - 8 = 752):
@@ -528,6 +560,11 @@ Vertical, left column (usable height 768 - 8 - 8 = 752):
 - Total 80 + 16 + 656 = 752. It fits with no spare height: 8 + 752 + 8 = 768.
 - Letter board = 5 x 96 + 4 x 16 = 480 + 64 = 544, so 80 + 16 + 544 = 640, leaving 112
   empty under it. The Message bar and the right column do not move between views.
+- Phrases view = 6 rows x 96 + 5 x 16 = 656 (5 phrase rows and the page-control row),
+  the same as the Core grid, so 80 + 16 + 656 = 752 again. Columns: (848 - 16) / 2 = 416
+  each, so every cell is 416 x 96 (it is `calc((var(--cell-w) * 6 + var(--target-gap) * 4) / 2)`
+  in CSS, which stays equal to half the grid width less half a gap when the target size
+  changes). Cell text: see "Phrase cell text" under the target table.
 
 Vertical, right column (usable 752; widths in brackets):
 | Block | Width | Height | y range |
@@ -536,9 +573,9 @@ Vertical, right column (usable 752; widths in brackets):
 | gap | | 16 | |
 | Action row, 3 columns x 2 rows: (478 - 2 x 16) / 3 = 148.7 wide each; Speak, Backspace, Clear / Undo, Spell, Cancel | 478 | 96 + 16 + 96 = 208 | 120-328 |
 | gap | | 16 | |
-| Camera toggle (column 1, 148.7) and rest area (columns 2-3, 2 x 148.7 + 16 = 313.3 wide) | 478 | 96 | 344-440 |
+| Camera row, 3 columns: camera toggle, Phrases toggle, rest area, (478 - 2 x 16) / 3 = 148.7 wide each | 478 | 96 | 344-440 |
 | gap | | 16 | |
-| Controls row: label, mode selector, Calibrate (ordinary controls, `min-height: 48px`) | 478 | 48 | 456-504 |
+| Controls row: "Input mode" label, mode selector, Settings button (ordinary controls, `min-height: 48px`; widths below) | 478 | 48 | 456-504 |
 | gap | | 16 | |
 | Status panel (hint text, or the tracking indicator) | 478 | 112 | 520-632 |
 | gap | | 16 | |
@@ -550,10 +587,41 @@ the widest right-column x is 1354 <= 1366 and the lowest target bottom is the gr
 y = 104 + 656 = 760 <= 768.
 
 **Target minimums hold.** Cells are 128 x 96 (>= 96 x 96). Prediction slots are 107.5 x 96.
-Action buttons and the camera toggle are 148.7 x 96. The rest area is 313.3 x 96. Gaps
-between targets are 16 (the profile spacing): between grid cells, between slots, between
-action buttons, and between the two rows of blocks in the right column. The gap between
+Action buttons, the camera toggle, the Phrases toggle and the rest area are 148.7 x 96.
+Phrase cells and Previous/Next are 416 x 96. Gaps between targets are 16 (the profile
+spacing): between grid cells, between slots, between action buttons, between the three
+Camera-row targets, and between the rows of blocks in the right column. The gap between
 the grid and the right column is 16.
+
+**Camera row: the rest area shrinks from 313.3 to 148.7 px wide.** The rest area is
+148.7 x 96, which is at least the profile target size (96) in both directions. Checked
+against `.kiro/steering/accessibility.md` and input-core: the rule is that every layout
+has a rest area, a screen area with no targets (role `rest-area`); there is no minimum
+size. (Input-core hit-testing skips `rest-area` targets, and the area between and
+around targets is also empty space that never selects.) So 148.7 px does not break a
+rule. The visible text had to change: "Rest area. Nothing here is selected." is 361 px
+wide at 24 px, which wraps to four lines (about 115 px) inside the 126.7 px content
+width and is clipped in the 96 px height. The visible text becomes "Rest area" (96 px,
+one line) in `messages.ts` (`page.restArea`), and the full sentence stays as its
+`aria-label` (`page.restAreaHelp`). "Phrases" is 83 px and fits the 140.7 px content
+width of the Phrases toggle on one line. "Start camera" and "Stop camera" wrap at their
+space into two lines (about 62 px).
+
+**Controls row widths (Chromium, `system-ui`, 24 px; buttons carry a 3 px border and
+14 px side padding, so 34 px beyond their text; 12 px gaps).** The row was measured
+with the four controls from Requirement 13 as first specified: "Input mode" label 116.9
++ mode selector 199 (its natural width with "Gesture scanning", the longest option,
+180.8) + Calibrate 92.8 + 34 = 126.8 + Settings 85.4 + 34 = 119.4, plus 3 gaps of 12 =
+**598.1 px, against 478 available: it does not fit** (even with the label cut to "Mode",
+59.5, it needs 540.7). The select cannot be shrunk below about 199 px without clipping
+its option text, and the 24 px minimum rules out smaller text. **Resolution: Calibrate
+moves into the Settings dialog** (calibration is a carer-supervised step already, and
+the mode selector, not Calibrate, is the control needed day to day). The Controls row
+is then 116.9 + 12 + 199 + 12 + 119.4 = **459.3 px, leaving 18.7 px spare** in 478. The
+end-to-end test asserts that the row does not wrap or overflow. Another platform's
+`system-ui` may be wider than these figures; with less than 19 px spare this is the
+tightest place in the layout, so the fallback if it fails is to shorten the visible label to
+"Mode" (frees 57 px), which keeps the label visible.
 
 **1920 x 1080.** The same fixed layout is used, centred horizontally in a container of
 width 1366 (the 1366 above, including the 12 px side padding) with `margin: 0 auto`.
@@ -573,7 +641,7 @@ dashed placeholder with no target registered.
 
 **Limits (stated, not hidden).** The guarantee is for the defaults. With
 `predictionSlotCount` 5-8 the strip needs two rows (+112 px): the right column then
-needs 864 px, which fits 1920 x 1080 (1064 usable) but not 1366 x 768 (752). The page may
+needs 864 px, which fits 1920 x 1080 (1064 usable) but not 1366 x 768 (752). The strip wraps to a second row, and the new count applies on the next page load. The page may
 then scroll at 1366 x 768; the targets keep their size (Requirement 14 AC 7). A larger
 target size or spacing does the same. Settings help text for "Number of suggestions"
 says that more than 4 may need scrolling on a small screen.
@@ -606,12 +674,12 @@ These details were built before this design named them and are accepted:
   registers the target (role `cancel`) and the skeleton cancels the dwell or the scan.
 - The rest area is a registered target of role `rest-area` with no selectable content.
   Its earlier `min-height: 140px` is replaced by the size in the layout arithmetic above
-  (313.3 x 96), which governs.
+  (148.7 x 96, after the Camera row was split three ways), which governs.
 
 ### About screen
 
-A panel (`#about`) opened from a button on the Settings screen, an ordinary focusable
-control like the rest of Settings (not a `Planchette` target). All text comes from
+A section (`#about`) of the Settings dialog, shown by an "About" button inside it (an
+ordinary focusable control like the rest of Settings, not a `Planchette` target). All text comes from
 `messages.ts`. The not-a-medical-device notice is the sentence "The board is not a
 medical device and not a replacement for an AAC system assessed by a
 speech-language therapist." (the sentence in requirements.md's introduction). The
@@ -632,14 +700,67 @@ the licence) (Requirement 12).
 
 ### Settings UI
 
-One screen (`#settings` panel, opened by an ordinary button, not a `Planchette`
-target — Settings is a carer tool, reachable by keyboard Tab and screen reader, not
-required to be dwell/scan-reachable by the Board's own person-facing input modes,
-matching how the skeleton demo treats its own mode switcher and profile box). It
-renders:
-- every Board profile / skeleton Profile field as a labelled `<input>` or `<select>`
-  with its min/max shown in help text (reusing the input-core Profile fields table —
-  no new range logic);
+One modal dialog (`<dialog id="settings">`), opened by the plain "Settings" button
+(`#settings-button`) in the Controls row. Neither is a `Planchette` target: Settings is
+a carer tool, reachable by keyboard Tab, mouse and screen reader, not required to be
+dwell/scan-reachable by the Board's own person-facing input modes, matching how the
+skeleton demo treats its own mode switcher and profile box.
+
+**Dialog behaviour.**
+- Open with `dialog.showModal()`. A modal `<dialog>` makes the rest of the document
+  inert (not focusable, hidden from the accessibility tree). Chromium's modal dialog does
+  not keep Tab inside it: Tab from the last control leaves the dialog. `board-settings-dom`
+  therefore adds a `keydown` handler on the dialog that wraps focus at both ends (Tab on
+  the last focusable control moves to the first, Shift+Tab on the first moves to the last),
+  to satisfy Requirement 6 AC 11. It has `aria-labelledby` pointing at its heading ("Settings").
+- Escape closes it (the browser's `cancel` then `close` events), and so does the visible
+  "Close" button. On `close`, `board-dom` calls `settingsButton.focus()` explicitly
+  (browsers also restore focus to the previously focused element; the explicit call
+  makes it deterministic and testable).
+- The About screen is a second section inside the same dialog: the "About" button
+  swaps the settings sections for the About section and shows a "Back" button, so there
+  is one dialog and one focus trap, not two. Escape closes the whole dialog.
+- **Targets under the dialog.** The skeleton has no pause, disable, or modal API (its
+  surface is `registerTarget`, `updateTarget`, `unregisterTarget`, mode and profile
+  setters, camera and calibration calls). Planchette hit-tests registered rectangles from
+  mouse, keyboard, gamepad and camera samples, not DOM elements, so the dialog being on
+  top does not stop it: a mouse click on a dialog control that sits over a target's
+  rectangle would also make the skeleton emit `select` for the target underneath, and
+  dwell or scanning would carry on. (Its keyboard adapter already ignores keys in text
+  fields via `isEditable`, but not on buttons, selects or checkboxes, so Space on a
+  focused dialog button also counts as a switch press.) `board-dom.ts` therefore keeps a
+  `settingsOpen` flag, set on `showModal` and cleared on `close`, and its `select`
+  listener returns at once while it is set. The flag alone is not enough: the skeleton
+  queues pointer presses and emits `select` on the next animation frame, so a click on
+  Close over a target closes the dialog first and the `select` arrives after `close`.
+  `settings-gate.ts` (`createSettingsGate`) records the time of the dialog's last `close`
+  and ignores any `select` whose `detail.now` (the press's own `performance.now()`-clock
+  timestamp) is at or before that time. `board-dom`'s `select` listener and
+  `board-controls`' camera-toggle handler both check the gate in addition to the flag.
+  This also covers `phrases-toggle`,
+  `camera-toggle`, `spell-toggle`, prediction slots and every other id, because the check
+  is at the one listener. Targets are left registered (unregistering them would shift
+  scan and hit-test state for a dialog that is opened by a carer for a few seconds). The
+  dwell ring and scan highlight may still draw over the dialog; this is accepted because the
+  dialog is a carer's tool. `cancel` events are not ignored (Escape also reaches the
+  skeleton as cancel, which only cancels its own dwell or scan).
+- Calibrate and the camera: Calibrate is inside the dialog (see "Input controls"). WHEN
+  pressed with the camera on, the dialog closes first, so the step text and the
+  calibration overlay are visible on the page, then `startCalibration()` runs.
+- jsdom does not implement `showModal`, `close` or the Escape/Tab behaviour, so unit tests
+  use a small stub that sets and clears the `open` attribute and fires `close`; the Tab
+  wrap, Escape and focus return are checked in Playwright
+  (`board-settings-dialog.e2e.ts`).
+
+It renders:
+- the skeleton Profile fields and the Board-only fields as labelled `<input>` or
+  `<select>` controls with their min/max shown in help text. The dialog has no input-mode
+  control: the Controls-row mode selector covers it. The skeleton does not export its
+  field limits, so the help text comes from a static table in the Board copied from the
+  input-core Profile fields table. The table is display only: a change goes through
+  `setProfile`, and the dialog then shows back the value the skeleton kept (so a clamped
+  value is shown clamped). `predictionSlotCount` is saved immediately and applies on the
+  next page load, because the Prediction strip is fixed for the life of the page;
 - the control labels, all defined in `messages.ts`: "Start camera when the page opens"
   (the checkbox below), "Voice" (the `voiceURI` select),
   "Speech rate" (the range input), "Number of suggestions" (`predictionSlotCount`),
@@ -654,7 +775,8 @@ renders:
   settings;
 - "Start camera when the page opens" as a labelled checkbox bound to the Profile's
   `startCameraOnLoad` (default off), saved with the Profile (see "Input controls");
-- an "About" button that opens the About screen;
+- a "Calibrate" button (see "Input controls"), a message line for it, an "About" button
+  that shows the About section inside the dialog, and a "Close" button;
 - Export/Import as a text box plus two buttons, exactly like the skeleton demo's
   profile box (same pattern, so no new UI idiom is introduced), to avoid `blob:`/`data:`
   URLs under the CSP;
@@ -819,13 +941,21 @@ overlap to merge.
 
 ### Property 1: Fixed-grid position stability
 
-For any sequence of Board actions, mode switches, Settings changes, Spell-mode
-toggles, and window-resize events, the row, column, and label that `board-dom.ts`
-registers for each `CORE_VOCABULARY` target id at the end of the sequence equal the
-row, column, and label it registered for that id at the start, and likewise for each
-`LETTER_BOARD` target id whenever Spell mode is on both before and after the sequence.
+For any sequence of Board actions, mode switches, view toggles (Spell toggle, Phrases
+toggle), page changes, Settings changes that do not edit the Quick-phrases list, and
+window-resize events, the row, column, and label that `board-dom.ts` registers for each
+`CORE_VOCABULARY` target id at the end of the sequence equal the row, column, and label
+it registered for that id at the start whenever the Core view is shown at both, and
+likewise for each `LETTER_BOARD` target id whenever the Spell view is shown at both. In
+the Phrases view, for an unedited list: whenever the same page is shown at the start
+and the end, every `quick-phrase-<id>` target on it has the same row, column, and label
+(the full phrase text), `phrases-prev` and `phrases-next` are at row 5, columns 0 and 1
+whenever registered, and the cell of list index `n` is always at page `floor(n / 10)`,
+row `floor((n % 10) / 2)`, column `n % 2`. Exactly one view's grid targets are
+registered at any time, and the view after each toggle follows the rule in "Input-mode
+integration via the skeleton API".
 
-**Validates: Requirements 2.2, 2.3, 2.4, 3.3, 3.7**
+**Validates: Requirements 2.2, 2.3, 2.4, 3.3, 3.7, 7.4, 7.7, 7.8, 7.9, 7.10, 7.12**
 
 ### Property 2: Clear then undo is identity
 
@@ -836,8 +966,8 @@ restores the model's `message` to exactly `m`.
 
 ### Property 3: Any undoable action then undo is identity
 
-For any Message string `m` (with any Partial word) and any of `add-word`, `add-letter`,
-`add-space`, `backspace`, `clear`, `replace` that is not a no-op there (per Requirement 1
+For any Message string `m` (with any Partial word) and any of `add-word`, `complete-word`,
+`add-letter`, `add-space`, `backspace`, `clear`, `replace` that is not a no-op there (per Requirement 1
 AC 5), dispatching that action and then calling `undo()` restores `message` and
 `partialWord` to exactly their values before the action. This still holds with the
 spelling rule (a space inserted before the first letter of a spelled word): the undo
@@ -994,6 +1124,19 @@ one space; every later letter finds a non-empty Partial word, so it inserts none
 
 **Validates: Requirements 3.4**
 
+### Property 17: Completing a word replaces the partial word
+
+For any Message `m0` that is empty or has no trailing whitespace, any non-empty string
+of letters `p` spelled after it with `add-letter` (one dispatch per character), and any
+non-empty word `w` (letters and apostrophes): dispatching `complete-word` with `w` gives
+exactly the message that `add-word` with `w` gives on `m0` (that is, `m0` + a separator
++ `w`, the separator being one space when `m0` is non-empty and none otherwise) and
+`partialWord` `''`; and `undo()` then restores the message `m0` + the same separator +
+`p.toLowerCase()` and `partialWord` `p.toLowerCase()`. Property 3 covers `complete-word`
+as one more undoable action.
+
+**Validates: Requirements 4.18**
+
 ## Error Handling
 
 - **Corrupt or missing localStorage data**: handled uniformly by `readJSON` (see
@@ -1044,11 +1187,11 @@ demo does in `ui.e2e.ts`), including both the core-grid view and the Spell-mode 
 
 **Property tests** (Vitest + **fast-check**, `apps/board/test/*.props.test.ts`), each
 tagged `Feature: board, Property N: <text>`, minimum 100 runs:
-- Property 1 generates random interleavings of `BoardAction`s, Spell-mode toggles,
-  settings changes, and resize events, replaying them against `board-dom.ts`'s target
+- Property 1 generates random interleavings of `BoardAction`s, Spell and Phrases
+  toggles, page changes, settings changes, and resize events, replaying them against `board-dom.ts`'s target
   registry (a lightweight fake `Planchette` host that records `registerTarget` /
   `updateTarget` calls, not a real DOM) to avoid flaking on real layout/CSS.
-- Properties 2–6, 8, 11, 14, 15, 16 drive `board-model.ts` / `prediction.ts` / `quick-phrases.ts`
+- Properties 2–6, 8, 11, 14, 15, 16, 17 drive `board-model.ts` / `prediction.ts` / `quick-phrases.ts`
   directly with `fast-check` arbitraries for messages (unicode strings including
   leading/trailing/internal whitespace), word lists, and histories.
 - Property 7 generates arbitrary `BoardExport`-shaped objects, including out-of-range
@@ -1063,7 +1206,9 @@ tagged `Feature: board, Property N: <text>`, minimum 100 runs:
   needs no network sandboxing).
 
 **Viewport tests** (Playwright, `apps/board/test/board-viewport.e2e.ts`): at 1366 x 768
-and 1920 x 1080, in mouse mode, in the Core view and in Spell mode, the document does
+and 1920 x 1080, in mouse mode, in the Core view, in Spell mode and in the Phrases view
+(with the list filled past 10 phrases so there are several pages, and with a phrase
+longer than two lines), the document does
 not scroll (`scrollHeight <= innerHeight`, `scrollWidth <= innerWidth`), the Message
 bar, active grid, prediction strip, action row, Controls row, Status panel, rest area
 and notice are inside the viewport, every target returned by

@@ -718,6 +718,123 @@
         "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795635407746
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795636868362
+      }
+    ],
+    "23.1 Register Prediction-strip targets and implement the slot-lock rule.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795636868984
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795649985894
+      }
+    ],
+    "23.2 Implement `complete-word` and use it for prediction-slot selection.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795649989563
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795650963118
+      }
+    ],
+    "23. DOM layer: Prediction strip wiring": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795650963172
+      }
+    ],
+    "23.3 Write the property test for completing a word.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795650974843
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795672058455
+      }
+    ],
+    "24.1 Build the Phrases view, the Camera row, the view toggles and paging.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795674373970
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795679475849
+      }
+    ],
+    "24.2 Test the Phrases view and the Camera row at both viewport sizes.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795679479217
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795681207268
+      }
+    ],
+    "24.3 Extend the fixed-grid property test to the Phrases view.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795679483208
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795712552387
+      }
+    ],
+    "24. DOM layer: Phrases view": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795681207321
+      }
+    ],
+    "25.1 Build the Settings dialog, opened from the Controls row.": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795712557316
+      },
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795731273693
+      }
+    ],
+    "25. DOM layer: Settings screen": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795731273776
+      }
+    ],
+    "26. Checkpoint - DOM layer complete": [
+      {
+        "executionId": "59b07556-3d06-4e8c-8de3-382e7692c188",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795731307683
       }
     ]
   }

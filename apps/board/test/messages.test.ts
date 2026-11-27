@@ -18,7 +18,7 @@ describe('messages', () => {
   });
 
   it('has the Settings labels, notice and About URLs', () => {
-    expect(messages.settings).toEqual({
+    expect(messages.settings).toMatchObject({
       startCameraOnLoad: 'Start camera when the page opens',
       voice: 'Voice',
       speechRate: 'Speech rate',
