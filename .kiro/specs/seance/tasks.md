@@ -67,8 +67,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
     `design.md`, `tasks.md`, and the Task 1 files. Check `git diff` for the two Board files first
     and confirm nothing but the tick and the metadata entry is in them.
   - Journal line: workspace wired, Board tick committed, spec added, any surprise.
-- [ ] 3. Messages (0.5 h)
-  - [ ] 3.1 The bundled list and the chooser.
+- [x] 3. Messages (0.5 h)
+  - [x] 3.1 The bundled list and the chooser.
     - Create `apps/seance/src/spirit-messages.ts`: the `Message` type, `WORDS` (the 32 words in
       design.md), `messageFor(text)` that builds a word Message with step ids `letter-<a-z>`, and
       `pickMessage(seed, roundNumber, previousId)` as specified (Round 1 is a 3-letter word; every 4th
@@ -76,19 +76,19 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
     - Write `apps/seance/test/spirit-messages.test.ts`: examples for Rounds 1, 4, 8, 12, 16; the exact
       step ids for one word; the three single-step Messages.
     - _Requirements: 1.1, 1.9, 14.1, 14.5_
-  - [ ] 3.2 Property 10: the list is valid.
+  - [x] 3.2 Property 10: the list is valid.
     - Write `apps/seance/test/spirit-messages.props.test.ts` (Property 10): length 3 to 6, A to Z,
       unique, no adjacent equal letters, every letter A to Z appears, `steps` matches `text`, every step
       id is a Board target id. A unit test reads `apps/board/data/offensive-words.json` as data and
       checks no word is in it. Tag `Feature: seance, Property 10`.
     - _Requirements: 14.2, 14.3, 14.4_
-  - [ ] 3.3 Property 9: message choice.
+  - [x] 3.3 Property 9: message choice.
     - In the same file (Property 9): deterministic for equal arguments; the result is in the list (or the
       fixed YES/NO/GOODBYE on every 4th Round); never equals `previousId` on word Rounds; Round 1 is
       3 letters.
     - _Requirements: 1.9, 14.5_
-- [ ] 4. Round state machine (1.5 h)
-  - [ ] 4.1 `round.ts`.
+- [x] 4. Round state machine (1.5 h)
+  - [x] 4.1 `round.ts`.
     - Create `apps/seance/src/round.ts`: `createRound`, `stepRound(state, input, now)`, `cloneRound`,
       the types in design.md, and the rules in their stated order (absorbing end, `stop` always
       accepted, stale timestamps ignored, Hit, Miss, Undo).
@@ -97,20 +97,20 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       the end return `[]`; a stale timestamp is ignored; `stop` with an old timestamp still ends it;
       `stepMs` values for a known timeline; one-step Messages (YES, GOODBYE).
     - _Requirements: 1.2 to 1.8, 2.1 to 2.6_
-  - [ ] 4.2 Properties 1, 2, 3.
+  - [x] 4.2 Properties 1, 2, 3.
     - Write `apps/seance/test/round.props.test.ts`. Property 1 (a Round always ends; absorbing).
       Property 2 (no double counting; replay adds nothing; control inputs change no count).
       Property 3 (progress is a prefix; `index <= hits`). Generators: Messages from the list, inputs
       from all 29 Board targets weighted toward the current Step, with increasing and with arbitrary
       timestamps.
     - _Requirements: 1.7, 2.1, 2.2, 2.6_
-  - [ ] 4.3 Properties 7 and 8.
+  - [x] 4.3 Properties 7 and 8.
     - In the same file. Property 7 (Undo restores the index, never changes `misses`, no-op at 0).
       Property 8 (times are `-1` or non-negative; shifting every timestamp by a constant gives the same
       counts and `stepMs`; interleaving extra stale inputs changes nothing).
     - _Requirements: 2.4, 2.5_
-- [ ] 5. Support (adaptation) state machine (1.0 h)
-  - [ ] 5.1 `support.ts`.
+- [x] 5. Support (adaptation) state machine (1.0 h)
+  - [x] 5.1 `support.ts`.
     - Create `apps/seance/src/support.ts`: `SEANCE_CONFIG`, `createSupport`, `stepSupport`,
       `cloneSupport` and the types, per design.md. The Suggestion arithmetic is the one formula in the
       design.
@@ -119,13 +119,13 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       `round-start`; three Hits drop one level; a Hit with a lower streak does not; `accept` emits
       `apply-dwell` once; `dismiss` emits `suggestion-closed`; the level carries across `round-start`.
     - _Requirements: 3.1, 3.4 to 3.8_
-  - [ ] 5.2 Properties 4, 5, 6.
+  - [x] 5.2 Properties 4, 5, 6.
     - Write `apps/seance/test/support.props.test.ts`. Property 4 (a Miss never lowers the level).
       Property 5 (range 0 to 2; falls only on a Hit that completes `calmAfterHits`, by exactly 1).
       Property 6 (every `suggest.ms` is above `dwellMs`, at most 3000, a multiple of 50, at most once
       per Round; no `apply-dwell` without an `accept` that had an open Suggestion).
     - _Requirements: 3.5, 3.6, 3.7, 3.8_
-- [ ] 6. Checkpoint 2: game core complete
+- [x] 6. Checkpoint 2: game core complete
   - Follow the checkpoint rules. Confirm Properties 1 to 10 pass in the `apps/seance` suite.
   - Journal line.
 - [ ] 7. Summary, Carry to the Board, storage (1.25 h)

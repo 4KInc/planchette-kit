@@ -116,7 +116,8 @@ true, so that I can trust them.
 4. WHEN Undo is selected during a Round and at least one Hit stands, THE Round SHALL step
    back one Step, remove that letter from the spelled-so-far line, and add one to Taken
    back. Undo SHALL NOT change the Miss count and SHALL NOT remove the original selection
-   from the counts. WHEN no Hit stands, Undo SHALL do nothing.
+   from the counts. WHEN no Hit stands, Undo SHALL do nothing. The final Hit ends the Round at once (Requirement 1
+   AC 3), so Undo cannot take back the last letter; a one-step Message has nothing to undo.
 5. THE Round SHALL measure time only from timestamps passed in. It SHALL record, for each
    Step, the time from when the Step became the next target to the Hit. It SHALL NOT read a
    clock.
