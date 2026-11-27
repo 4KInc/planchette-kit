@@ -238,9 +238,12 @@ test('six suggestions use a second strip row and still fit 1920x1080; the Settin
     strip: document.getElementById('prediction-strip')!.getBoundingClientRect().height,
     sh: document.documentElement.scrollHeight,
     ih: innerHeight,
+    s: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--target-size')),
+    g: parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--target-gap')),
   }));
   expect(m.slots).toBe(6);
-  expect(m.strip, 'two rows of 96 px and a 16 px gap').toBeCloseTo(208, 0);
+  expect(m.s, 'rendered cell size is read from the page').toBeGreaterThanOrEqual(96);
+  expect(m.strip, 'two rows of --target-size and a --target-gap gap').toBeCloseTo(2 * m.s + m.g, 0);
   expect(m.sh).toBeLessThanOrEqual(m.ih);
   expect(await gum(page)).toBe(0);
 });

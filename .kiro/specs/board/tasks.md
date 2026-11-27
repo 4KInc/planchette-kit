@@ -9,7 +9,7 @@ then wire them together behind the DOM layer, then add the data files
 with the dwell-sim-mcp layout validation gated on the `reads-while-pointing`
 acceptance target from design.md. Each task names the file(s) it writes and the test
 file next to it. Unit tests are `apps/board/test/<thing>.test.ts`, property tests are
-`<thing>.props.test.ts`. Each of the seventeen properties in design.md is its own
+`<thing>.props.test.ts`. Each of the eighteen properties in design.md is its own
 required sub-task, placed right after the component it checks.
 
 Convert the feature design into a series of prompts for a code-generation LLM that
@@ -1089,13 +1089,334 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** Req 1 AC 2–7; Req 3 AC 1, 2; Req 5 AC 1, 9; Req 9 AC 9.
 
-- [-] 29. Checkpoint - end-to-end suite complete
+- [x] 29. Checkpoint - end-to-end suite complete
   - Run `npm run test:e2e` and confirm the new Board specs pass alongside the existing
     skeleton ones. Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 30. MCP configuration for the dwell simulator
+- [x] 30. Dwell progress outline: no cover over the label, stroke contrast
 
-  - [ ] 30.1 Add the workspace MCP configuration and verify the relative path.
+  *(User decision, 27 Nov 2026: progress is drawn along the cell edge, not over the label. It
+  replaces the "fill: none hardening" plan, which found no fill to remove. Design:
+  design.md "Dwell progress outline".)*
+
+  - [x] 30.1 Add the `outline` shape to `createDwellRing` in the skeleton.
+    - Create `skeleton/src/ui/dwell-outline-geometry.ts` (pure, no DOM): `outlineGeometry(
+      rect, border, radius)` returns the three strokes (edge 1 px `#ffffff`, track 4 px
+      `#111111`, arc 2 px `#ffd400`), each with its inset from the border box (`border`,
+      `border + 1`, `border + 3` as the centre line), its width, its corner radius
+      (`max(0, radius - inset)`), and the arc's centre-line perimeter `2 (w + h) - 8 r + 2 pi r`.
+      The width and radius come from the arguments; there is no magic number outside this
+      file's constants.
+    - Edit `skeleton/src/ui/dwell-ring.ts`: add `shape?: 'ring' | 'outline'` (default `'ring'`)
+      and `elementFor?: (targetId: string) => HTMLElement | null` to `DwellRingOptions`
+      (default: `data-planchette-target="<id>"`, else the id, as `scan-highlight.ts` does);
+      export the `DwellRingShape` type from `skeleton/src/ui/index.ts`. With `shape` absent
+      or `'ring'`, the existing code path, markup and behaviour must not change at all (the
+      skeleton demo and `skeleton/test/demo.e2e.ts` depend on it). With `'outline'`, build
+      the drawing in design.md "Dwell progress outline": one `position: fixed`,
+      `pointer-events: none`, `aria-hidden` SVG with `data-planchette="dwell-ring"` and
+      `data-shape="outline"`, placed on the element's `getBoundingClientRect()` (fallback:
+      the rect from `planchette.getTargets()`, square corners, zero border); three `<rect>`
+      elements with `fill="none"` and `style.fill = 'none'` (and `fill="none"` on the root);
+      the arc starting after the top-left corner and running clockwise, its dash length
+      `progress` of the computed perimeter; quarter steps through `shownProgress` and no
+      transition under reduced motion; a closed full loop for 600 ms on a non-scan `select`,
+      with no tick and no pulse; re-measure (rect, border width, radius, dash length) on each
+      `dwell-progress`, on `resize` and `scroll` and after a `select` in the next animation
+      frame, and through a `ResizeObserver` on the current element when it exists; remove
+      every listener and the observer in `destroy()`. Set styles only through `style.*` and
+      attributes on SVG elements (CSP-safe, as the file already does).
+    - Do not edit anything under `.kiro/specs/input-core/`. The input-core design's "UI
+      helpers" paragraph needs the amendment recorded in design.md ("Input-core impact"):
+      the new options. That amendment is reported to the user, not made. If the skeleton
+      has an API-surface test or doc that lists `DwellRingOptions` fields, update it for
+      the two new optional fields.
+    - _Requirements: 9.3, 9.11, 9.13_
+
+  - [x] 30.2 Use the outline in the Board.
+    - `apps/board/src/main.ts` (`startBoard`): replace `createDwellRing(planchette)` with
+      `createDwellRing(planchette, { shape: 'outline' })`. `skeleton/demo/main.ts` keeps its
+      call unchanged. No change to `board.css`: the outline is an overlay and takes no part
+      in layout.
+    - _Requirements: 9.3, 9.11, 9.13_
+
+  - [x] 30.3 Test the outline in the skeleton.
+    - Write `skeleton/test/dwell-ring.test.ts` (`// @vitest-environment jsdom`; `jsdom` is a
+      root dependency already used by the Board's tests) with a fake Planchette that can
+      emit `dwell-progress`, `select` and `getTargets()`: with `shape: 'outline'`, after
+      progress 0.5 every `rect` has `fill` `none` (attribute and `style.fill`), the root has
+      `fill="none"`, the markup has no `circle` and no element with another fill; a document
+      rule `rect { fill: #fff }` does not change `style.fill`; the three rects take the
+      element's stubbed rect, border width and `border-radius` with the insets above; after
+      the stubbed rect changes, a `resize` and one frame, they follow it and the dash length
+      is recomputed; the arc length is `progress` of the perimeter; `reducedMotion: true`
+      gives quarter steps and no transition; a non-scan `select` shows a closed loop and no
+      tick for 600 ms (fake timers) and a scan `select` shows nothing; `destroy()` removes
+      the SVG and the listeners. The default shape still builds the unchanged circles and
+      tick.
+    - Write `skeleton/test/dwell-outline-geometry.test.ts` (examples from design.md: 128 x 96
+      with border 2 and radius 8; 197 x 148 with border 4 and radius 8; 96 x 96 with border 0
+      and radius 0; a radius larger than half the side): strokes inside the rect, adjacent,
+      no negative radius, the perimeter formula.
+    - _Requirements: 9.11, 9.13_
+
+  - [x] 30.4 Test the outline's contrast on the Board page.
+    - Write `apps/board/test/ring-contrast.test.ts` (Vitest, the contrast maths of
+      `board-colours.test.ts`): read the track, edge and arc colours from an outline created
+      in jsdom; take the backgrounds and `--accent` from `apps/board/board.css` (`--panel`,
+      `--pressed`, `--bg`, `--accent`) and compose the scan highlight's `rgba(255, 212, 0,
+      0.45)` tint over the normal and pressed ones (the tint is read from the skeleton's
+      `scan-highlight.ts` source text, so the test fails if it changes); assert at least 3 for
+      the track on each of the five states (normal, pressed, scan-highlighted, scan-highlighted
+      and pressed, empty/dashed), for the edge against `--accent`, and for the arc against the
+      track; also assert that the track against `--accent` alone is below 3 (documents why
+      the edge exists).
+    - _Requirements: 9.4, 9.12_
+
+  - [x] 30.5 Test during a dwell that the label stays visible and the outline follows the cell.
+    - Write `apps/board/test/board-dwell-outline.e2e.ts` (runs in the `board` and
+      `board-built` projects; no camera; `getUserMedia` is wrapped and counted as in
+      `board-colours.e2e.ts` and never called). Mouse mode has no dwell (the skeleton selects
+      on a click there and emits no `dwell-progress`), so the dwell is driven in head + dwell
+      mode with synthetic camera samples through `window.planchetteBoard.planchette.
+      feedSamples`, copying the `lookAt` helper in `skeleton/test/demo.e2e.ts` (the start-up
+      centre step first, then samples resting on the target's centre for about 40% of the
+      dwell time).
+    - Cell sizes, read from the page (`--target-size`), not hard-coded: 96 (1366 x 768), the
+      scaled size at 1920 x 1080, and 148 (a saved Profile with `targetSize` 148, written to
+      `planchette-board:settings` before load, at 1920 x 1080, where the page may scroll).
+      At each: (a) for every registered target, with no dwell, the label's text box (a `Range`
+      over the button's text, union of its client rects) lies inside the border box less
+      `b + 5` px, `b` being the computed border width; (b) for "different" (Core grid),
+      "Backspace" (Letter board, Spell view), a two-line phrase (Phrases view), a long
+      prediction slot and the Spell toggle while pressed, during the dwell
+      (`data-state="filling"`) `document.elementFromPoint` at the label's centre returns the
+      button and every outline `rect` has a computed `fill` of `none`; (c) the outline's box
+      equals the target's border box, and the target's size and every region's rectangle in
+      `REGIONS` are unchanged from before the dwell (no reflow); (d) after setting the window
+      size to another size mid-dwell, the outline's box equals the target's new box.
+    - _Requirements: 9.11, 9.13, 14.12_
+
+  - **Covers:** Req 9 AC 3, 4, 11, 12, 13.
+
+- [x] 31. Scale the layout to the viewport
+
+  *(At this step the Message bar is still 80 px high, so the 1920×1080 figures below (148,
+  972 px, 976 px) are those of an 80 px bar. Task 33 changes them to 139 and 1077 px with a 131
+  px bar and updates the tests named here.)*
+
+  - [x] 31.1 Add `renderedCellSize` and use it in `applyLayout`.
+    - Create `apps/board/src/board-scale.ts` (pure, no DOM): `renderedCellSize(profileSize,
+      gap, stripRows, viewport)` returns `max(profileSize, floor(min(sFitHeight,
+      sFitWidth)))` with `sFitHeight = min((vh - 96 - 6g) / 6, (vh - 288 - (k+5)g) /
+      (k+3))` and `sFitWidth = (vw - 502 - 6g) / 8` (design.md "Scaling to the viewport"),
+      a whole number, never below `profileSize`. Treat a non-finite result as
+      `profileSize`.
+    - `apps/board/src/board-dom.ts`: in `applyLayout`, call it with the Profile's
+      `targetSize` and `targetSpacing`, `stripRows = max(1, ceil(strip.slots.length /
+      4))` (1 when the app has no strip) and `{ width: innerWidth, height: innerHeight
+      }`, and set `--target-size` to the result and `--target-gap` to the Profile's
+      spacing, with `style.setProperty` only (no `style` attribute, so the page's
+      Content-Security-Policy holds). `syncTargets` already calls `applyLayout()` before
+      it re-reads every registered rectangle, on `resize`, `scroll` and `mode-change`, so
+      the registered target rectangles follow the new size; keep that order and keep
+      `host.setScreen` in the same function. Make the Settings Profile changes that alter
+      the target size or spacing end in `syncTargets()` (they already do through
+      `mountBoardSettings`).
+    - `apps/board/board.css`: change `.page { max-width }` to `calc(var(--cell-w) * 6 +
+      var(--target-gap) * 6 + 502px)` (1366 px at the defaults). Nothing else changes in
+      the CSS: every size already reads `--target-size`. Update the comment above `.page`.
+    - _Requirements: 14.6, 14.7, 14.11, 14.12, 14.13, 9.1_
+
+  - [x] 31.2 Test the scale function, the CSS and the target rectangles.
+    - Write `apps/board/test/board-scale.test.ts` (examples): 1366×768 with the defaults
+      gives 96; 1920×1080 gives 148 (the arithmetic in design.md); 1920×1080 with
+      `stripRows` 2 gives 136; a Profile size of 200 at 1920×1080 gives 200; a 100×100
+      viewport gives the Profile size; a Profile size of 64 at 1366×768 gives 96.
+    - Update `apps/board/test/board-layout.test.ts`: the `.page` `max-width` in
+      `board.css` is the `calc(...)` above, and the file sets no `fill`, `width` or
+      `height` in px for the grids.
+    - Write `apps/board/test/board-dom-scale.test.ts` (jsdom, fake host, `innerWidth` and
+      `innerHeight` set before and after a `resize` event): `--target-size` is `96px` at
+      1366×768 and `148px` at 1920×1080; after the `resize` every registered id got an
+      `updateTarget` call, made after `--target-size` was set; `--target-gap` stays the
+      Profile's spacing; the document element has no `style` attribute written by
+      `setAttribute`.
+    - _Requirements: 14.6, 14.11, 14.12, 14.13_
+
+  - [x]* 31.3 Write the property test for the rendered cell size.
+    - In `apps/board/test/board-scale.props.test.ts`, generate a whole-number Profile
+      size in 64 to 400, a whole-number spacing in 8 to 64, `stripRows` 1 or 2, and a
+      viewport width and height from 1 to 4000; assert Property 18 as written in
+      design.md: whole number, at least the Profile size, fits at `s` and does not fit
+      at `s + 1` when `s` is above the Profile size, never decreases when the viewport
+      grows, and 96 for the defaults at 1366×768.
+    - **Property 18: Rendered cell size**
+    - **Validates: Requirements 14.6, 14.11, 14.13**
+
+  - [x] 31.4 Extend the viewport end-to-end test to 1920×1080.
+    - In `apps/board/test/board-viewport.e2e.ts`: read the rendered size `s` from the page
+      (`--target-size`) and replace the fixed numbers (cell 416×96, camera row 148.7×96,
+      phrase rows 96 + 16 apart, the 1920×1080 bar) by expressions of `s` and the Profile
+      gap; assert that the cell widths within each grid are equal, that `s` is 96 at
+      1366×768 and 148 at 1920×1080, and that at 1920×1080 the `.page` bounding box is at
+      least 90% of the viewport height (972 px) in the Core, Spell (976 px) and Phrases
+      views, with the target rectangles from `getTargets()` matching the rendered
+      elements at the new size. Every existing check (no scroll, regions and targets
+      inside the viewport, no overflow, the Message bar unchanged between views) must still
+      pass at both sizes in all three views, in the `board` and `board-built` projects. No
+      camera is started.
+    - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.10, 14.11, 14.12, 14.13_
+
+  - **Covers:** Req 14 AC 1–13 (AC 11–13 are new); Req 9 AC 1.
+
+- [x] 32. First-run hint
+
+  - [x] 32.1 Show the hint until the first select or camera start.
+    - `apps/board/src/messages.ts`: add `controls.firstRunHint` = "Choose an input mode,
+      or press Start camera".
+    - `apps/board/src/main.ts`: `createBoardApp` exposes `firstRun`, the `usedDefault`
+      value of the `readSettings` result (true when no saved Profile was found);
+      `startBoard` passes it to `mountBoardControls({ ..., firstRun })`.
+    - `apps/board/src/board-controls.ts`: add the optional `firstRun` option (default
+      `false`) and an in-memory `firstRunActive` starting at it. `showHint()` chooses, in
+      this order: the first-run hint while `firstRunActive`, else the head-modes-need-
+      the-camera hint when the mode needs the camera and the camera is off, else the privacy
+      hint (design.md "First-run hint"), so two hints are never shown together and the
+      existing message line is reused (no new element). `firstRunActive` becomes false on
+      the first `select` event of any target, or the first time `setCameraOn(true)` runs,
+      whichever comes first, and never returns to true on that page. The hint never calls
+      `startCamera`: the camera still starts only on a press of the toggle, or on load when
+      the Profile's `startCameraOnLoad` is on.
+    - _Requirements: 13.5, 13.7, 13.10, 13.11, 13.12, 13.13_
+
+  - [x] 32.2 Test the hint without a camera.
+    - Extend `apps/board/test/board-controls.test.ts` (jsdom, the fake Planchette with
+      spies): with `firstRun: true` the message line reads exactly the hint and not the
+      needs-the-camera or privacy text; after a `select` of any target it shows the usual
+      line for the mode and camera state; after the camera toggle is selected (and after
+      `setCameraOn(true)`) it does the same; whichever comes first ends it and it does not
+      return; a mode change does not end it; with `firstRun: false` (or no option) it is
+      never shown; in every case `startCamera` is called only by the toggle selection,
+      never by the hint, and never on mount with the default Profile.
+    - Extend `apps/board/test/main-profile.test.ts`: `createBoardApp` over empty storage
+      has `firstRun` true; over storage holding a saved Profile (a written
+      `planchette-board:settings`) it is false; over corrupt settings it is true.
+    - _Requirements: 13.10, 13.11, 13.12, 13.13_
+
+  - [x] 32.3 Test that the hint fits, at both sizes.
+    - In `apps/board/test/board-viewport.e2e.ts`, add a test run at 1366×768 and 1920×1080
+      in a fresh browser context (no saved Profile), without choosing a mode first: the
+      `#controls-message` text is the hint, the page does not scroll, the message line
+      does not scroll inside itself (`scrollHeight <= clientHeight`), and the hint lies
+      inside the Status panel. Then choose Mouse in `#mode`, select one Core target (the
+      first select), and assert that the hint is gone and that the rectangles of every
+      region in `REGIONS` are unchanged from before (no layout shift). Reload with the
+      Profile now saved and assert the hint is not shown. `getUserMedia` is never called.
+    - _Requirements: 13.10, 13.11, 13.12, 13.13_
+
+  - **Covers:** Req 13 AC 10–13.
+
+- [x] 33. Message bar text: 48 px, two lines where the viewport is tall
+
+  *(User decision, 27 Nov 2026, option (a). Design: design.md "Message bar text".)*
+
+  - [x] 33.1 Add `messageBarLayout` and use it in `applyLayout`.
+    - `apps/board/src/board-scale.ts`: add the constants `BAR_TEXT_PX = 48`,
+      `BAR_LINE_FACTOR = 1.3`, `BAR_BORDER_PX = 6`, `BAR_ONE_LINE_HEIGHT = 80` and
+      `TWO_LINE_MIN_VIEWPORT_HEIGHT = 900`; give `renderedCellSize` an optional `barHeight`
+      argument (default 80, so Task 31's calls and tests keep working) with
+      `sFitHeight = min((vh - 16 - barHeight - 6g) / 6, (vh - 288 - (k+5)g) / (k+3))`; add
+      the pure `messageBarLayout(profileSize, gap, stripRows, viewport)` returning `{ lines,
+      barHeight, cellSize, pageMinHeight }` by the rule in design.md (131 = `ceil(2 * 1.3 *
+      48) + 6` when `innerHeight >= 900` and the cell size with that bar is at least the
+      Profile size; otherwise 80; `pageMinHeight = 16 + max(H + 6s + 6g, (k+3)s + (k+5)g +
+      272)`). Treat a non-finite result as the one-line bar at the Profile size.
+    - `apps/board/src/board-dom.ts`: in `applyLayout`, call `messageBarLayout` instead of
+      `renderedCellSize`, and set `--target-size`, `--target-gap`, `--bar-height` (px),
+      `--bar-lines` (`1` or `2`) and `--page-min-height` (px) with `style.setProperty` only
+      (no `style` attribute, so the Content-Security-Policy holds); then scroll the Message bar
+      to its end (`messageBar.scrollTop = messageBar.scrollHeight`). `syncTargets` already
+      calls `applyLayout()` before it re-reads every registered rectangle, so every
+      registered target's rectangle follows the new height after the bar changes height; keep
+      that order. The Message bar is display-only and is not registered.
+    - `apps/board/board.css`: `#message-bar { height: var(--bar-height, 80px); padding: 0 8px;
+      font-size: 48px; line-height: calc((var(--bar-height, 80px) - 6px) / var(--bar-lines,
+      1)) }` (the 3 px border and the other rules stay); `.page { grid-template-rows:
+      var(--bar-height, 80px) auto; min-height: var(--page-min-height, 0); align-content:
+      start }`; update the comments above `.page` and `#message-bar`.
+    - _Requirements: 9.2, 14.3, 14.11, 14.12, 14.13, 14.14, 14.15, 14.16, 14.17_
+
+  - [x] 33.2 Test the layout function, the CSS and the custom properties.
+    - Extend `apps/board/test/board-scale.test.ts` with `messageBarLayout` examples (defaults
+      unless stated): 1366×768 gives `{ lines: 1, barHeight: 80, cellSize: 96, pageMinHeight:
+      768 }`; 1920×1080 gives `{ 2, 131, 139, 1077 }`; 1600×900 gives `{ 2, 131, 109, 897 }`;
+      1599×899 gives a one-line bar and 117; 1920×1080 with `stripRows` 2 gives two lines and
+      136; a Profile size of 200 at 1920×1080 gives a one-line bar and 200; a 100×100
+      viewport gives the one-line bar and the Profile size. `renderedCellSize` with the
+      default bar still gives 96 at 1366×768 and 148 at 1920×1080 (Task 31's examples
+      stand).
+    - Update `apps/board/test/board-layout.test.ts`: `#message-bar` declares `font-size:
+      48px`, `height: var(--bar-height, 80px)` and a `line-height` that divides the text
+      area by `--bar-lines`; `.page` reads `--bar-height` and `--page-min-height`; the 24 px
+      minimum check still passes (48 is above it).
+    - Update `apps/board/test/board-dom-scale.test.ts` (jsdom, fake host): at 1366×768
+      `--bar-height` is `80px`, `--bar-lines` `1`, `--target-size` `96px`; at 1920×1080 they are
+      `131px`, `2`, `139px`, and `--page-min-height` is `1077px`; after a `resize` from one to
+      the other every registered id got an `updateTarget` call made after the custom
+      properties were set (the Message bar is display-only and is not among them); the document element has
+      no `style` attribute written by `setAttribute`.
+    - _Requirements: 14.12, 14.14, 14.15, 14.17_
+
+  - [x]* 33.3 Extend the property test for the rendered cell size.
+    - In `apps/board/test/board-scale.props.test.ts` (created in Task 31.3), assert Property
+      18 as now written in design.md for `messageBarLayout`: bar height 80 or 131, 131 only
+      at a viewport height of at least 900 and a cell size at least the Profile size, whole
+      number at least the Profile size, fits at `s` and not at `s + 1` with that bar,
+      non-decreasing in the viewport when the bar height is the same, `pageMinHeight` equal
+      to the page-height formula, and the two default-size results (1366×768 gives 80 and 96;
+      1920×1080 gives 131 and 139).
+    - **Property 18: Rendered cell size**
+    - **Validates: Requirements 14.6, 14.11, 14.13, 14.15, 14.17**
+
+  - [x] 33.4 Test the bar's text and height end to end, and update the viewport test.
+    - Write `apps/board/test/board-message-bar.e2e.ts` (`board` and `board-built` projects,
+      mouse mode, no camera; `getUserMedia` counted and never called), at 1366×768 and at
+      1920×1080, as in design.md "Message bar text":
+      (1) the computed `font-size` of `#message-bar` is at least twice that of `body`;
+      (2) at 1920×1080 a message that wraps to two lines (Core words added until the bar's
+      `scrollHeight` exceeds one line height) has `scrollHeight <= clientHeight`, the bar's
+      `clientHeight` is at least 2 x its computed line height, `scrollWidth <= clientWidth`
+      and the document does not scroll; a longer message is scrolled to its end
+      (`scrollTop + clientHeight == scrollHeight`) and shows exactly two full lines;
+      (3) at 1366×768 the bar is 80 px high with `clientHeight` equal to one line height, a
+      long message (60 x "different") keeps `scrollHeight > clientHeight`, is scrolled to its
+      end, shows its last word, and the document does not scroll in either axis;
+      (4) at each size the Message bar's rectangle is identical in the Core, Spell and
+      Phrases views, before and after the long message, and the `.page` box has the same
+      height in the three views.
+    - Update `apps/board/test/board-viewport.e2e.ts`. It has no 24 px or 80 px expectation
+      for the bar (it compares the bar's rectangle between views, which must still hold), so
+      the changes are the cell-size ones: `s` is 96 at 1366×768 and 139 at 1920×1080 (not
+      148), the `.page` box is at least 90% of the viewport height (972 px) and in fact
+      1077 px in the Core, Spell (not 976) and Phrases views, and every other expression of
+      `s` and of the bar height is read from the page (`--target-size`, `--bar-height`)
+      instead of a fixed number. Every existing check (no scroll, regions and targets inside
+      the viewport, no overflow) must still pass at both sizes in all three views, in the
+      `board` and `board-built` projects.
+    - _Requirements: 9.2, 14.1, 14.2, 14.3, 14.13, 14.14, 14.15, 14.16, 14.17_
+
+  - **Covers:** Req 14 AC 14–17 (new); Req 14 AC 3, 11–13; Req 9 AC 2.
+
+- [-] 34. Checkpoint - ring, scaling, first-run hint and Message bar complete
+  - Run the full `apps/board` test suite, the skeleton tests, `npm run typecheck` and
+    `npm run test:e2e` (the `chromium`, `built`, `board` and `board-built` projects; the
+    skeleton demo must still pass with its unchanged ring). Ensure all tests pass, ask the
+    user if questions arise.
+
+- [ ] 35. MCP configuration for the dwell simulator
+
+  - [ ] 35.1 Add the workspace MCP configuration and verify the relative path.
     - Create `.kiro/settings/mcp.json` with the `dwell-sim` server entry using the
       **relative** command path `tools/dwell-sim-mcp/dist/server.js`, per design.md's
       "Configuring the MCP server" section (`command: "node"`, relative `args`,
@@ -1108,7 +1429,7 @@ tasks that involve writing, modifying, or testing code.
     - **If it does not resolve: stop and tell the user.** Document a per-user config
       that is not committed (`~/.kiro/settings/mcp.json` with the user's own absolute
       path) in `tools/dwell-sim-mcp/README.md`, remove the relative entry from the
-      workspace file, and do not continue to Task 31 until the user replies.
+      workspace file, and do not continue to Task 36 until the user replies.
     - Write `tools/dwell-sim-mcp/test/board-mcp-config.test.ts`: `.kiro/settings/mcp.json`
       parses as JSON, contains a `dwell-sim` entry whose `args` path does not start
       with `/` or a drive letter, and whose `command` is `node`.
@@ -1116,9 +1437,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Configuring the MCP server".
 
-- [ ] 31. Board layout export and the six-preset gate run
+- [ ] 36. Board layout export and the six-preset gate run
 
-  - [ ] 31.1 Export the Board's four layouts.
+  - [ ] 36.1 Export the Board's four layouts.
     - Write `tools/dwell-sim-mcp/scripts/export-board-layout.ts` (pattern from
       `export-demo-layout.ts`): serves the built `dist/board/index.html`, opens it at
       1920×1080 and 1366×768, reads `window.planchetteBoard.planchette.getTargets()`
@@ -1129,7 +1450,13 @@ tasks that involve writing, modifying, or testing code.
       this script via `dist-scripts/export-board-layout.js`. The `window.planchetteBoard`
       test hook already exists in `apps/board/src/main.ts` (created with `startBoard`
       and used by Task 21.2); do not add it again. Export the layouts from the viewport
-      layout built in Task 20.1.
+      layout built in Task 20.1 and scaled to the viewport in Tasks 31.1 and 33.1: the
+      1920×1080 files hold the scaled layout (cells 139 px high at the defaults, with the
+      131 px Message bar), not the 1366×768
+      layout moved to the centre, so the gate measures what a person sees at that size.
+      The script opens each page at its own size before reading `getTargets()`, so no
+      extra step is needed; the test checks that the 1920×1080 core file has a 139 px
+      high Core-grid cell and the 1366×768 file a 96 px one.
     - Write `tools/dwell-sim-mcp/test/export-board-layout.test.ts`: the pure
       `toLayoutJson`-equivalent conversion function used by the script produces the
       expected `{ screen, targets }` shape from a fixed sample input (unit test; the
@@ -1137,7 +1464,7 @@ tasks that involve writing, modifying, or testing code.
       `export-demo-layout.ts`'s own test boundary).
     - _Requirements: none (design.md "Exporting the Board's layout")_
 
-  - [ ] 31.2 Generalise the preset runner and run the six-preset gate.
+  - [ ] 36.2 Generalise the preset runner and run the six-preset gate.
     - Write `tools/dwell-sim-mcp/scripts/run-board-presets.ts`: imports
       `runDemoPresets`/`DemoLayout`/`DemoHandler` from `run-demo-presets.ts` (no
       duplication), passes the four Board layouts and a `{ eachTarget: 2 }` task,
@@ -1152,13 +1479,16 @@ tasks that involve writing, modifying, or testing code.
       (append step driven by the same `--append` flag pattern as
       `run-demo-presets.ts`).
     - **Acceptance gate**: the `reads-while-pointing` preset's `accidentalPer100Intended`
-      metric must be at or below 10 on all four Board layouts. If it is not, adjust the
-      design levers in design.md's "Design levers used" section (dwell time, grouping,
-      spacing) and re-run before proceeding to Task 31.3.
+      metric must be at or below 10 on all four Board layouts. The gate is not changed.
+      **If it is missed: stop and report the numbers to the user** (the preset, the
+      layout, `accidentalPer100Intended`, the causes found) with the options, and wait.
+      Do not loosen the gate, and do not change the design levers in design.md's "Design
+      levers used" section, without the user's approval. Do not proceed to Task 36.3
+      until the user replies.
     - _Requirements: none (design.md "Running the six presets", "The acceptance target")_
 
-  - [ ]* 31.3 Pin any surfaced counterexample.
-    - WHERE a `simulate` run from Task 31.2 surfaces an accidental selection whose
+  - [ ]* 36.3 Pin any surfaced counterexample.
+    - WHERE a `simulate` run from Task 36.2 surfaces an accidental selection whose
       cause is not the expected `reading-pause` cause at or below the target rate,
       write `apps/board/test/layout-regressions.test.ts`: a fixed regression test that
       re-runs that exact `simulate` call (preset, layout file, seed, task) and asserts
@@ -1168,9 +1498,9 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Running the six presets", "The acceptance target", "Counterexample policy".
 
-- [ ] 32. Compare runs for layout-affecting changes made in this spec
+- [ ] 37. Compare runs for layout-affecting changes made in this spec
 
-  - [ ] 32.1 Record a `compare` baseline-vs-chosen-defaults run.
+  - [ ] 37.1 Record a `compare` baseline-vs-chosen-defaults run.
     - Using the `compare` MCP tool (via a script or an ad hoc MCP call recorded in the
       journal, not a new source file, mirroring how dwell-sim-mcp's README documents
       `compare` usage), compare the Board's core-grid layout at the input-core global
@@ -1184,26 +1514,36 @@ tasks that involve writing, modifying, or testing code.
 
   - **Covers:** design.md "Comparing layout changes".
 
-- [ ] 33. Final checkpoint
+- [ ] 38. Final checkpoint
   - Run `npm test` and `npm run build` and `npm run test:e2e` at the repository root.
-    Confirm the Task 31.2 acceptance gate still passes (metrics are deterministic for
+    Confirm the Task 36.2 acceptance gate still passes (metrics are deterministic for
     a fixed seed, so this should not need re-running unless source changed since
-    Task 31). Ensure all tests pass, ask the user if questions arise.
+    Task 36). Ensure all tests pass, ask the user if questions arise.
 
 ## Notes
 
 - Tasks marked with `*` (property and regression tests) are optional sub-tasks and
-  can be skipped for a faster MVP, except that skipping Task 31.3 is only valid when
-  no counterexample was found (noted inline on that task). All seventeen numbered
+  can be skipped for a faster MVP, except that skipping Task 36.3 is only valid when
+  no counterexample was found (noted inline on that task). All eighteen numbered
   properties in design.md are implemented as required sub-tasks regardless of the
   `*` marking convention used elsewhere in this plan for clarity; the `*` here follows
   this workflow's own convention that test-only sub-tasks may be marked optional, but
   the properties listed in design.md are the ones explicitly requested and should not
   be skipped without reporting that gap to the user.
 - `apps/board/src/main.ts` is extended incrementally across Tasks 10, 13, 14, 18, 19, 23,
-  24, and 25; no task leaves it in a state that does not compile or run.
+  24, 25 and 32; no task leaves it in a state that does not compile or run.
+- The Message-bar text size is decided (user decision, 27 Nov 2026, option (a)) and is Task
+  33: 48 px text at every size, a 131 px two-line bar where the viewport is at least 900 px
+  high (1920×1080: cells 139 px), an 80 px one-line bar that scrolls below that (1366×768:
+  cells 96 px). Task 31 is built first with the 80 px bar (148 px cells at 1920×1080); Task 33
+  then changes those figures and the tests that name them. The checkpoint and the tasks after
+  it are numbered 34 to 38.
+- The dwell progress outline (Task 30) is decided too (user decision, 27 Nov 2026). It adds an
+  option to the skeleton's `createDwellRing`, so the input-core design's "UI helpers"
+  paragraph needs a one-sentence amendment, which is reported to the user and not made in
+  this spec. The skeleton demo keeps the ring.
 - The dwell-sim-mcp package (`tools/dwell-sim-mcp`) is extended, not duplicated:
-  Tasks 30–32 add Board-specific scripts and one config file, reusing
+  Tasks 35–37 add Board-specific scripts and one config file, reusing
   `run-demo-presets.ts`'s exported functions and the existing `simulate`/`compare`
   MCP tools exactly as the dwell-sim-mcp spec built them.
 - Scripts under `tools/dwell-sim-mcp/scripts/` compile to `dist-scripts/*.js` and run
@@ -1257,12 +1597,20 @@ tasks that involve writing, modifying, or testing code.
     { "id": 39, "tasks": ["27.1"] },
     { "id": 40, "tasks": ["28.1"] },
     { "id": 41, "tasks": ["29"] },
-    { "id": 42, "tasks": ["30.1"] },
-    { "id": 43, "tasks": ["31.1"] },
-    { "id": 44, "tasks": ["31.2"] },
-    { "id": 45, "tasks": ["31.3"] },
-    { "id": 46, "tasks": ["32.1"] },
-    { "id": 47, "tasks": ["33"] }
+    { "id": 42, "tasks": ["30.1", "31.1", "32.1"] },
+    { "id": 43, "tasks": ["30.2", "30.3", "30.4", "31.2", "31.3", "32.2"] },
+    { "id": 44, "tasks": ["30.5", "31.4"] },
+    { "id": 45, "tasks": ["32.3"] },
+    { "id": 46, "tasks": ["33.1"] },
+    { "id": 47, "tasks": ["33.2", "33.3"] },
+    { "id": 48, "tasks": ["33.4"] },
+    { "id": 49, "tasks": ["34"] },
+    { "id": 50, "tasks": ["35.1"] },
+    { "id": 51, "tasks": ["36.1"] },
+    { "id": 52, "tasks": ["36.2"] },
+    { "id": 53, "tasks": ["36.3"] },
+    { "id": 54, "tasks": ["37.1"] },
+    { "id": 55, "tasks": ["38"] }
   ]
 }
 ```

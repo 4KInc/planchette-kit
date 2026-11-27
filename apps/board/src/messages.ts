@@ -57,6 +57,8 @@ export const messages = {
     /** Hint while a camera mode is chosen and the camera is off. */
     needsCameraHint:
       'Head and gesture modes need the camera: press Start camera. Or choose switch scanning or the mouse; they work without it.',
+    /** Shown until the first select or camera start, when no saved Profile existed at load. */
+    firstRunHint: 'Choose an input mode, or press Start camera',
     /** Hint otherwise. */
     privacyHint: 'Everything stays on this device. No camera picture is stored or sent.',
     calibrationFinished: 'Calibration finished.',

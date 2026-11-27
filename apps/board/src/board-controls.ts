@@ -35,6 +35,8 @@ export interface BoardControlsOptions {
   readonly document: Document;
   /** Called after a mode change and after a calibration run ends. */
   readonly saveProfile: () => void;
+  /** True when no saved Profile existed at load: shows the first-run hint. Default false. */
+  readonly firstRun?: boolean;
 }
 
 export interface BoardControls {
@@ -59,7 +61,7 @@ function byId<T extends HTMLElement>(doc: Document, id: string): T {
   return el as T;
 }
 
-export function mountBoardControls({ host, document: doc, saveProfile }: BoardControlsOptions): BoardControls {
+export function mountBoardControls({ host, document: doc, saveProfile, firstRun = false }: BoardControlsOptions): BoardControls {
   const modeSelect = byId<HTMLSelectElement>(doc, 'mode');
   const calibrateButton = byId<HTMLButtonElement>(doc, 'calibrate');
   // Calibrate lives in the Settings dialog (Req 13 AC 1, 6), with its own message line.
@@ -79,6 +81,8 @@ export function mountBoardControls({ host, document: doc, saveProfile }: BoardCo
   for (const m of MODES) modeSelect.add(new Option(m.label, m.value));
 
   let cameraOn = false;
+  // Ends on the first select of any target or the first setCameraOn(true); never returns.
+  let firstRunActive = firstRun;
 
   /** The message line shows only while the tracking indicator has nothing to say. */
   const refreshVisibility = (): void => {
@@ -91,10 +95,12 @@ export function mountBoardControls({ host, document: doc, saveProfile }: BoardCo
   const showHint = (): void => {
     const mode = host.getProfile().mode;
     const needsCamera = mode === 'head + dwell' || mode === 'head + gesture' || mode === 'gesture scan';
+    if (firstRunActive) return say(messages.controls.firstRunHint);
     say(needsCamera && !cameraOn ? messages.controls.needsCameraHint : messages.controls.privacyHint);
   };
   const setCameraOn = (on: boolean): void => {
     cameraOn = on;
+    if (on) firstRunActive = false;
     toggle.textContent = on ? messages.controls.stopCamera : messages.controls.startCamera;
     toggle.setAttribute('aria-pressed', String(on));
     showHint();
@@ -145,6 +151,11 @@ export function mountBoardControls({ host, document: doc, saveProfile }: BoardCo
     else setCameraOn(false); // permission denied, load failed, no face: the indicator explains
   };
   const onSelect = (e: CustomEvent<{ targetId: string; now: number }>): void => {
+    if (firstRunActive) {
+      // The first select of any target ends the hint, whether or not the Board acts on it.
+      firstRunActive = false;
+      showHint();
+    }
     if (settingsDialog?.open === true || gate.isStale(e.detail.now)) return; // no Target selection has any effect while Settings is open
     if (e.detail.targetId === 'camera-toggle') toggleCamera();
   };

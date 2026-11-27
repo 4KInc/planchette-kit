@@ -287,3 +287,176 @@ describe('startBoard camera start on load', () => {
     expect(toggle().textContent).toBe(messages.controls.startCamera);
   });
 });
+
+describe('first-run hint (Req 13 AC 10 to 13)', () => {
+  const line = (): string => $<HTMLElement>('controls-message').textContent ?? '';
+  const hint = messages.controls.firstRunHint;
+  const all = [hint, messages.controls.needsCameraHint, messages.controls.privacyHint];
+  /** Exactly one of the three hints is on the line (the line has no second element). */
+  const shownHints = (): string[] => all.filter((h) => line() === h);
+  const mount = (firstRun?: boolean) => {
+    const host = new FakeHost();
+    const controls = mountBoardControls({
+      host: host as unknown as ControlsHost,
+      document,
+      saveProfile: vi.fn<() => void>(),
+      ...(firstRun === undefined ? {} : { firstRun }),
+    });
+    return { host, controls };
+  };
+  let controls: BoardControls | undefined;
+  afterEach(() => controls?.destroy());
+
+  it('is shown on a fresh profile, and replaces the needs-camera and privacy text', () => {
+    const m = mount(true);
+    controls = m.controls;
+    expect(line()).toBe(hint);
+    expect(line()).toBe('Choose an input mode, or press Start camera');
+    expect(m.host.startCamera).not.toHaveBeenCalled();
+  });
+
+  it('is hidden after a select of any target, and shows the usual line for the mode', () => {
+    const m = mount(true);
+    controls = m.controls;
+    m.host.emitSelect('speak');
+    expect(line()).toBe(messages.controls.needsCameraHint);
+    expect(m.host.startCamera).not.toHaveBeenCalled();
+  });
+
+  it('is hidden after the camera toggle is selected', () => {
+    const m = mount(true);
+    controls = m.controls;
+    m.host.emitSelect('camera-toggle');
+    expect(line()).not.toBe(hint);
+    expect(line()).toBe(messages.controls.privacyHint); // camera is on
+    expect(m.host.startCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it('is hidden after setCameraOn(true), the load-time start path', () => {
+    const m = mount(true);
+    controls = m.controls;
+    m.controls.setCameraOn(true);
+    expect(line()).toBe(messages.controls.privacyHint);
+    expect(m.host.startCamera).not.toHaveBeenCalled();
+  });
+
+  it('does not return once ended, whichever ended it', () => {
+    const m = mount(true);
+    controls = m.controls;
+    m.host.emitSelect('speak');
+    m.controls.setCameraOn(true);
+    m.controls.setCameraOn(false);
+    m.host.emitMode('head + gesture');
+    expect(line()).toBe(messages.controls.needsCameraHint);
+    m.host.emitMode('mouse');
+    expect(line()).toBe(messages.controls.privacyHint);
+  });
+
+  it('is not ended by a mode change', () => {
+    const m = mount(true);
+    controls = m.controls;
+    m.host.emitMode('mouse');
+    expect(line()).toBe(hint);
+    m.host.emitMode('head + gesture');
+    expect(line()).toBe(hint);
+  });
+
+  it.each([undefined, false])('is never shown with firstRun %s (a saved profile)', (firstRun) => {
+    const m = mount(firstRun);
+    controls = m.controls;
+    expect(line()).toBe(messages.controls.needsCameraHint);
+    m.host.emitMode('mouse');
+    m.host.emitSelect('speak');
+    expect(line()).not.toBe(hint);
+    expect(m.host.startCamera).not.toHaveBeenCalled();
+  });
+
+  it('never calls startCamera by itself; only the toggle selection does', () => {
+    const m = mount(true);
+    controls = m.controls;
+    m.host.emitMode('mouse');
+    m.host.emitSelect('speak');
+    m.host.emit('calibration-step', { step: 'left', completed: false });
+    expect(m.host.startCamera).not.toHaveBeenCalled();
+    m.host.emitSelect('camera-toggle');
+    expect(m.host.startCamera).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows one hint at a time, in priority order, through a sequence of events', () => {
+    const m = mount(true);
+    controls = m.controls;
+    const steps: Array<() => void> = [
+      () => m.host.emitMode('head + dwell'),
+      () => m.host.emitMode('mouse'),
+      () => m.host.emitSelect('speak'),
+      () => m.host.emitMode('gesture scan'),
+      () => m.controls.setCameraOn(true),
+      () => m.host.emitMode('mouse'),
+    ];
+    expect(shownHints()).toEqual([hint]);
+    const order: string[] = [];
+    for (const step of steps) {
+      step();
+      expect(shownHints()).toHaveLength(1);
+      order.push(shownHints()[0]!);
+    }
+    expect(order).toEqual([
+      hint,
+      hint,
+      messages.controls.privacyHint, // select ends it; mouse needs no camera
+      messages.controls.needsCameraHint, // gesture scan, camera off
+      messages.controls.privacyHint, // camera on
+      messages.controls.privacyHint,
+    ]);
+  });
+
+  describe('through startBoard, with no saved Profile', () => {
+    function makeFake() {
+      const base = new DomFakeHost();
+      let profile: Record<string, unknown> = { mode: 'head + dwell', targetSize: 96, targetSpacing: 16 };
+      const fake = Object.assign(base, {
+        startCamera: vi.fn(() => Promise.reject(new Error('NotAllowedError'))),
+        stopCamera: vi.fn(),
+        setMode: vi.fn(),
+        startCalibration: vi.fn(),
+        setProfile: vi.fn((p: Record<string, unknown>) => {
+          profile = { ...profile, ...p };
+        }),
+        getProfile: () => profile,
+        exportProfile: () => JSON.stringify(profile),
+      });
+      return fake as unknown as Planchette & { startCamera: ReturnType<typeof vi.fn>; setProfile: ReturnType<typeof vi.fn> };
+    }
+    const load = () => {
+      document.body.innerHTML = bodyHtml;
+      const fake = makeFake();
+      startBoard(document, () => fake);
+      return fake;
+    };
+
+    it('shows the hint on every load while nothing is saved, even after a camera start', () => {
+      const first = load();
+      expect(line()).toBe(hint);
+      first.dispatchEvent(new CustomEvent('select', { detail: { targetId: 'camera-toggle', now: 0, source: 'mouse', role: 'default' } }));
+      expect(first.startCamera).toHaveBeenCalledTimes(1);
+      expect(line()).not.toBe(hint);
+      expect(localStorage.getItem(KEY_SETTINGS)).toBeNull(); // nothing is stored for the hint
+      const second = load();
+      expect(line()).toBe(hint);
+      expect(second.startCamera).not.toHaveBeenCalled();
+    });
+
+    it('a mode change saves the Profile, so the next load shows no hint', () => {
+      const first = load();
+      expect(line()).toBe(hint);
+      first.setProfile({ mode: 'mouse' });
+      first.dispatchEvent(new CustomEvent('mode-change', { detail: { mode: 'mouse' } }));
+      expect(line()).toBe(hint); // a mode change does not end it on the same page
+      expect(localStorage.getItem(KEY_SETTINGS)).not.toBeNull();
+      const second = load();
+      expect(line()).not.toBe(hint);
+      expect(line()).toBe(messages.controls.privacyHint);
+      expect(second.startCamera).not.toHaveBeenCalled();
+    });
+  });
+});

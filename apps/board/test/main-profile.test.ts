@@ -56,3 +56,21 @@ describe("nothing saved", () => {
     expect(p.getProfile().startCameraOnLoad).toBe(false);
   });
 });
+
+describe("firstRun (Req 13 AC 10 to 13)", () => {
+  it("is true over empty storage", () => {
+    expect(boardApp(memory()).firstRun).toBe(true);
+  });
+
+  it("is false over a saved Profile", () => {
+    const storage = memory();
+    boardApp(storage).saveProfile({ mode: "mouse", dwellTime: 1400 });
+    expect(boardApp(storage).firstRun).toBe(false);
+  });
+
+  it("is true over corrupt settings", () => {
+    const storage = memory();
+    storage.setItem(KEY_SETTINGS, "{not json");
+    expect(boardApp(storage).firstRun).toBe(true);
+  });
+});

@@ -40,20 +40,25 @@ body {
 /*
  * Viewport layout (Req 14, design.md "Viewport layout"). Two columns: the Message bar above
  * the active grid on the left, the `.side` column on the right. A container of at most
- * 1366 px, centred. At the defaults the left column is 80 + 16 + 656 = 752 px and the right
+ * `6 * --cell-w + 6 * --target-gap + 502px` (24 px padding plus the 478 px right column; 1366 px
+ * at the defaults, wider as the script scales --target-size to the viewport), centred. At the defaults the left column is 80 + 16 + 656 = 752 px and the right
  * column is 96 + 208 + 96 + 48 + 112 + 112 + 5 * 16 = 752 px, so 1366 x 768 fits with no
  * scrolling.
  */
 .page {
   display: grid;
   grid-template-columns: calc(var(--cell-w) * 6 + var(--target-gap) * 5) minmax(0, 1fr);
-  grid-template-rows: 80px auto;
+  grid-template-rows: var(--bar-height, 80px) auto;
   grid-template-areas:
     "message side"
     "grid side";
   column-gap: var(--target-gap);
   row-gap: var(--target-gap);
-  max-width: 1366px;
+  max-width: calc(var(--cell-w) * 6 + var(--target-gap) * 6 + 502px);
+  /* The script sets --page-min-height to the Core view's height, so the box is the same height
+     in every view (Req 14 AC 17); spare height stays empty under the content. */
+  min-height: var(--page-min-height, 0);
+  align-content: start;
   margin: 0 auto;
   padding: 8px 12px;
 }
@@ -66,12 +71,20 @@ section { margin: 0; padding: 0; }
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto calc(var(--target-size) * 2 + var(--target-gap)) var(--target-size) 48px 112px 112px;
   row-gap: var(--target-gap);
+  /* When the left column is taller (scaled cells), the spare height stays empty under the
+     notice; the strip's `auto` row does not stretch, so no target moves between views. */
+  align-content: start;
   min-width: 0;
 }
+/* Message bar (Req 14 AC 14 to 16): 48 px text, no vertical padding, and a line height equal to
+   the text area (height less the 6 px border) divided by the lines it holds (--bar-lines, 1 or
+   2, set with --bar-height by the script), so a scrolled bar shows whole lines only. */
 #message-bar {
   margin: 0;
-  height: 80px;
-  padding: 4px 8px;
+  height: var(--bar-height, 80px);
+  padding: 0 8px;
+  font-size: 48px;
+  line-height: calc((var(--bar-height, 80px) - 6px) / var(--bar-lines, 1));
   border: 3px solid var(--accent);
   border-radius: 8px;
   background: var(--panel);
@@ -84,7 +97,9 @@ section { margin: 0; padding: 0; }
   gap: var(--target-gap);
   min-height: var(--target-size);
 }
-.prediction-strip > button { overflow-wrap: anywhere; }
+/* The strip's four slots share the fixed 478 px right column (107.5 px each), so they do not
+   take the grid-wide min-width of --target-size, which grows with the viewport. */
+.prediction-strip > button { overflow-wrap: anywhere; min-width: 0; }
 /* An empty slot keeps its place, drawn as a dashed placeholder; it is not a target. */
 .prediction-strip > button[data-empty="true"] { border-style: dashed; background: transparent; cursor: default; }
 .actions {
@@ -209,6 +224,10 @@ button:focus-visible { outline: 4px solid var(--focus); outline-offset: 3px; }
   overflow: hidden;
   text-align: left;
   overflow-wrap: anywhere;
+  /* 6 px side padding: border 2 + padding 6 = 8 px, so the 7 px dwell outline band clears the text.
+     User decision, 27 Nov 2026. Cell size is unchanged. */
+  padding-left: 6px;
+  padding-right: 6px;
 }
 .phrases-grid [aria-disabled="true"] {
   border-style: dashed;

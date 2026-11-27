@@ -29,7 +29,11 @@ import { LETTER_BOARD } from './letter-board.js';
 import type { BoardApp } from './main.js';
 import { messages } from './messages.js';
 import type { SlotLock } from './prediction.js';
+import { messageBarLayout } from './board-scale.js';
 import { createSettingsGate } from './settings-gate.js';
+
+/** The Prediction strip has 4 columns, so 5 to 8 slots use 2 rows. */
+const STRIP_COLUMNS = 4;
 
 /** The part of `Planchette` the Board's DOM layer uses. A test host implements only this. */
 export type BoardHost = Pick<Planchette, 'registerTarget' | 'updateTarget' | 'unregisterTarget' | 'setScreen' | 'getProfile' | 'addEventListener' | 'removeEventListener'>;
@@ -367,8 +371,18 @@ export function mountBoardDom({ host, app, document: doc }: BoardDomOptions): Bo
   /** Sizes and spaces the grid from the profile (the skeleton demo's variable names). */
   const applyLayout = (): void => {
     const { targetSize, targetSpacing } = host.getProfile();
-    doc.documentElement.style.setProperty('--target-size', `${targetSize}px`);
-    doc.documentElement.style.setProperty('--target-gap', `${targetSpacing}px`);
+    const stripRows = Math.max(1, Math.ceil((strip?.slots.length ?? 0) / STRIP_COLUMNS));
+    const layout = messageBarLayout(targetSize, targetSpacing, stripRows, {
+      width: view?.innerWidth ?? 0,
+      height: view?.innerHeight ?? 0,
+    });
+    const root = doc.documentElement.style;
+    root.setProperty('--target-size', `${layout.cellSize}px`);
+    root.setProperty('--target-gap', `${targetSpacing}px`);
+    root.setProperty('--bar-height', `${layout.barHeight}px`);
+    root.setProperty('--bar-lines', String(layout.lines));
+    root.setProperty('--page-min-height', `${layout.pageMinHeight}px`);
+    messageBar.scrollTop = messageBar.scrollHeight; // a long Message shows its last lines
   };
   applyLayout();
 

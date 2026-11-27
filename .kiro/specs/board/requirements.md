@@ -85,6 +85,12 @@ a speech-language therapist; this notice is shown in the app.
   the Calibrate button, the Quick-phrases editor, and the About screen.
 - **Status panel**: the fixed area that holds the skeleton's tracking indicator
   (Requirement 13).
+- **First-run hint**: the one-line hint "Choose an input mode, or press Start camera",
+  shown in the Status panel's message line while no saved Profile existed at load and
+  no `select` or camera start has happened yet (Requirement 13).
+- **Rendered cell size**: the height, in CSS px, of one grid row (and the basis of the
+  cell width, `4/3` of it). It equals the Profile's target size unless the viewport
+  has room for larger cells (Requirement 14).
 - **Viewport**: the browser window's visible area, in CSS px (Requirement 14).
 - **Target**: as defined in the input-core spec: an element the Board registers with
   the Planchette by id and rectangle, selectable by every input mode.
@@ -511,6 +517,23 @@ calm and unthemed, so that it is usable and never distressing.
    focus indicator and an accessible name.
 10. THE Board SHALL show the notice that it is not a medical device and not a
     replacement for an AAC system assessed by a speech-language therapist.
+11. WHILE dwell progress is showing on a target, THE Board SHALL draw it as an outline
+    along the target's own edge, just inside the target's border, with no fill of any
+    colour, so that no part of the drawing lies over the target's label at any rendered
+    cell size from 96 to 148 CSS px high. *(User decision, 27 Nov 2026: this replaces the
+    ring drawn at the pointer, whose band crossed wide labels.)*
+12. WHILE the dwell outline (AC 11) is showing, THE Board SHALL draw its dark track with a
+    contrast of at least 3:1 against the target's background in each target state
+    (normal, pressed, scan-highlighted, scan-highlighted and pressed, and empty
+    (dashed)), SHALL draw the progress arc with a contrast of at least 3:1 against the
+    track, and SHALL separate the track from the target's border with a light edge whose
+    contrast against the border colour is at least 3:1. *(User decision, 27 Nov 2026.)*
+13. WHEN the target's rectangle changes while the dwell outline is showing (the window
+    is resized, or the rendered cell size changes under Requirement 14 AC 12), THE Board
+    SHALL redraw the outline on the new rectangle, and drawing it SHALL NOT change the
+    target's layout size or move any other element. WHILE the user prefers reduced
+    motion, THE Board SHALL show the outline's progress in quarter steps with no
+    transition, as the skeleton's ring does. *(User decision, 27 Nov 2026.)*
 
 ### Requirement 10: Local-only operation
 
@@ -636,6 +659,19 @@ the box in whichever mode fits.
    next visit starts in it.
 9. THE Board's automated tests SHALL never start a real camera: they use a fake
    Planchette whose `startCamera` is a spy, or assert that `getUserMedia` is not called.
+10. WHILE no saved Profile existed when the page loaded, AND no `select` event has
+    occurred since, AND the camera has not been started since, THE Board SHALL show the
+    first-run hint "Choose an input mode, or press Start camera" in the Status panel's
+    message line, in place of the head-modes-need-the-camera hint and the privacy hint.
+11. WHEN the first `select` event occurs or the camera is started, whichever comes
+    first, THE Board SHALL replace the first-run hint with the message line's usual
+    content for the current mode and camera state (AC 7), and SHALL NOT show the
+    first-run hint again until the page is loaded again with no saved Profile.
+12. WHEN the page loads and a saved Profile exists, THE Board SHALL NOT show the
+    first-run hint.
+13. THE first-run hint SHALL NOT start the camera, SHALL NOT call `startCamera`, and
+    SHALL fit the Status panel's existing message line, so that showing or removing
+    it moves no other element and the page does not scroll.
 
 ### Requirement 14: Fit to the viewport
 
@@ -679,9 +715,41 @@ board.
 9. THE Controls row SHALL fit on one line within its column: the label and mode
    selector at their natural width and the Settings button, with no wrapping and no
    clipped text.
-10. THE Phrases view's cells SHALL be equal size (416×96 CSS px at the defaults: two
-    columns of (848 − 16) / 2), rows 0 to 5 SHALL total the same height as the Core
+10. THE Phrases view's cells SHALL be equal size (416×96 CSS px at the defaults in a
+    1366×768 viewport: two columns of (848 − 16) / 2), rows 0 to 5 SHALL total the same height as the Core
     grid (656 CSS px), and no cell's text SHALL overflow the cell.
+11. THE Board SHALL set the rendered cell size to the larger of the Profile's target
+    size and the largest whole number of CSS px at which the whole layout (the Core
+    grid's six rows, the Message bar, the right column with the Prediction strip's
+    rows, the page padding and the gaps) fits the viewport in both height and width.
+    THE Board SHALL keep the Profile's target spacing unchanged, and SHALL use the one
+    rendered cell size for every grid, the Prediction strip, the action row and the
+    Camera row, in every view, with every cell of one grid the same width.
+12. WHEN the window is resized, or the Profile's target size or target spacing changes,
+    THE Board SHALL recompute the rendered cell size and SHALL update every registered
+    target's rectangle to match the new layout.
+13. WITH the default Profile sizes in a 1366×768 viewport, THE Board SHALL render the
+    layout exactly as in AC 1 to AC 10 (rendered cell size 96 CSS px). WITH the default
+    Profile sizes in a 1920×1080 viewport, THE `.page` element's bounding box SHALL be
+    at least 90% of the viewport's height in the Core, Spell and Phrases views, with
+    every other guarantee of AC 1 to AC 10 still holding.
+14. THE Message bar SHALL show its text at 48 CSS px, twice the 24 CSS px body text,
+    at every viewport size. *(User decision, 27 Nov 2026.)*
+15. WHEN the viewport is at least 900 CSS px high and the rendered cell size with a
+    two-line bar is at least the Profile's target size, THE Board SHALL make the Message
+    bar tall enough for two full lines of its text (131 CSS px, which is 125 CSS px of
+    text area under a 3 CSS px border), so that a two-line Message fits with no
+    horizontal overflow and no page scroll; this is the case at 1920×1080.
+    *(User decision, 27 Nov 2026.)*
+16. WHILE the Message bar holds one line (the viewport is under 900 CSS px high, as at
+    1366×768, where the bar stays 80 CSS px), WHEN the Message is longer than one line,
+    THE Board SHALL scroll the Message inside the bar so that the last line is shown
+    in full, and the page SHALL NOT scroll. *(User decision, 27 Nov 2026.)*
+17. THE Board SHALL give the `.page` element the same height in the Core, Spell and
+    Phrases views at one viewport size, equal to the height the Core view needs, so that
+    the Message bar, the right column and the page box do not move or change size when
+    the view changes. *(User decision, 27 Nov 2026; needed for AC 13 once the bar is
+    taller.)*
 
 
 ## Properties for property-based tests
@@ -729,3 +797,12 @@ and any valid Board profile.
     Partial word, and any predicted word, Complete word gives the same Message as Add
     word would have given before the letters were spelled, with an empty Partial word;
     Undo restores the spelled Message and Partial word.
+13. **Rendered cell size**: for any Profile target size, any Profile target spacing, any
+    Prediction-strip row count and any viewport, the rendered cell size is a whole number at least the Profile's target
+    size; whenever it exceeds the Profile's target size the layout, with the Message bar
+    height the Board chose for that viewport (80 or 131 CSS px), fits the viewport at
+    that size and does not fit at one px more; for two viewports that get the same bar
+    height, it never decreases when the viewport grows; the bar is 131 CSS px only when
+    the viewport is at least 900 CSS px high and the cell size with that bar is at least
+    the Profile's target size; and for the default Profile sizes it is 96 at 1366×768
+    (bar 80) and 139 at 1920×1080 (bar 131).

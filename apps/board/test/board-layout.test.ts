@@ -169,3 +169,39 @@ describe("board.css cell sizing", () => {
     for (const m of css.matchAll(/font:\s*(\d+(?:\.\d+)?)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(24);
   });
 });
+
+describe("board.css scaling to the viewport (Req 14 AC 11 to 13)", () => {
+  it("sets the .page max-width to the calc of the cell width, the gap and 502px", () => {
+    expect(declarations(".page")).toMatch(
+      /max-width:\s*calc\(var\(--cell-w\) \* 6 \+ var\(--target-gap\) \* 6 \+ 502px\)\s*(;|$)/,
+    );
+  });
+  it("sets no fill, and no width or height in px, for the grids", () => {
+    for (const sel of [".core-grid", ".letter-grid", ".phrases-grid"]) {
+      const d = declarations(sel);
+      expect(d, sel).not.toMatch(/(^|[\s;])fill\s*:/);
+      expect(d, sel).not.toMatch(/(^|[\s;])(min-|max-)?(width|height)\s*:\s*[\d.]+px/);
+    }
+  });
+  it("starts the right column at the top, so spare height stays empty below it", () => {
+    expect(declarations(".side")).toMatch(/align-content:\s*start/);
+  });
+});
+
+describe("board.css Message bar text (Req 14 AC 14 to 17)", () => {
+  it("draws #message-bar at 48px with the height and line height read from the custom properties", () => {
+    const d = declarations("#message-bar");
+    expect(d).toMatch(/font-size:\s*48px/);
+    expect(d).toMatch(/(^|[\s;])height:\s*var\(--bar-height, 80px\)/);
+    expect(d).toMatch(
+      /line-height:\s*calc\(\(var\(--bar-height, 80px\) - 6px\) \/ var\(--bar-lines, 1\)\)/,
+    );
+    expect(d).not.toMatch(/padding:\s*[\d.]+px/);
+  });
+  it("reads --bar-height and --page-min-height in .page, with fallbacks", () => {
+    const d = declarations(".page");
+    expect(d).toMatch(/grid-template-rows:\s*var\(--bar-height, 80px\) auto/);
+    expect(d).toMatch(/min-height:\s*var\(--page-min-height, 0\)/);
+    expect(d).toMatch(/align-content:\s*start/);
+  });
+});

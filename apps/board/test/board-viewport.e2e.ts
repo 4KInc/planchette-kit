@@ -123,8 +123,82 @@ type Hook = {
   };
 };
 
-const CELL_W = 416;
-const CELL_H = 96;
+/** The rendered cell size and gap, read from the page (`--target-size`, `--target-gap`), never a fixed number. */
+interface Scale {
+  /** Cell height `s`. */
+  h: number;
+  /** Gap between targets. */
+  g: number;
+  /** A Phrases cell spans three of the six Core columns: 3 * (4s/3) + 2g. */
+  phraseW: number;
+  /** Message-bar-independent figure: the Camera row's three targets share `.camera-rest`'s width. */
+  cameraW: number;
+}
+async function readScale(page: Page): Promise<Scale> {
+  const v = await page.evaluate(() => {
+    const cs = getComputedStyle(document.documentElement);
+    return {
+      s: parseFloat(cs.getPropertyValue('--target-size')),
+      g: parseFloat(cs.getPropertyValue('--target-gap')),
+      row: document.querySelector('.camera-rest')!.getBoundingClientRect().width,
+    };
+  });
+  return { h: v.s, g: v.g, phraseW: (4 * v.s) / 3 * 3 + 2 * v.g, cameraW: (v.row - 2 * v.g) / 3 };
+}
+
+/** Task 31.4 / 33.4: s is 96 at 1366x768 and 139 at 1920x1080 (131 px two-line bar). */
+function checkRenderedSize(sc: Scale, size: { width: number }): void {
+  if (size.width === 1366) expect(sc.h, 'cell size at 1366x768').toBe(96);
+  else expect(sc.h, 'cell size at 1920x1080').toBe(139);
+  expect(sc.g).toBe(16);
+}
+
+/**
+ * The `.page` box covers at least 90% of the viewport height at 1920x1080 (Req 14 AC 13, 17): 972 px at least,
+ * and 1077 px in every view (`--page-min-height` holds the Spell view at the Core view's height).
+ * Returns the coverage.
+ */
+async function checkCoverage(page: Page, size: { width: number; height: number }): Promise<number> {
+  const box = (await page.locator('.page').boundingBox())!;
+  const cover = box.height / size.height;
+  if (size.height === 1080) {
+    expect(box.height, `.page box ${box.height} of ${size.height}`).toBeGreaterThanOrEqual(0.9 * size.height);
+    expect(box.height, `.page box ${box.height} is the Core view's height`).toBe(1077);
+    const min = await page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--page-min-height')));
+    expect(min, '--page-min-height').toBe(1077);
+  }
+  console.log(`coverage ${size.width}x${size.height}: .page ${box.height.toFixed(1)} / ${size.height} = ${(cover * 100).toFixed(1)}%`);
+  return cover;
+}
+
+/** Every grid's cells in `selector` have one width (and one height, s). */
+async function checkEqualWidths(page: Page, selector: string, sc: Scale): Promise<void> {
+  const rects = await page.evaluate(
+    (sel) => Array.from(document.querySelectorAll<HTMLElement>(sel)).filter((e) => e.offsetParent !== null).map((e) => e.getBoundingClientRect().width),
+    selector,
+  );
+  expect(rects.length, `cells in ${selector}`).toBeGreaterThan(0);
+  for (const w of rects) expect(near(w, rects[0]!), `${selector} widths ${rects}`).toBe(true);
+  expect(near(rects[0]!, (4 * sc.h) / 3, 1), `${selector} width ${rects[0]} = 4s/3`).toBe(true);
+}
+
+/** Target rectangles from getTargets() match the rendered elements. */
+async function checkTargetsMatchDom(page: Page): Promise<void> {
+  const bad = await page.evaluate(() => {
+    const ts = (window as unknown as Win).planchetteBoard.planchette.getTargets();
+    const out: string[] = [];
+    for (const t of ts) {
+      const el = document.querySelector<HTMLElement>(`[data-planchette-target="${t.id}"]`);
+      if (el === null) { out.push(`${t.id} missing`); continue; }
+      const r = el.getBoundingClientRect();
+      if (Math.abs(r.x - t.rect.x) > 1 || Math.abs(r.y - t.rect.y) > 1 || Math.abs(r.width - t.rect.width) > 1 || Math.abs(r.height - t.rect.height) > 1) {
+        out.push(`${t.id} dom ${r.x},${r.y},${r.width},${r.height} target ${JSON.stringify(t.rect)}`);
+      }
+    }
+    return out;
+  });
+  expect(bad, 'getTargets() rectangles match the rendered elements').toEqual([]);
+}
 const near = (a: number, b: number, tol = 0.5): boolean => Math.abs(a - b) <= tol;
 const LONG_PHRASE =
   'I would like to talk with the doctor about my medicine, my pain at night, and whether the new schedule for visits can start earlier this week please';
@@ -143,17 +217,17 @@ async function loadPhrases(page: Page, count: number): Promise<string[]> {
   return texts;
 }
 
-/** The Camera row: three 148.7 x 96 targets with 16 px gaps; the rest area is one unclipped line "Rest area". */
-async function checkCameraRow(page: Page): Promise<void> {
+/** The Camera row: three equal targets, s high, with --target-gap gaps; the rest area is one unclipped line "Rest area". */
+async function checkCameraRow(page: Page, sc: Scale): Promise<void> {
   const rects = [];
   for (const id of ['camera-toggle', 'phrases-toggle', 'rest-area']) {
     const b = (await page.locator(`[data-planchette-target="${id}"]`).boundingBox())!;
-    expect(near(b.width, 148.7), `${id} width ${b.width}`).toBe(true);
-    expect(near(b.height, CELL_H), `${id} height ${b.height}`).toBe(true);
+    expect(near(b.width, sc.cameraW), `${id} width ${b.width} vs ${sc.cameraW}`).toBe(true);
+    expect(near(b.height, sc.h), `${id} height ${b.height}`).toBe(true);
     rects.push(b);
   }
-  expect(near(rects[1]!.x - (rects[0]!.x + rects[0]!.width), 16), 'gap camera/phrases').toBe(true);
-  expect(near(rects[2]!.x - (rects[1]!.x + rects[1]!.width), 16), 'gap phrases/rest').toBe(true);
+  expect(near(rects[1]!.x - (rects[0]!.x + rects[0]!.width), sc.g), 'gap camera/phrases').toBe(true);
+  expect(near(rects[2]!.x - (rects[1]!.x + rects[1]!.width), sc.g), 'gap phrases/rest').toBe(true);
   const rest = page.locator('#rest-area');
   await expect(rest).toBeVisible();
   await expect(rest).toHaveText('Rest area');
@@ -171,13 +245,13 @@ async function checkCameraRow(page: Page): Promise<void> {
 }
 
 /**
- * Phrase cells: each is 416 x 96 and shows the full phrase as text content. A long phrase is clamped, so
+ * Phrase cells: each is (4s+2g) x s and shows the full phrase as text content. A long phrase is clamped, so
  * scrollHeight > clientHeight is expected; instead assert that nothing is drawn outside the cell: the cell
  * is overflow:hidden with computed line-clamp 2, its first two text line boxes lie fully inside it (a third
- * line is laid out but clamped away by the browser, so it is not asserted on), and its rect stays 416 x 96.
+ * line is laid out but clamped away by the browser, so it is not asserted on), and its rect keeps that size.
  * The 25-phrase test also compares screenshots of the 16 px gap under a clamped cell and under a short one.
  */
-async function checkPhraseCells(page: Page, expected: string[]): Promise<void> {
+async function checkPhraseCells(page: Page, expected: string[], sc: Scale): Promise<void> {
   const cells = await page.evaluate(() =>
     Array.from(document.querySelectorAll<HTMLElement>('#phrases-grid .phrase[data-planchette-target]')).map((el) => {
       const cell = el.getBoundingClientRect();
@@ -201,22 +275,22 @@ async function checkPhraseCells(page: Page, expected: string[]): Promise<void> {
   );
   expect(cells.map((c) => c.text)).toEqual(expected);
   for (const c of cells) {
-    expect(near(c.w, CELL_W) && near(c.h, CELL_H), `phrase cell ${c.w}x${c.h} "${c.text.slice(0, 20)}"`).toBe(true);
+    expect(near(c.w, sc.phraseW) && near(c.h, sc.h), `phrase cell ${c.w}x${c.h} "${c.text.slice(0, 20)}"`).toBe(true);
     expect(c.clamp).toBe('2');
     expect(c.overflow).toBe('hidden');
     expect(c.partial, `first two line boxes of "${c.text.slice(0, 20)}" outside the cell`).toBe(0);
   }
 }
 
-/** Rows 96 apart + 16 gap, two columns 416 wide + 16 gap, Previous/Next (or their placeholders) at row 5. */
-async function checkPhraseGeometry(page: Page, ids: string[]): Promise<Box[]> {
+/** Rows s apart + gap, two columns phraseW wide + gap, Previous/Next (or their placeholders) at row 5. */
+async function checkPhraseGeometry(page: Page, ids: string[], sc: Scale): Promise<Box[]> {
   const rects = await targetsOf(page).then((ts) => ids.map((id) => ts.find((t) => t.id === id)!.rect));
   const grid = (await page.locator('#phrases-grid').boundingBox())!;
   rects.forEach((r, i) => {
     const col = i % 2;
     const row = Math.floor(i / 2);
-    expect(near(r.x, grid.x + col * (CELL_W + 16)), `${ids[i]} x`).toBe(true);
-    expect(near(r.y, grid.y + row * (CELL_H + 16)), `${ids[i]} y`).toBe(true);
+    expect(near(r.x, grid.x + col * (sc.phraseW + sc.g)), `${ids[i]} x`).toBe(true);
+    expect(near(r.y, grid.y + row * (sc.h + sc.g)), `${ids[i]} y`).toBe(true);
   });
   return rects;
 }
@@ -236,7 +310,9 @@ for (const size of SIZES) {
       await openBoard(page, size);
       await expect(page.locator('#core-grid')).toBeVisible();
       const coreBar = await barRect(page);
-      await checkCameraRow(page);
+      const sc = await readScale(page);
+      checkRenderedSize(sc, size);
+      await checkCameraRow(page, sc);
 
       await clickTarget(page, 'phrases-toggle');
       await expect(page.locator('#phrases-grid')).toBeVisible();
@@ -249,9 +325,12 @@ for (const size of SIZES) {
       expect(phraseIds(ts).length).toBe(6);
       expect(ts.map((t) => t.id)).not.toContain('phrases-next');
       expect(ts.map((t) => t.id)).not.toContain('phrases-prev');
-      await checkPhraseCells(page, starters);
+      await checkPhraseCells(page, starters, sc);
+      await checkEqualWidths(page, '#phrases-grid .phrase, #phrases-grid [data-row="5"]', { ...sc, h: (3 * sc.phraseW) / 4 });
+      await checkTargetsMatchDom(page);
+      await checkCoverage(page, size);
       expect(await barRect(page), 'Message bar unchanged in the Phrases view').toEqual(coreBar);
-      await checkCameraRow(page);
+      await checkCameraRow(page, sc);
 
       // Toggle back goes to Core; Spell from Phrases goes to the Letter board.
       await clickTarget(page, 'phrases-toggle');
@@ -268,6 +347,8 @@ for (const size of SIZES) {
     test('25 phrases: three pages, fixed Previous/Next, clamped long phrase', async ({ page }) => {
       await openBoard(page, size);
       const coreBar = await barRect(page);
+      const sc = await readScale(page);
+      checkRenderedSize(sc, size);
       const texts = await loadPhrases(page, 25);
       await clickTarget(page, 'phrases-toggle');
       await expect(page.locator('#phrases-grid')).toBeVisible();
@@ -283,12 +364,14 @@ for (const size of SIZES) {
         expect(phraseIds(ts).length, `phrase targets on page ${p}`).toBe(pageSizes[p]);
         expect(ids.includes('phrases-prev'), `Previous on page ${p}`).toBe(p > 0);
         expect(ids.includes('phrases-next'), `Next on page ${p}`).toBe(p < 2);
-        await checkPhraseGeometry(page, phraseIds(ts));
-        await checkPhraseCells(page, expectedTexts);
+        await checkPhraseGeometry(page, phraseIds(ts), sc);
+        await checkPhraseCells(page, expectedTexts, sc);
+        await checkTargetsMatchDom(page);
+        await checkCoverage(page, size);
         expect(await barRect(page), `Message bar on page ${p}`).toEqual(coreBar);
-        await checkCameraRow(page);
+        await checkCameraRow(page, sc);
         const nav = await navRects(page);
-        for (const b of nav) expect(near(b.width, CELL_W) && near(b.height, CELL_H), `nav ${JSON.stringify(b)}`).toBe(true);
+        for (const b of nav) expect(near(b.width, sc.phraseW) && near(b.height, sc.h), `nav ${JSON.stringify(b)}`).toBe(true);
         for (const id of ['phrases-prev', 'phrases-next']) {
           const t = ts.find((x) => x.id === id);
           if (t === undefined) continue;
@@ -306,7 +389,17 @@ for (const size of SIZES) {
       await expect(page.locator('#phrases-grid .phrase[data-planchette-target]').first()).toHaveText(texts[0]!);
       const longCell = page.locator('#phrases-grid .phrase[data-planchette-target]').nth(2);
       await expect(longCell).toHaveText(LONG_PHRASE);
-      expect(await longCell.evaluate((e) => e.scrollHeight > e.clientHeight), 'the long phrase is clamped').toBe(true);
+      // The cell is taller at 1920x1080, so scrollHeight no longer shows the clamp. Check that the text needs more than
+      // two lines (lift the clamp, count line boxes, restore it) while the computed clamp stays 2.
+      const naturalLines = await longCell.evaluate((e) => {
+        e.style.setProperty('-webkit-line-clamp', 'unset');
+        const range = document.createRange();
+        range.selectNodeContents(e);
+        const tops = new Set(Array.from(range.getClientRects()).filter((r) => r.width > 0).map((r) => Math.round(r.top)));
+        e.style.removeProperty('-webkit-line-clamp');
+        return tops.size;
+      });
+      expect(naturalLines, 'the long phrase needs more than two lines, so it is clamped').toBeGreaterThan(2);
       // Nothing is drawn below the clamped cell: the gap strip under it looks the same as under a short cell.
       const strip = async (idx: number): Promise<Buffer> => {
         const ts = await targetsOf(page);
@@ -333,6 +426,11 @@ for (const size of SIZES) {
       // Core view.
       await expect(page.locator('#core-grid')).toBeVisible();
       await checkFits(page, '#core-grid', CORE_TARGETS);
+      const sc = await readScale(page);
+      checkRenderedSize(sc, size);
+      await checkEqualWidths(page, '#core-grid > *', sc);
+      await checkTargetsMatchDom(page);
+      await checkCoverage(page, size);
       const longestCore = page.locator('[data-planchette-target="core-different"]');
       await expect(longestCore).toHaveText('different');
       await expect(longestCore).toBeVisible();
@@ -344,6 +442,9 @@ for (const size of SIZES) {
       await expect(page.locator('#letter-grid')).toBeVisible();
       await expect(page.locator('#core-grid')).toBeHidden();
       await checkFits(page, '#letter-grid', SPELL_TARGETS);
+      await checkEqualWidths(page, '#letter-grid > *', await readScale(page));
+      await checkTargetsMatchDom(page);
+      await checkCoverage(page, size);
       // Spelling "he": the slots show words starting with "he" (some may be empty); the layout holds.
       await clickTarget(page, 'letter-h');
       await clickTarget(page, 'letter-e');
@@ -390,6 +491,106 @@ for (const size of SIZES) {
 
       // The camera was never asked for.
       expect(await page.evaluate(() => (window as unknown as Win).__gum)).toBe(0);
+    });
+  });
+}
+
+/**
+ * Task 32.3: the first-run hint (Req 13 AC 10 to 13). A fresh context has no saved Profile, so
+ * the Status panel's message line shows the hint; it fits, moves nothing, ends at the first
+ * select (not at a mode change), and is not shown again once a Profile is saved.
+ */
+const FIRST_RUN_HINT = 'Choose an input mode, or press Start camera';
+
+/** Open the Board with no saved Profile and no mode chosen; `getUserMedia` only counts and refuses. */
+async function openFresh(page: Page, size: { width: number; height: number }): Promise<void> {
+  await page.setViewportSize(size);
+  await page.addInitScript(() => {
+    const w = window as unknown as Win;
+    w.__gum = 0;
+    if (navigator.mediaDevices !== undefined) {
+      navigator.mediaDevices.getUserMedia = () => {
+        w.__gum++;
+        return Promise.reject(new DOMException('no camera in the tests', 'NotFoundError'));
+      };
+    }
+  });
+  await page.goto('/board/');
+  await page.waitForLoadState('networkidle');
+}
+
+async function regionRects(page: Page): Promise<Record<string, Box | null>> {
+  const out: Record<string, Box | null> = {};
+  for (const [name, sel] of REGIONS) out[name] = await page.locator(sel).boundingBox();
+  out['core grid'] = await page.locator('#core-grid').boundingBox();
+  return out;
+}
+
+for (const size of SIZES) {
+  test.describe(`${size.width}x${size.height} first-run hint`, () => {
+    test('shows on a fresh page, fits, moves nothing, ends at the first select, never with a saved Profile', async ({ page }) => {
+      await openFresh(page, size);
+      const msg = page.locator('#controls-message');
+      await expect(msg).toHaveText(FIRST_RUN_HINT);
+      await expect(msg).toBeVisible();
+
+      const fit = await page.evaluate(() => {
+        const m = document.getElementById('controls-message')!.getBoundingClientRect();
+        const p = document.getElementById('status-panel')!.getBoundingClientRect();
+        const el = document.getElementById('controls-message')!;
+        return {
+          sh: document.documentElement.scrollHeight,
+          sw: document.documentElement.scrollWidth,
+          ih: innerHeight,
+          iw: innerWidth,
+          msgSh: el.scrollHeight,
+          msgCh: el.clientHeight,
+          msgSw: el.scrollWidth,
+          msgCw: el.clientWidth,
+          inPanel: m.left >= p.left - 0.5 && m.right <= p.right + 0.5 && m.top >= p.top - 0.5 && m.bottom <= p.bottom + 0.5,
+          m: { x: m.x, y: m.y, w: m.width, h: m.height },
+          p: { x: p.x, y: p.y, w: p.width, h: p.height },
+        };
+      });
+      expect(fit.sh, 'page scrollHeight <= innerHeight').toBeLessThanOrEqual(fit.ih);
+      expect(fit.sw, 'page scrollWidth <= innerWidth').toBeLessThanOrEqual(fit.iw);
+      expect(fit.msgSh, `message line scrollHeight <= clientHeight ${JSON.stringify(fit)}`).toBeLessThanOrEqual(fit.msgCh);
+      expect(fit.msgSw, 'message line scrollWidth <= clientWidth').toBeLessThanOrEqual(fit.msgCw);
+      expect(fit.inPanel, `hint inside the Status panel ${JSON.stringify(fit)}`).toBe(true);
+
+      const withHint = await regionRects(page);
+      const targetsWithHint = await page.evaluate(() =>
+        (window as unknown as Win).planchetteBoard.planchette.getTargets().map((t) => ({ id: t.id, rect: t.rect })),
+      );
+
+      // A mode change alone keeps the hint (design.md "First-run hint", After a reload).
+      await page.locator('#mode').selectOption('mouse');
+      await expect(page.locator('#mode')).toHaveValue('mouse');
+      await expect(msg, 'a mode change alone does not end the hint').toHaveText(FIRST_RUN_HINT);
+
+      // The first select ends it.
+      await clickTarget(page, 'core-different');
+      await expect(page.locator('#message-bar')).toHaveText('different');
+      await expect(msg).not.toHaveText(FIRST_RUN_HINT);
+      await expect(msg).not.toContainText('Choose an input mode');
+
+      // No layout shift: every region and every target is where it was with the hint showing.
+      expect(await regionRects(page), 'regions unchanged after the hint ends').toEqual(withHint);
+      const targetsAfter = await page.evaluate(() =>
+        (window as unknown as Win).planchetteBoard.planchette.getTargets().map((t) => ({ id: t.id, rect: t.rect })),
+      );
+      expect(targetsAfter, 'targets unchanged after the hint ends').toEqual(targetsWithHint);
+      const after = await page.evaluate(() => ({ sh: document.documentElement.scrollHeight, ih: innerHeight }));
+      expect(after.sh).toBeLessThanOrEqual(after.ih);
+
+      // The mode change saved a Profile: after a reload the hint is not shown.
+      await page.reload();
+      await page.waitForLoadState('networkidle');
+      await expect(page.locator('#mode')).toHaveValue('mouse');
+      await expect(page.locator('#controls-message')).not.toHaveText(FIRST_RUN_HINT);
+      await expect(page.locator('#controls-message')).not.toContainText('Choose an input mode');
+
+      expect(await page.evaluate(() => (window as unknown as Win).__gum), 'getUserMedia never called').toBe(0);
     });
   });
 }

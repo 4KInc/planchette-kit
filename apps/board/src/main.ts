@@ -58,6 +58,8 @@ export interface BoardApp {
   readonly quickPhrases: QuickPhrasesStore;
   /** Pass this to the first `planchette.setProfile(...)` (task 13.1). */
   readonly initialProfile: Partial<Profile>;
+  /** True when no saved Profile was found at load (`usedDefault` of the settings read). */
+  readonly firstRun: boolean;
   /** The current Board-only settings (changes made with `updateBoardSettings` are included). */
   getSettings(): StoredBoardSettings;
   /**
@@ -125,6 +127,7 @@ export function createBoardApp(deps: BoardAppDeps): BoardApp {
     strip,
     quickPhrases: deps.quickPhrases ?? createQuickPhrasesStore(deps.storage === undefined ? {} : { storage: deps.storage }),
     initialProfile,
+    firstRun: settingsResult.usedDefault,
     getSettings: () => board,
     updateBoardSettings(patch) {
       board = { ...board, ...patch };
@@ -199,11 +202,11 @@ export function startBoard(
   // and when a calibration run ends (the one place those two saves happen).
   const saveCurrentProfile = (): void => app.saveProfile(JSON.parse(planchette.exportProfile()) as Partial<Profile>);
   const dom = mountBoardDom({ host: planchette, app, document: doc });
-  createDwellRing(planchette);
+  createDwellRing(planchette, { shape: 'outline' });
   createScanHighlight(planchette);
   // Mounted before the DOM layer so the toggle has its label (and size) when it is registered.
   // The Profile is saved here, on a mode change and when calibration ends (Task 18.1).
-  const controls = mountBoardControls({ host: planchette, document: doc, saveProfile: saveCurrentProfile });
+  const controls = mountBoardControls({ host: planchette, document: doc, saveProfile: saveCurrentProfile, firstRun: app.firstRun });
   // The Settings dialog's contents. Saved Board-only settings go through the app; Profile changes
   // are applied with `setProfile` / `importProfile`, then saved and the targets re-measured.
   mountBoardSettings({

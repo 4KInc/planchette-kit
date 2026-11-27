@@ -885,6 +885,238 @@
         "executionId": "d3877da2-e143-4bc9-a50d-976dd727e7d7",
         "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
         "timestamp": 1795781126379
+      },
+      {
+        "executionId": "d3877da2-e143-4bc9-a50d-976dd727e7d7",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795781478068
+      }
+    ],
+    "30.1 Add the `outline` shape to `createDwellRing` in the skeleton.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799230273
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799851863
+      }
+    ],
+    "31.1 Add `renderedCellSize` and use it in `applyLayout`.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799230353
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799852683
+      }
+    ],
+    "32.1 Show the hint until the first select or camera start.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799858657
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799899761
+      }
+    ],
+    "30.2 Use the outline in the Board.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799904967
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800003991
+      }
+    ],
+    "30.3 Test the outline in the skeleton.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799905029
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800004060
+      }
+    ],
+    "31.2 Test the scale function, the CSS and the target rectangles.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799906038
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800004143
+      }
+    ],
+    "32.2 Test the hint without a camera.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795799906404
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800174513
+      }
+    ],
+    "30.4 Test the outline's contrast on the Board page.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800007122
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800174592
+      }
+    ],
+    "30.5 Test during a dwell that the label stays visible and the outline follows the cell.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800181607
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807201391
+      }
+    ],
+    "31.4 Extend the viewport end-to-end test to 1920×1080.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795800181681
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807045640
+      }
+    ],
+    "31. Scale the layout to the viewport": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807045750
+      }
+    ],
+    "30. Dwell progress outline: no cover over the label, stroke contrast": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807201445
+      }
+    ],
+    "31.3 Write the property test for the rendered cell size.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807202394
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807369209
+      }
+    ],
+    "32.3 Test that the hint fits, at both sizes.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807205398
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807369292
+      }
+    ],
+    "32. First-run hint": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807369339
+      }
+    ],
+    "33.1 Add `messageBarLayout` and use it in `applyLayout`.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807372448
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807563595
+      }
+    ],
+    "33.2 Test the layout function, the CSS and the custom properties.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807567089
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795808010908
+      }
+    ],
+    "33.3 Extend the property test for the rendered cell size.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807568084
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795808011898
+      }
+    ],
+    "33.4 Test the bar's text and height end to end, and update the viewport test.": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795807568839
+      },
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795808012468
+      }
+    ],
+    "33. Message bar text: 48 px, two lines where the viewport is tall": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795808012510
+      }
+    ],
+    "34. Checkpoint - ring, scaling, first-run hint and Message bar complete": [
+      {
+        "executionId": "82f9c72c-0307-4462-a061-e060c48c6d5e",
+        "chatSessionId": "sess_e513c3a7-b34b-4e66-8a69-81e8b5f56aa2",
+        "timestamp": 1795808036323
       }
     ]
   }
