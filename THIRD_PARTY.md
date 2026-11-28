@@ -14,10 +14,11 @@ Every dependency used in this project, its version, licence and source.
 | `@axe-core/playwright` | 4.14.0 | MPL-2.0 | https://github.com/dequelabs/axe-core-npm (dev only: accessibility tests; licence exception, see below) |
 | `axe-core` | 4.14.1 (dependency of `@axe-core/playwright`) | MPL-2.0 | https://github.com/dequelabs/axe-core (dev only) |
 | `@mediapipe/tasks-vision` | 0.10.35 | Apache-2.0 | https://github.com/google-ai-edge/mediapipe (npm: https://www.npmjs.com/package/@mediapipe/tasks-vision) |
+| `esbuild` | 0.28.1 | MIT | https://github.com/evanw/esbuild (dev only, `tools/dwell-sim-mcp`: builds `power-planchette/dwell-sim-mcp.mjs`; never shipped. Its platform binary packages `@esbuild/<platform>` are MIT and dev only) |
 | `@hono/node-server` | 2.1.11 | MIT | https://github.com/honojs/node-server (transitive, `tools/dwell-sim-mcp`) |
 | `@modelcontextprotocol/sdk` | 1.32.2 | MIT | https://github.com/modelcontextprotocol/typescript-sdk (direct dependency of `tools/dwell-sim-mcp`) |
 | `accepts` | 2.0.0 | MIT | https://github.com/jshttp/accepts (transitive, `tools/dwell-sim-mcp`) |
-| `ajv` | 8.20.0 | MIT | https://github.com/ajv-validator/ajv (transitive, `tools/dwell-sim-mcp`) |
+| `ajv` | 8.20.0 | MIT | https://github.com/ajv-validator/ajv (transitive of the MCP SDK; also a direct dev dependency of `tools/dwell-sim-mcp`, for the power manifest tests) |
 | `ajv-formats` | 3.0.1 | MIT | https://github.com/ajv-validator/ajv-formats (transitive, `tools/dwell-sim-mcp`) |
 | `body-parser` | 2.4.0 | MIT | https://github.com/expressjs/body-parser (transitive, `tools/dwell-sim-mcp`) |
 | `bytes` | 3.1.2 | MIT | https://github.com/visionmedia/bytes.js (transitive, `tools/dwell-sim-mcp`) |
@@ -113,6 +114,30 @@ the licence read from its `package.json`. All are MIT, ISC or BSD. `tools/dwell-
 fails if one is missing or its version or licence differs. Two copies of `content-type` are
 installed (1.0.5 and 2.1.0); both are listed.
 
+## Kiro power bundle
+`power-planchette/dwell-sim-mcp.mjs` is the dwell simulator, built by `npm run bundle:power`
+(`tools/dwell-sim-mcp/scripts/bundle-power.ts`, esbuild). It inlines the packages below, so a
+person who installs the power needs no `node_modules`. The licence notices of the inlined
+packages are kept at the end of that file (the build script appends each package's own LICENSE
+text, because esbuild keeps only `@license` comments). `test/power-licences.test.ts` fails if the
+bundle inlines a package that is not in this table, or one whose licence is not MIT, Apache-2.0,
+BSD or ISC. `@mediapipe/tasks-vision` is deliberately NOT inlined: the skeleton's camera adapter
+loads it with a lazy `import()` that the simulator never runs, and the test checks that the bundle
+does not contain it.
+| Package | Version | Licence |
+|---|---|---|
+| `@modelcontextprotocol/sdk` | 1.32.2 | MIT |
+| `ajv` | 8.20.0 | MIT |
+| `ajv-formats` | 3.0.1 | MIT |
+| `fast-deep-equal` | 3.1.3 | MIT |
+| `fast-uri` | 3.1.9 | BSD-3-Clause |
+| `json-schema-traverse` | 1.0.0 | MIT |
+| `zod` | 4.6.7 | MIT |
+| `zod-to-json-schema` | 3.25.2 | ISC |
+Test fixtures (not bundled, not shipped in the power):
+| File | Licence | Source |
+|---|---|---|
+| `tools/dwell-sim-mcp/test/fixtures/agent-plugins/plugin.schema.json` and `mcp.schema.json` (Agent Plugins 1.0.0 schemas, unmodified) | Apache-2.0 (the specification repository licenses schemas and code under Apache-2.0 and the specification text under CC-BY-4.0; see `UPSTREAM-LICENSE.md` and `LICENSE-Apache-2.0.txt` beside them) | https://github.com/agentplugins/agent-plugins-spec (checked 28 Nov 2026) |
 ## Model files
 
 | File | Version | Licence | Source |

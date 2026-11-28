@@ -16,7 +16,8 @@
     "test": "npm run typecheck && npm run build:sim && npm run test --workspace=skeleton --workspace=tools/dwell-sim-mcp --workspace=apps/board --workspace=apps/seance",
     "test:e2e": "playwright test",
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "bundle:power": "npm run bundle:power --workspace=tools/dwell-sim-mcp"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

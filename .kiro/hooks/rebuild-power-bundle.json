@@ -1,0 +1,12 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Rebuild power bundle",
+      "description": "Rebuilds power-planchette/dwell-sim-mcp.mjs from tools/dwell-sim-mcp/src and the skeleton (npm run bundle:power). Run it after changing either, before committing.",
+      "trigger": "Manual",
+      "action": { "type": "command", "command": "npm run bundle:power" },
+      "timeout": 300
+    }
+  ]
+}

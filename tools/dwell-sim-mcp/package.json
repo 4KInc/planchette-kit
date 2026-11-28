@@ -24,7 +24,8 @@
     "board:run": "npm run build && node dist-scripts/run-board-presets.js",
     "methodology:tables": "npm run build && node dist-scripts/generate-methodology-tables.js",
     "demo:export:seance": "npm run build && node dist-scripts/export-seance-layout.js",
-    "seance:run": "npm run build && node dist-scripts/run-seance-presets.js"
+    "seance:run": "npm run build && node dist-scripts/run-seance-presets.js",
+    "bundle:power": "npm run build && node dist-scripts/bundle-power.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
@@ -33,6 +34,8 @@
   },
   "devDependencies": {
     "@types/node": "24.19.2",
+    "ajv": "8.20.0",
+    "esbuild": "0.28.1",
     "fast-check": "4.10.3",
     "typescript": "7.0.2",
     "vitest": "5.1.1"

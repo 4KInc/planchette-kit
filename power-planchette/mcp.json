@@ -1,0 +1,10 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+  "mcpServers": {
+    "dwell-sim": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${PLUGIN_ROOT}/dwell-sim-mcp.mjs"]
+    }
+  }
+}

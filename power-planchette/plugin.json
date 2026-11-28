@@ -1,0 +1,29 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "planchette",
+  "version": "0.1.0",
+  "description": "Check a hands-free web layout for accidental dwell selections with a head-pointing simulator, and build head-pointer, dwell and switch-scanning apps on the Planchette Kit skeleton.",
+  "author": {
+    "name": "4KInc"
+  },
+  "homepage": "https://github.com/4KInc/planchette-kit",
+  "repository": "https://github.com/4KInc/planchette-kit",
+  "license": "MIT",
+  "keywords": [
+    "dwell",
+    "dwell time",
+    "dwell click",
+    "dwell simulator",
+    "head pointer",
+    "head tracking",
+    "head mouse",
+    "switch scanning",
+    "single switch",
+    "hands-free",
+    "AAC",
+    "accidental selection",
+    "Midas touch",
+    "planchette",
+    "planchette kit"
+  ]
+}
