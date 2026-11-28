@@ -329,8 +329,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       the Board key unchanged until Carry).
     - Run all of `seance` and `seance-built`.
     - _Requirements: 6.4, 7.9, 9.1 to 9.5, 10.5, 10.9, 12.1, 12.6, 13.1 to 13.3, 16.3, 16.4_
-- [ ] 17. Layout export and the six-preset gate (0.75 h)
-  - [ ] 17.1 Export the four layouts.
+- [x] 17. Layout export and the six-preset gate (0.75 h)
+  - [x] 17.1 Export the four layouts.
     - Write `tools/dwell-sim-mcp/scripts/export-seance-layout.ts` (pattern: `export-board-layout.ts`): serve
       `dist/seance/index.html` with `vite preview`, open it at 1920×1080 and 1366×768, read
       `window.planchetteSeance.planchette.getTargets()` for the play view, then play a 3-letter Round in
@@ -341,7 +341,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       test-only switch to the app.
     - Write `tools/dwell-sim-mcp/test/export-seance-layout.test.ts` (the pure conversion, as the Board's).
     - _Requirements: 15.1_
-  - [ ] 17.2 Run the six presets and apply the gate.
+  - [x] 17.2 Run the six presets and apply the gate.
     - Write `tools/dwell-sim-mcp/scripts/run-seance-presets.ts` (imports `runDemoPresets` as
       `run-board-presets.ts` does; four layouts; `{ eachTarget: 2 }`; profile `{ dwellTime: 2100 }`) and
       `tools/dwell-sim-mcp/test/run-seance-presets.test.ts` (a stub handler is called 24 times with the
@@ -355,7 +355,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       the default dwell, or change the layout without the user's approval. Do not start Task 18 until the
       user replies.
     - _Requirements: 15.2 to 15.5_
-- [ ] 18. Final checkpoint (0.25 h)
+- [x] 18. Final checkpoint (0.25 h)
   - Follow the checkpoint rules. Confirm the Task 17.2 gate still passes (the metrics are deterministic
     for a fixed seed, so it needs a rerun only if source under `apps/seance/` or the layout changed since).
   - Add one line to `README.md` listing Séance at `/seance/` as the second app, and nothing else there.

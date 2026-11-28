@@ -22,7 +22,9 @@
     "demo:export:board": "npm run build && node dist-scripts/export-board-layout.js",
     "demo:run": "npm run build && node dist-scripts/run-demo-presets.js",
     "board:run": "npm run build && node dist-scripts/run-board-presets.js",
-    "methodology:tables": "npm run build && node dist-scripts/generate-methodology-tables.js"
+    "methodology:tables": "npm run build && node dist-scripts/generate-methodology-tables.js",
+    "demo:export:seance": "npm run build && node dist-scripts/export-seance-layout.js",
+    "seance:run": "npm run build && node dist-scripts/run-seance-presets.js"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",

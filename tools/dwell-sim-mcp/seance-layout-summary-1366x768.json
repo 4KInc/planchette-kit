@@ -1,0 +1,96 @@
+{
+  "screen": {
+    "width": 1366,
+    "height": 768
+  },
+  "targets": [
+    {
+      "id": "stop",
+      "rect": {
+        "x": 876,
+        "y": 120,
+        "width": 148.65625,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "undo",
+      "rect": {
+        "x": 1040.65625,
+        "y": 120,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "undo"
+    },
+    {
+      "id": "cancel",
+      "rect": {
+        "x": 1205.328125,
+        "y": 120,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "cancel"
+    },
+    {
+      "id": "sound-toggle",
+      "rect": {
+        "x": 1040.65625,
+        "y": 232,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "rest-area",
+      "rect": {
+        "x": 1205.328125,
+        "y": 232,
+        "width": 148.671875,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "rest-area"
+    },
+    {
+      "id": "camera-toggle",
+      "rect": {
+        "x": 876,
+        "y": 232,
+        "width": 148.65625,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "carry-dwell",
+      "rect": {
+        "x": 30,
+        "y": 646,
+        "width": 382,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    },
+    {
+      "id": "next-round",
+      "rect": {
+        "x": 460,
+        "y": 646,
+        "width": 382,
+        "height": 96
+      },
+      "autoRepeat": false,
+      "role": "default"
+    }
+  ]
+}
