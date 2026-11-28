@@ -246,7 +246,7 @@ profile unchanged (Requirement 8 AC 4), as the Board's does.
 ### `seance-layout.ts`
 ```typescript
 export interface Cell { readonly id: string; readonly row: number; readonly col: number; readonly colSpan: number; readonly kind: 'letter' | 'word' | 'decor' }
-export const BOARD_CELLS: readonly Cell[]; // 29 targets + 4 decorative cells, per the "Game board" table
+export const BOARD_CELLS: readonly Cell[]; // 29 targets + 5 decorative cells, per the "Game board" table
 export const COLUMNS = 7, ROWS = 6;
 export function boardExtent(targetSize: number, gap: number, gridWidth: number): { cellW: number; width: number; height: number };
 export function insideRect(point: { x: number; y: number }, rect: Rect): boolean;

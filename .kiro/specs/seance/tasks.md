@@ -128,14 +128,14 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
 - [x] 6. Checkpoint 2: game core complete
   - Follow the checkpoint rules. Confirm Properties 1 to 10 pass in the `apps/seance` suite.
   - Journal line.
-- [ ] 7. Summary, Carry to the Board, storage (1.25 h)
-  - [ ] 7.1 `summary.ts`.
+- [x] 7. Summary, Carry to the Board, storage (1.25 h)
+  - [x] 7.1 `summary.ts`.
     - Create `apps/seance/src/summary.ts`: `summarise` and `canOfferCarry`.
     - Write `apps/seance/test/summary.test.ts`: figures for a completed and a stopped Round (seconds to one
       decimal); `canOfferCarry` is true only when all four conditions hold, and each condition alone
       makes it false.
     - _Requirements: 4.1, 4.3, 4.6, 5.1_
-  - [ ] 7.2 `board-link.ts` and its tests.
+  - [x] 7.2 `board-link.ts` and its tests.
     - Create `apps/seance/src/board-link.ts`: `BOARD_KEY`, `readBoard`, `carryDwellToBoard`, `undoCarry`
       per design.md, all storage access in try/catch.
     - Write `apps/seance/test/board-link.test.ts`: the three read states; Carry on a valid record keeps
@@ -147,21 +147,21 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       in-memory storage, and asserts `usedDefault: false` and the carried dwell time for the `none` and
       `ok` paths. Add a comment saying why this one test crosses apps.
     - _Requirements: 5.2 to 5.10_
-  - [ ] 7.3 Property 11: Carry.
+  - [x] 7.3 Property 11: Carry.
     - Write `apps/seance/test/board-link.props.test.ts` (Property 11) with a spy storage: nothing is
       written until `carryDwellToBoard` is called; for any valid generated Board record only
       `profile.dwellTime` differs after a Carry; the written dwell is 400 to 3000 and a multiple of 50;
       any unreadable value is left unchanged; Undo restores exactly.
     - _Requirements: 5.3, 5.4, 5.6, 5.7, 5.8_
-  - [ ] 7.4 `seance-storage.ts` and Property 12.
+  - [x] 7.4 `seance-storage.ts` and Property 12.
     - Create `apps/seance/src/seance-storage.ts` (`KEY_SEANCE`, `readSeanceProfile`, `writeSeanceProfile`,
       `resolveInitialProfile`).
     - Write `apps/seance/test/seance-storage.test.ts` (round trip; missing key gives `{ dwellTime: 2100 }`
       from `resolveInitialProfile`; a saved dwell of 1000 stays 1000; write failure swallowed) and
       `seance-storage.props.test.ts` (Property 12: any stored string reads without throwing).
     - _Requirements: 8.3, 8.4, 8.5, 8.7_
-- [ ] 8. Layout, arrival guard, sound plan (1.0 h)
-  - [ ] 8.1 `seance-layout.ts` and Property 17.
+- [x] 8. Layout, arrival guard, sound plan (1.0 h)
+  - [x] 8.1 `seance-layout.ts` and Property 17.
     - Create `apps/seance/src/seance-layout.ts`: `BOARD_CELLS` (the table in requirements.md),
       `boardExtent`, `insideRect`, `guardedTargets`.
     - Write `apps/seance/test/seance-layout.test.ts`: 29 targets and 4 decorative cells; no two cells
@@ -172,7 +172,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       `held` is exactly the targets containing the pointer; `null` holds none; a pointer outside every
       rect holds none.
     - _Requirements: 4.7, 6.1, 6.3, 6.5_
-  - [ ] 8.2 `sound-plan.ts`, `sound.ts` and Property 15.
+  - [x] 8.2 `sound-plan.ts`, `sound.ts` and Property 15.
     - Create `apps/seance/src/sound-plan.ts` (`SOUND_LIMITS`, `planSound`) and `sound.ts`
       (`createSound(win)`: no `AudioContext` until `setOn(true)`; gain ramps of at least 20 ms;
       `setOn(false)` silences within 20 ms; a missing or throwing constructor leaves sound off).
@@ -180,12 +180,12 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       none created at load; created once on `setOn(true)`; `setOn(false)` ramps to 0; constructor that
       throws leaves the wrapper off, no throw) and `sound-plan.props.test.ts` (Property 15).
     - _Requirements: 12.1 to 12.5_
-  - [ ] 8.3 Property 14: no network.
+  - [x] 8.3 Property 14: no network.
     - Write `apps/seance/test/no-network.props.test.ts` (Property 14): spy on `fetch`, `XMLHttpRequest`,
       `WebSocket` and `sendBeacon`; run generated Rounds through `round.ts`, `support.ts`, `summary.ts`,
       `board-link.ts`, `seance-storage.ts` and `sound-plan.ts`; no call.
     - _Requirements: 13.1_
-- [ ] 9. Checkpoint 3: pure layer complete
+- [x] 9. Checkpoint 3: pure layer complete
   - Follow the checkpoint rules. Confirm Properties 1 to 12, 14, 15 and 17 pass.
   - Journal line.
 - [ ] 10. Page and Round loop (2.0 h)
