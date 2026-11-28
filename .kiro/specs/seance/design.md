@@ -397,6 +397,11 @@ contrast against the surfaces was computed during design, and the colour test re
 | `--lantern` | `#f2b84b` | the marker, focus, dwell progress | 9.0 / 7.8 |
 | `--moss` | `#8fae7e` | the planchette glyph's trim, decorative ring | 6.6 / 5.7 |
 | `--edge` | `#6f7694` | target borders | 4.1 on `--ground`, 3.6 on `--surface` |
+The skeleton's dwell outline uses its own fixed colours (white edge, `#111111` track, `#ffd400` arc). On
+these dark cells the dark track is not itself visible against the surface; the white edge (3:1 or better
+against `--edge`) and the arc (3:1 or better against the track) carry the progress, and the colour test checks
+those two pairs. The Board's stricter track-against-background rule (its Requirement 9 AC 12) is not asked of
+Séance.
 The moon, fog and glow are CSS gradients on the page, behind the board, with `aria-hidden` and
 contrast never taken below the table's. The marker is an outline and a glyph, so it is visible
 without colour. A slow glow (opacity 0.85 to 1 over 4 s) on the marker is the only animation; it is

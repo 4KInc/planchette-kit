@@ -1,7 +1,7 @@
 /**
  * Verifies that `npm run build` produces the three HTML files at the
  * paths the spec requires: dist/index.html, dist/board/index.html,
- * dist/game/index.html (not mirroring source directory structure).
+ * dist/seance/index.html (not mirroring source directory structure).
  *
  * Runs Vite's build() programmatically against the real vite.config.ts,
  * outputting into a temporary directory, so the test is self-contained,
@@ -58,8 +58,11 @@ describe("Vite build output paths", () => {
     expect(out("board/index.html")).toBe(true);
   });
 
-  it("produces game/index.html (App B at /game/)", () => {
-    expect(out("game/index.html")).toBe(true);
+  it("produces seance/index.html (App B, Séance, at /seance/)", () => {
+    expect(out("seance/index.html")).toBe(true);
+  });
+  it("has no game/ page: the old App B stub was replaced by Séance", () => {
+    expect(out("game/index.html")).toBe(false);
   });
 
   it("does NOT output index.html inside a skeleton/demo/ subdirectory", () => {

@@ -11,7 +11,7 @@ therapist.
 
 ```
 npm install
-npm run dev     # the demo at /, the communication board at /board/, the game at /game/
+npm run dev     # the demo at /, the communication board at /board/, Séance (a head-pointer practice game) at /seance/
 npm test        # unit and property tests
 npm run build   # production build in dist/
 ```

@@ -188,8 +188,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
 - [x] 9. Checkpoint 3: pure layer complete
   - Follow the checkpoint rules. Confirm Properties 1 to 12, 14, 15 and 17 pass.
   - Journal line.
-- [ ] 10. Page and Round loop (2.0 h)
-  - [ ] 10.1 Strings and static markup.
+- [x] 10. Page and Round loop (2.0 h)
+  - [x] 10.1 Strings and static markup.
     - Create `apps/seance/src/messages.ts` (every user-facing string; the notice; the Summary labels;
       no judging words). Replace the stub `seance/index.html` with the real markup: spelled line, board
       container, Summary container, side column (suggestion row, action row, camera row, Controls row,
@@ -198,7 +198,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
     - Write `apps/seance/test/messages.test.ts`: no judging word (wrong, fail, bad, lose, lost, mistake,
       error, try harder) and none of the language steering's banned stems appear in any string.
     - _Requirements: 3.10, 10.5, 11.3_
-  - [ ] 10.2 `seance-dom.ts` and `main.ts`.
+  - [x] 10.2 `seance-dom.ts` and `main.ts`.
     - Create `apps/seance/src/seance-dom.ts`: draw the board from `BOARD_CELLS`; register targets with the
       ids and roles in design.md (`autoRepeat: false`); the Round loop (select → `stepRound` →
       `stepSupport` → draw, live region, sound); `data-next`, `data-support`, the callout; the Summary
@@ -216,7 +216,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       restores it; held targets are not registered until the pointer leaves; targets are unregistered
       when the Round ends.
     - _Requirements: 1.2 to 1.11, 2.3, 3.2 to 3.10, 4.1 to 4.8, 5.2 to 5.8, 6.2, 12.2_
-  - [ ] 10.3 Properties 13 and 16.
+  - [x] 10.3 Properties 13 and 16.
     - Write `apps/seance/test/seance-dom.props.test.ts` with a fake host that records
       `registerTarget`/`updateTarget`/`unregisterTarget`. Property 16: across generated sequences of
       Rounds, Support levels, mode changes and Sound toggles, each Board target is registered at the
@@ -224,8 +224,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       Property 13: for each camera failure cause and each of scan and mouse mode, delivering `select`
       events for the correct targets completes a Round without error.
     - _Requirements: 6.2, 6.3, 7.7_
-- [ ] 11. Move the input controls into the skeleton (3.0 h)
-  - [ ] 11.1 Add the shared exports to `skeleton/src/ui`.
+- [x] 11. Move the input controls into the skeleton (3.0 h)
+  - [x] 11.1 Add the shared exports to `skeleton/src/ui`.
     - Create `skeleton/src/ui/input-controls.ts` (`mountInputControls`, `ControlsHost`,
       `InputControlsOptions`, `InputControlsText`, `InputControls`) from `apps/board/src/board-controls.ts`:
       same logic, strings taken from the `text` option, the Board-specific error text generalised.
@@ -238,7 +238,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       failures, Calibrate, clicks per mode, destroy), `settings-gate.test.ts`, `dom-targets.test.ts`
       (rect, roles, registry register/unregister/update).
     - _Requirements: 17.1, 17.2, 17.4_
-  - [ ] 11.2 Switch the Board to them, with no behaviour change.
+  - [x] 11.2 Switch the Board to them, with no behaviour change.
     - Make `apps/board/src/board-controls.ts` a wrapper: `mountBoardControls` calls `mountInputControls`
       with `messages.controls`, and the same names (`mountBoardControls`, `BoardControls`, `ControlsHost`,
       `BoardControlsOptions`) are exported. `apps/board/src/settings-gate.ts` re-exports. In
@@ -250,8 +250,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       checkpoint report, and make it in `.kiro/specs/input-core/design.md` only if it is a pure addition
       of the new names (no change of meaning).
     - _Requirements: 17.3, 17.5_
-- [ ] 12. Controls row, Settings, first-run hint (0.75 h)
-  - [ ] 12.1 Mount the shared controls and the camera rule.
+- [x] 12. Controls row, Settings, first-run hint (0.75 h)
+  - [x] 12.1 Mount the shared controls and the camera rule.
     - In `main.ts`, call `mountInputControls` (from `@planchette/skeleton/ui`) with Séance's `text` from
       `messages.ts`, `createSettingsGate` for the dialog, and `createTargetRegistry` /`elementRect` /
       `roleOptionsOf` in `seance-dom.ts` in place of any local copy. `main.ts` calls `startCamera()` once
@@ -262,7 +262,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       "Start camera" again after each of the three failure causes; the Séance page has every element id
       the shared controls expect.
     - _Requirements: 7.1 to 7.10, 17.2_
-  - [ ] 12.2 Settings dialog.
+  - [x] 12.2 Settings dialog.
     - Create `apps/seance/src/seance-settings-dom.ts`: Dwell time (number input 400 to 3000 step 50,
       clamped), "Start camera when the page opens", Calibrate (says the camera must be on when it is
       off; closes the dialog and calls `startCalibration` when on), About (what Séance is, the notice,
@@ -271,8 +271,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       keeps the dialog open and says why; selections are ignored while open and for a `select` stamped at
       or before the last close; Escape closes and returns focus to the Settings button.
     - _Requirements: 8.1 to 8.6_
-- [ ] 13. Theme (0.75 h)
-  - [ ] 13.1 `seance.css`, art, reduced motion.
+- [x] 13. Theme (0.75 h)
+  - [x] 13.1 `seance.css`, art, reduced motion.
     - Create `apps/seance/seance.css`: the tokens in design.md as custom properties; the two-column
       page and 7-column grid with the arithmetic in design.md; cell and label styles (letters at least
       40 px, other text 24 px or more); the marker (`[data-next]`, 4 px outline, inline SVG glyph), the
@@ -285,8 +285,8 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
       has no `opacity` rule on letters, that every `animation` and `transition` declaration sits inside
       `@media (prefers-reduced-motion: no-preference)`, and that no `url(` points to a non-local file.
     - _Requirements: 3.2, 3.3, 6.4, 10.3, 10.4, 10.6, 10.7, 11.1, 11.2, 11.5, 11.6_
-- [ ] 14. Séance is App B: remove the game stub, update steering and README (0.5 h)
-  - [ ] 14.1 Remove and update.
+- [x] 14. Séance is App B: remove the game stub, update steering and README (0.5 h)
+  - [x] 14.1 Remove and update.
     - Delete `apps/game/`, `game/index.html`, and the `game` entry of `vite.config.ts`. Search the repo
       (`rg -n "apps/game|/game/|game/index"`, excluding `.git`, `node_modules`, `dist` and the journal's
       history) and fix every remaining reference (README, docs, tests such as a build-output or CSP test
@@ -299,7 +299,7 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
     - Add a test or extend `build-output.test.ts` so the built `dist/` has `seance/index.html` and no
       `game/` folder.
     - _Requirements: 18.1 to 18.4_
-- [ ] 15. Checkpoint 4: playable app
+- [x] 15. Checkpoint 4: playable app
   - Follow the checkpoint rules. In addition, open the built page by hand in a browser (mouse mode, no
     camera) and play one Round: report in the journal line what looked wrong, if anything.
   - Journal line.
@@ -374,6 +374,7 @@ anyway, because tech.md says to keep it as a regression test).
 - [ ]* O7. Longer messages (1 h). Skipped. Words of 7 or more letters unlock after clean Rounds; needs the
   letter count in the requirements to change first.
 ## Notes
+- Tasks 10 and 11 were done in the order 11, then 10, so that Séance's DOM layer used the shared target registry from the start instead of a local copy. The list keeps the original order.
 - Task 1 touches the root `package.json`, `vite.config.ts` and `playwright.config.ts`. The existing
   Board, skeleton and dwell-sim projects must still pass at Checkpoint 1.
 - `apps/seance/src/main.ts` is extended in Tasks 10 and 12. No task leaves it in a state that does not

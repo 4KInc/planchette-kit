@@ -1,0 +1,302 @@
+/*
+ * Séance: a candle-lit dark board, drawn in CSS and inline SVG only (Requirement 11). Every colour
+ * is a custom property below, checked against WCAG AA by test/seance-colours.test.ts. This is a
+ * file, not inline styles, because the page's Content-Security-Policy allows same-origin styles only.
+ * Nothing flashes. Every animation sits inside `@media (prefers-reduced-motion: no-preference)`, so
+ * under reduced motion nothing moves at all.
+ */
+:root {
+  /* colour tokens */
+  --ground: #12141f;
+  --surface: #1c2030;
+  --surface-2: #262b40;
+  --bone: #f1ede2;
+  --muted: #b9b4a6;
+  --dim-text: #9a96a8;
+  --lantern: #f2b84b;
+  --lantern-halo: rgba(242, 184, 75, 0.35);
+  --moss: #8fae7e;
+  --edge: #6f7694;
+  --moon-glow: #2a3150;
+  --fog: rgba(185, 190, 215, 0.07);
+  /* sizes: the Profile defaults (accessibility.md); the page never shrinks below them */
+  --target-size: 96px;
+  --target-gap: 16px;
+  --grid-w: calc(var(--target-size) * 8 + var(--target-gap) * 5);
+  --bar-height: 80px;
+}
+* { box-sizing: border-box; }
+html { background: var(--ground); }
+body {
+  margin: 0;
+  font: 24px/1.3 system-ui, sans-serif;
+  color: var(--bone);
+  background: var(--ground);
+}
+[hidden] { display: none !important; }
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+/* Atmosphere: behind everything, never carries data, never lowers a text contrast (the colour test
+   checks text against the lightest stop of every gradient it can sit on). */
+.atmosphere { position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.moon {
+  position: absolute;
+  top: -120px;
+  right: -80px;
+  width: 520px;
+  height: 520px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 50%, var(--moon-glow) 0%, rgba(42, 49, 80, 0) 68%);
+}
+.fog { position: absolute; left: -20%; width: 140%; height: 220px; background: linear-gradient(90deg, rgba(0,0,0,0) 0%, var(--fog) 50%, rgba(0,0,0,0) 100%); }
+.fog-a { bottom: 12%; }
+.fog-b { bottom: 38%; }
+/*
+ * Page: two columns, as the Board's. At 1366 x 768: 12 + 848 + 16 + 478 + 12 = 1366 across, and
+ * the left column is the 80 px spelled line + 16 + 6 rows of 96 with 5 gaps of 16 = 752 high.
+ */
+.page {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: var(--grid-w) minmax(0, 1fr);
+  grid-template-rows: var(--bar-height) auto;
+  grid-template-areas:
+    "spell side"
+    "board side";
+  column-gap: var(--target-gap);
+  row-gap: var(--target-gap);
+  max-width: calc(var(--grid-w) + var(--target-gap) + 502px);
+  align-content: start;
+  margin: 0 auto;
+  padding: 8px 12px;
+}
+section { margin: 0; padding: 0; }
+.spell { grid-area: spell; min-height: 0; }
+.board-area { grid-area: board; }
+.side {
+  grid-area: side;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: var(--target-size) var(--target-size) var(--target-size) 48px 112px 112px;
+  row-gap: var(--target-gap);
+  align-content: start;
+  min-width: 0;
+}
+/* The spelled-so-far line: 48 px serif text, one line, in a bar that never moves or resizes. */
+.spelled {
+  margin: 0;
+  height: var(--bar-height);
+  padding: 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font: 48px/1 Georgia, 'Times New Roman', serif;
+  color: var(--bone);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.spelled-letters { letter-spacing: 0.18em; flex: 0 1 auto; overflow: hidden; text-overflow: clip; }
+.spelled-letters .todo { color: var(--muted); }
+.spelled-letters[data-kind="heading"] { letter-spacing: normal; font-size: 40px; }
+.spelled-callout { margin-left: auto; font-size: 32px; color: var(--lantern); }
+.spelled-callout:empty { display: none; }
+/* Buttons and targets */
+button {
+  font: inherit;
+  color: var(--bone);
+  background: var(--surface);
+  border: 3px solid var(--edge);
+  border-radius: 10px;
+  padding: 8px 14px;
+  min-height: 48px;
+  cursor: pointer;
+}
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 4px solid var(--lantern); outline-offset: 3px; }
+.target {
+  position: relative;
+  font-size: 24px;
+  font-weight: normal;
+  line-height: 1.3;
+  min-height: var(--target-size);
+  min-width: 0;
+  padding: 4px 2px;
+  border-width: 2px;
+  overflow-wrap: normal;
+  word-break: normal;
+  hyphens: none;
+}
+.target[aria-pressed="true"] { background: var(--surface-2); border-width: 4px; }
+.target[data-empty="true"] { border-style: dashed; background: transparent; cursor: default; color: var(--bone); }
+.target[data-held="true"] { border-style: dashed; background: transparent; cursor: default; }
+/* The board: 7 equal columns, rows of the target size. Placement comes from data-row, data-col and
+   data-span, never from DOM order (positions are fixed for the life of the page). */
+.board {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-auto-rows: var(--target-size);
+  gap: var(--target-gap);
+}
+.cell { min-width: 0; }
+.board [data-row="0"], .summary [data-row="0"] { grid-row: 1; }
+.board [data-row="1"] { grid-row: 2; }
+.board [data-row="2"] { grid-row: 3; }
+.board [data-row="3"] { grid-row: 4; }
+.board [data-row="4"] { grid-row: 5; }
+.board [data-row="5"], .summary [data-row="5"] { grid-row: 6; }
+.board [data-col="0"], .summary [data-col="0"] { grid-column-start: 1; }
+.board [data-col="1"] { grid-column-start: 2; }
+.board [data-col="2"] { grid-column-start: 3; }
+.board [data-col="3"] { grid-column-start: 4; }
+.board [data-col="4"], .summary [data-col="4"] { grid-column-start: 5; }
+.board [data-col="5"] { grid-column-start: 6; }
+.board [data-col="6"] { grid-column-start: 7; }
+.board [data-span="3"], .summary [data-span="3"] { grid-column-end: span 3; }
+.board [data-span="5"] { grid-column-end: span 5; }
+.letter { font: 40px/1 Georgia, 'Times New Roman', serif; }
+.word { font: 32px/1 Georgia, 'Times New Roman', serif; letter-spacing: 0.06em; }
+/* Decorative cells: not targets, not focusable, hidden from assistive technology. */
+.decor { border-radius: 10px; border: 2px dotted var(--edge); background: transparent; }
+.decor-moon-a, .decor-moon-b { border-color: transparent; background: radial-gradient(circle at 50% 50%, var(--surface-2) 0 28%, transparent 30%); }
+.decor-planchette { display: flex; align-items: center; justify-content: center; border-style: solid; border-color: transparent; }
+.decor-planchette svg { width: 64px; height: 64px; }
+.decor svg path, .decor svg circle { fill: none; stroke: var(--moss); stroke-width: 1.6; }
+/*
+ * The spirit's marker (Requirement 3). Shape as well as colour: a thicker lantern border and a small
+ * planchette glyph in the corner. Level 1 makes the border and glyph larger; level 2 also dims the
+ * other letters with a colour token (never opacity), so every text contrast is exactly the one tested.
+ */
+.target[data-next="true"] {
+  border-color: var(--lantern);
+  border-width: 4px;
+  box-shadow: 0 0 18px var(--lantern-halo);
+}
+.page[data-support="1"] .target[data-next="true"], .page[data-support="2"] .target[data-next="true"] {
+  border-width: 8px;
+  padding: 0;
+}
+.marker { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; pointer-events: none; }
+.marker path, .marker circle { fill: var(--lantern); stroke: var(--ground); stroke-width: 1.2; }
+.page[data-support="1"] .marker, .page[data-support="2"] .marker { width: 36px; height: 36px; top: 8px; right: 8px; }
+.page[data-support="2"] .board .target:not([data-next="true"]) { color: var(--dim-text); }
+/* Summary: the board's grid, replaced by figures, the Board's dwell time and two targets. */
+.summary {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-rows: repeat(6, var(--target-size));
+  gap: var(--target-gap);
+}
+.figures {
+  grid-row: 1 / span 4;
+  grid-column: 1 / -1;
+  padding: 12px 20px;
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.figures p { margin: 0 0 6px; }
+.figures .help { color: var(--muted); }
+.carry-text { grid-row: 5; grid-column: 1 / -1; margin: 0; color: var(--muted); align-self: center; }
+#carry-dwell { grid-row: 6; grid-column: 1 / span 3; }
+#next-round { grid-row: 6; grid-column: 5 / span 3; }
+/* Side column */
+.suggest-row, .actions, .camera-rest {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: var(--target-size);
+  gap: var(--target-gap);
+}
+.suggest-row .target { overflow-wrap: anywhere; }
+.rest {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  border: 3px dotted var(--moss);
+  border-radius: 12px;
+  padding: 4px 8px;
+  overflow: hidden;
+}
+.rest p { margin: 0; font-size: 24px; line-height: 1.2; }
+.controls-row { display: flex; align-items: center; gap: 12px; height: 48px; }
+.controls-row label { white-space: nowrap; }
+select, input[type="number"] {
+  font: inherit;
+  color: var(--bone);
+  background: var(--surface);
+  border: 2px solid var(--edge);
+  border-radius: 6px;
+  padding: 4px 8px;
+  min-height: 48px;
+  min-width: 0;
+}
+.controls-row select { flex: 1 1 auto; }
+.controls-row button { flex: 0 0 auto; white-space: nowrap; }
+#status-panel { position: relative; min-width: 0; }
+#camera-status { min-height: 1px; }
+#camera-status [data-planchette="tracking-indicator"] {
+  padding: 8px 12px;
+  border: 3px solid var(--edge);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--bone);
+}
+#camera-status [data-planchette="tracking-indicator"][data-state="failed"] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 10;
+  background: var(--surface-2);
+}
+#camera-status [data-planchette="tracking-indicator"] p { margin: 0; }
+#camera-status button { margin: 8px 8px 0 0; padding: 4px 8px; }
+#controls-message { margin: 0; max-height: 112px; overflow-y: auto; color: var(--bone); }
+footer { min-width: 0; overflow-y: auto; }
+footer p { margin: 0; line-height: 1.2; color: var(--muted); }
+/* Settings dialog */
+#settings {
+  box-sizing: border-box;
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  padding: 16px 24px;
+  color: var(--bone);
+  background: var(--ground);
+  border: 3px solid var(--edge);
+  border-radius: 12px;
+}
+#settings::backdrop { background: rgba(0, 0, 0, 0.6); }
+#settings h2, #settings h3 { margin: 0 0 8px; font-size: 24px; line-height: 1.3; }
+#settings .settings-group { margin: 0 0 16px; padding: 0 0 8px; border-bottom: 1px solid var(--edge); }
+#settings .settings-row { display: grid; gap: 4px; margin: 0 0 12px; }
+#settings .help, #settings p { margin: 0; }
+#settings .help { color: var(--muted); }
+#settings input[type="checkbox"] { width: 28px; min-height: 28px; height: 28px; accent-color: var(--lantern); }
+#settings .settings-row:has(> input[type="checkbox"]) { grid-template-columns: auto 1fr; align-items: center; column-gap: 12px; }
+#settings .settings-row:has(> input[type="checkbox"]) > .help { grid-column: 1 / -1; }
+#settings .dialog-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0; }
+#about-body p { margin: 0 0 8px; }
+/* Motion: only when the person has not asked for less. The glow is a change of at most 15 % in
+   opacity over 4 s; the fog drifts on 40 s and 90 s cycles, at most 0.12 opacity. */
+@media (prefers-reduced-motion: no-preference) {
+  .marker { animation: breathe 4s ease-in-out infinite alternate; }
+  .fog-a { animation: drift 40s linear infinite alternate; }
+  .fog-b { animation: drift 90s linear infinite alternate; }
+  @keyframes breathe { from { opacity: 0.85; } to { opacity: 1; } }
+  @keyframes drift { from { transform: translateX(-6%); } to { transform: translateX(6%); } }
+}

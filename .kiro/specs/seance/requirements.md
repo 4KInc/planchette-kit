@@ -149,7 +149,8 @@ making me feel I failed, so that I can keep practising.
    3000 ms and on a 50 ms step. The Suggestion SHALL never be lower than the current Dwell
    time (Property 6).
 8. THE Suggestion SHALL show as two targets in a fixed place in the side column ("Hold
-   longer: N ms" and "Not now"), with a status message in plain language. WHEN the person
+   longer: N ms" and "Not now"), and its plain-language sentence ("A longer hold may help. Try N ms?")
+   SHALL be announced in the live region and be part of the Hold-longer target's accessible name. WHEN the person
    selects "Hold longer", THE Séance SHALL set the Profile's Dwell time to the suggested
    value through `setProfile` and save the Séance Profile. WHEN the person selects "Not now",
    or Cancel, THE Séance SHALL close the Suggestion and change nothing. THE Suggestion SHALL

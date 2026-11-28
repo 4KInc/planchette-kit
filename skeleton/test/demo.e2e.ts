@@ -13,7 +13,7 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test, type Page } from '@playwright/test';
 
-const PAGES = ['/', '/board/', '/game/'] as const;
+const PAGES = ['/', '/board/', '/seance/'] as const;
 
 interface Watch {
   requests: string[];

@@ -5,3 +5,12 @@
  */
 export { createDwellRing, type DwellRing, type DwellRingOptions, type DwellRingShape } from './dwell-ring.js';
 export { createScanHighlight, type ScanHighlight, type ScanHighlightOptions } from './scan-highlight.js';
+export {
+  mountInputControls,
+  type ControlsHost,
+  type InputControls,
+  type InputControlsOptions,
+  type InputControlsText,
+} from './input-controls.js';
+export { createSettingsGate, type SettingsGate } from './settings-gate.js';
+export { createTargetRegistry, elementRect, roleOptionsOf, type TargetHost, type TargetRegistry } from './dom-targets.js';

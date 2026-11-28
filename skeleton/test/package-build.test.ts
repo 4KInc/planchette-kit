@@ -24,7 +24,15 @@ const outDir = resolve(runDir, 'dist');
 /** The runtime names exported from the package entry point. Types do not appear here. */
 const EXPECTED_EXPORTS = ['createPlanchette', 'pointToRotation', 'rotationToPoint'];
 /** The runtime names of the `./ui` entry point (Task 16). */
-const EXPECTED_UI_EXPORTS = ['createDwellRing', 'createScanHighlight'];
+const EXPECTED_UI_EXPORTS = [
+  'createDwellRing',
+  'createScanHighlight',
+  'createSettingsGate',
+  'createTargetRegistry',
+  'elementRect',
+  'mountInputControls',
+  'roleOptionsOf',
+];
 
 function walk(dir: string): string[] {
   const out: string[] = [];

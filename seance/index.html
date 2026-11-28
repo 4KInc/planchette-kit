@@ -5,9 +5,112 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self'; script-src 'self' 'wasm-unsafe-eval'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Séance</title>
+    <link rel="stylesheet" href="../apps/seance/seance.css" />
   </head>
   <body>
-    <h1>Séance</h1>
+    <div class="atmosphere" aria-hidden="true"><div class="moon"></div><div class="fog fog-a"></div><div class="fog fog-b"></div></div>
+    <header class="visually-hidden">
+      <h1 data-text="page.heading"></h1>
+    </header>
+    <main class="page" data-view="play" data-support="0">
+      <section aria-labelledby="spell-title" class="spell">
+        <h2 id="spell-title" class="visually-hidden" data-text="page.spellTitle"></h2>
+        <p id="spelled" class="spelled" aria-hidden="true"><span id="spelled-letters" class="spelled-letters"></span><span id="spelled-callout" class="spelled-callout"></span></p>
+      </section>
+      <section aria-labelledby="board-title" class="board-area" id="board-section">
+        <h2 id="board-title" class="visually-hidden" data-text="page.boardTitle"></h2>
+        <div id="board" class="board"></div>
+      </section>
+      <section aria-labelledby="summary-title" class="board-area" id="summary-section" hidden>
+        <h2 id="summary-title" class="visually-hidden" data-text="page.summaryTitle"></h2>
+        <div id="summary" class="summary">
+          <div class="figures">
+            <p id="summary-letters"></p>
+            <p id="summary-time"></p>
+            <p id="summary-accidental"></p>
+            <p id="summary-accidental-meaning" class="help"></p>
+            <p id="summary-taken-back"></p>
+            <p id="summary-dwell"></p>
+          </div>
+          <p id="summary-board" class="carry-text" role="status"></p>
+          <button type="button" class="target cell summary-target" id="carry-dwell" data-planchette-target="carry-dwell" hidden></button>
+          <button type="button" class="target cell summary-target" id="next-round" data-planchette-target="next-round"></button>
+        </div>
+      </section>
+      <p id="live" class="visually-hidden" role="status" aria-live="polite"></p>
+      <div class="side">
+        <div class="suggest-row" id="suggest-row">
+          <button type="button" class="target" id="suggest-apply" data-planchette-target="suggest-apply" disabled aria-hidden="true" tabindex="-1" data-empty="true"></button>
+          <button type="button" class="target" id="suggest-dismiss" data-planchette-target="suggest-dismiss" disabled aria-hidden="true" tabindex="-1" data-empty="true"></button>
+          <span class="spacer" aria-hidden="true"></span>
+        </div>
+        <section aria-labelledby="actions-title" class="actions-section">
+          <h2 id="actions-title" class="visually-hidden" data-text="page.actionsTitle"></h2>
+          <div class="actions">
+            <button type="button" class="target" data-planchette-target="stop" data-text="actions.stop" id="stop"></button>
+            <button type="button" class="target" data-planchette-target="undo" data-role="undo" data-text="actions.undo" id="undo"></button>
+            <button type="button" class="target" data-planchette-target="cancel" data-role="cancel" data-text="actions.cancel" id="cancel"></button>
+          </div>
+        </section>
+        <div class="camera-rest">
+          <button type="button" class="target" data-planchette-target="camera-toggle" aria-pressed="false"></button>
+          <button type="button" class="target" id="sound-toggle" data-planchette-target="sound-toggle" aria-pressed="false" data-text="actions.soundOff"></button>
+          <div class="rest" id="rest-area" data-planchette-target="rest-area" data-role="rest-area" role="group" data-aria-label="page.restAreaHelp">
+            <p data-text="page.restArea"></p>
+          </div>
+        </div>
+        <section aria-labelledby="controls-title" class="controls">
+          <h2 id="controls-title" class="visually-hidden" data-text="page.controlsTitle"></h2>
+          <div class="controls-row">
+            <label for="mode"></label>
+            <select id="mode"></select>
+            <button type="button" id="settings-button" data-text="controls.settings"></button>
+          </div>
+        </section>
+        <div id="status-panel">
+          <div id="camera-status"></div>
+          <p id="controls-message" role="status"></p>
+        </div>
+        <footer>
+          <p id="notice" data-text="notice"></p>
+        </footer>
+      </div>
+    </main>
+    <dialog id="settings" aria-labelledby="settings-title">
+      <h2 id="settings-title" data-text="settings.title"></h2>
+      <div id="settings-main">
+        <section class="settings-group" aria-labelledby="dwell-title">
+          <h3 id="dwell-title" data-text="settings.dwellLabel"></h3>
+          <div class="settings-row">
+            <label for="dwell-input" class="visually-hidden" data-text="settings.dwellLabel"></label>
+            <input id="dwell-input" type="number" min="400" max="3000" step="50" inputmode="numeric" />
+            <p class="help" data-text="settings.dwellHelp"></p>
+          </div>
+        </section>
+        <section class="settings-group" aria-labelledby="camera-load-title">
+          <h3 id="camera-load-title" data-text="settings.startCameraOnLoad"></h3>
+          <div class="settings-row">
+            <input id="camera-on-load" type="checkbox" aria-labelledby="camera-load-title" />
+            <p class="help" data-text="settings.startCameraOnLoadHelp"></p>
+          </div>
+        </section>
+        <section aria-labelledby="settings-calibrate-title" class="settings-group">
+          <h3 id="settings-calibrate-title" data-text="controls.calibrate"></h3>
+          <p class="help" data-text="settings.calibrateHelp"></p>
+          <button type="button" id="calibrate"></button>
+          <p id="settings-message" role="status"></p>
+        </section>
+      </div>
+      <section id="about" aria-labelledby="about-title" hidden>
+        <h3 id="about-title" data-text="settings.aboutTitle"></h3>
+        <div id="about-body"></div>
+        <button type="button" id="about-back" data-text="settings.back"></button>
+      </section>
+      <div class="dialog-actions">
+        <button type="button" id="about-button" data-text="settings.about"></button>
+        <button type="button" id="settings-close" data-text="settings.close"></button>
+      </div>
+    </dialog>
     <script type="module" src="../apps/seance/src/entry.ts"></script>
   </body>
 </html>

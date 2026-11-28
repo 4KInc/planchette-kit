@@ -1347,6 +1347,10 @@ import (`sideEffects: false`); the factory adds its elements.
   highlight leaves. The virtual Back and Cancel items are drawn as a bar at the top
   (`role="region"`, labelled "Scan item"), highlighted the same way. No transitions.
 - **Tracking indicator**: built in, see §7 "Adapter details".
+- **Shared input controls** (added with the Séance spec, moved from the Board with no change of
+  behaviour): `mountInputControls` (mode selector, camera toggle, message line, first-run hint,
+  Calibrate), `createSettingsGate`, and the DOM-target helpers `elementRect`, `roleOptionsOf` and
+  `createTargetRegistry`. The app passes every string; the skeleton holds none.
 - **End-to-end tests** (`skeleton/test/ui.e2e.ts`, `npm run test:e2e`): Playwright on a test
   page (`skeleton/test/e2e/ui-fixture.html`, served by the dev server, not built), with
   synthetic samples only. Permission denied is made by replacing `getUserMedia` with one
@@ -1356,7 +1360,7 @@ import (`sideEffects: false`); the factory adds its elements.
 
 ### Demo page and Content-Security-Policy (Task 17)
 Decisions the spec left open:
-- **Policy.** Every page (`index.html`, `board/index.html`, `game/index.html`) carries the same
+- **Policy.** Every page (`index.html`, `board/index.html`, `seance/index.html`; the last was `game/index.html` until Séance replaced that stub) carries the same
   `<meta http-equiv="Content-Security-Policy">`:
   `default-src 'self'; connect-src 'self'; script-src 'self' 'wasm-unsafe-eval'`. A meta tag
   works in dev, in the build and on GitHub Pages, which cannot set headers. The only addition

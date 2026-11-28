@@ -23,7 +23,8 @@
  * (`settingsOpen`). Every visible
  * string comes from messages.ts: elements with `data-text="<path>"` are filled from it.
  */
-import type { Planchette, Rect, TargetRole } from '@planchette/skeleton';
+import type { Planchette, Rect } from '@planchette/skeleton';
+import { elementRect, roleOptionsOf } from '@planchette/skeleton/ui';
 import { CORE_VOCABULARY } from './core-vocabulary.js';
 import { LETTER_BOARD } from './letter-board.js';
 import type { BoardApp } from './main.js';
@@ -63,12 +64,7 @@ type View = 'core' | 'spell' | 'phrases';
 const PHRASES_PER_PAGE = 10;
 const PHRASES_NAV_ROW = 5;
 
-const ROLES: ReadonlySet<string> = new Set<TargetRole>(['default', 'cancel', 'undo', 'rest-area']);
-
-function rectOf(el: HTMLElement): Rect {
-  const r = el.getBoundingClientRect();
-  return { x: r.x, y: r.y, width: r.width, height: r.height };
-}
+const rectOf = elementRect;
 
 /** Looks up a dot-separated path in `messages`, e.g. `actions.speak`. */
 function messageAt(path: string): string {
@@ -251,10 +247,8 @@ export function mountBoardDom({ host, app, document: doc }: BoardDomOptions): Bo
   const lastRects = new Map<string, Rect>();
   const registerEl = (el: HTMLElement): void => {
     const id = el.dataset.planchetteTarget!;
-    const role = el.dataset.role;
-    const options = role !== undefined && ROLES.has(role) ? { role: role as TargetRole } : undefined;
     const rect = rectOf(el);
-    host.registerTarget(id, rect, options);
+    host.registerTarget(id, rect, roleOptionsOf(el));
     registered.set(id, el);
     lastRects.set(id, rect);
   };

@@ -45,8 +45,10 @@ to make their own app usable hands-free.
   The skeleton is also published to npm later (see `docs/npm-package-plan.md`); until
   then it is a template.
 - `/apps/board`: App A, a communication board (spell words, quick phrases, spoken output).
-- `/apps/game`: App B, a hands-free haunted target game (aim and time, no text).
-  It is accessible gaming, a real need, not only the spooky half of the demo.
+- `/apps/seance`: App B, Séance, a spooky head-pointer practice game. A friendly spirit spells a
+  short message on an Ouija-style board and the player selects each letter, with head pointing and
+  dwell or any other input mode. It teaches the input, adapts gently after misses, and offers to carry
+  the dwell time that worked into the Board's settings, only when the person presses for it.
 - `/tools/dwell-sim-mcp`: the dwell simulator as an MCP server.
 
 Any demo of adding the kit to someone else's open-source app lives in a separate fork
@@ -73,7 +75,7 @@ linked from the README, never in this repo.
 ## Theme rules
 - App A (communication board) is **calm and unthemed**. No spooky effects; it is a
   daily tool.
-- App B (haunted game) and the skeleton's demo page carry the Halloween theme.
+- App B (Séance) and the skeleton's demo page carry the Halloween theme.
 - No flashing, no jump-scare flashes, sound off until the player turns it on.
 
 ## Non-goals

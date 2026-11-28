@@ -22,7 +22,7 @@ inclusion: always
   `docs/npm-package-plan.md`. `skeleton/src/index.ts` is its only public entry point:
   anything not exported there is private and may change.
   One Vite multi-page build serves the skeleton demo at `/`, App A at `/board/` and
-  App B at `/game/`, so `npm run dev` runs all three and judges get one URL. Deploy as a static site.
+  App B (Séance) at `/seance/`, so `npm run dev` runs all three and judges get one URL. Deploy as a static site.
 
 ## Architecture rules
 - **Engines never hard-code timings or thresholds.** Every value comes from the profile.

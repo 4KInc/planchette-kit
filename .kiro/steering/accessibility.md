@@ -43,8 +43,8 @@ truth: #[[file:.kiro/specs/input-core/requirements.md]]
 ## Visual
 - Text contrast at least 4.5:1, UI parts at least 3:1.
 - Respect `prefers-reduced-motion`.
-- Nothing flashes more than 3 times a second (WCAG 2.3.1). This applies to the haunted
-  game too.
+- Nothing flashes more than 3 times a second (WCAG 2.3.1). This applies to every app and
+  every theme.
 - Text at least 24 CSS px on the communication board.
 
 ## Control

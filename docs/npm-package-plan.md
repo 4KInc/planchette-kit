@@ -83,7 +83,7 @@ site, not a third-party CDN. A package cannot serve files, so:
       a plain HTML page, runs the 15-line example, and gets a `select` event from
       synthetic samples. Proves the published package works, not just the repo.
 - [ ] A test that the package exports only the public API (no internal paths).
-- [ ] Apps in this repo (`apps/board`, `apps/game`) and the dwell simulator keep
+- [ ] Apps in this repo (`apps/board`, `apps/seance`) and the dwell simulator keep
       importing the skeleton only through the public API (already a `structure.md` rule).
 - [ ] `CHANGELOG.md` in `skeleton/`.
 

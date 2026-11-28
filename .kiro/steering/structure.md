@@ -12,7 +12,7 @@ inclusion: always
   agents/          custom agents (layout designer, accessibility reviewer)
 /index.html        entry page for the skeleton demo (loads skeleton/demo/main.ts)
 /board/index.html  entry page for App A (loads apps/board/src/main.ts)
-/game/index.html   entry page for App B (loads apps/game/src/main.ts)
+/seance/index.html entry page for App B, Séance (loads apps/seance/src/entry.ts)
 /skeleton/         the template package
   src/engine/      deterministic logic: dwell, scanning, gesture, smoothing, calibration
   src/adapters/    camera (MediaPipe head + face gesture), keyboard/switch, mouse, gamepad
@@ -23,8 +23,8 @@ inclusion: always
   examples/        the 15-line integration example
 /apps/board/       App A: communication board
   src/main.ts      board app script (entry loaded by /board/index.html)
-/apps/game/        App B: haunted target game
-  src/main.ts      game app script (entry loaded by /game/index.html)
+/apps/seance/      App B: Séance, a spooky head-pointer practice game
+  src/entry.ts     app script (entry loaded by /seance/index.html); main.ts holds startSeance
 /tools/dwell-sim-mcp/  MCP server for simulated users
 /power/            the "Make this app hands-free" Kiro power (check the current power
                    format on kiro.dev before building it)
@@ -49,5 +49,4 @@ THIRD_PARTY.md     every dependency and its licence
 The following are intentionally not defined here and will each have their own spec:
 - The dwell simulator's MCP tool interface (inputs, outputs, movement model parameters).
 - Word prediction in the communication board (source, trigger, strip behaviour).
-- App B game design (round structure, scoring, win/lose conditions).
 - The Kiro power format (check kiro.dev for the current format before building `/power`).
