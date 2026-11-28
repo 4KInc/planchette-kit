@@ -91,7 +91,9 @@ SDK's optional HTTP code (express, hono). The stdio entry imports only `server/m
 workaround, I stop and report before going on.
 
 ## 4. `mcp.json` and the path question
-Primary entry (the form the specification defines, §7.2.1 and §9.2):
+Primary entry (the form the specification defines, §7.2.1 and §9.2). **Verified in Kiro on 28 Nov 2026:**
+the power was imported from the folder, the Powers panel shows `power-planchette-dwell-sim` as Connected
+with 3 tools, so Kiro expands `${PLUGIN_ROOT}` in `args`:
 
 ```json
 {
@@ -112,19 +114,21 @@ What is known and not known:
   `command` that is a bundled executable must be `./`-relative; `node` is a bare name found on
   PATH, so that rule does not apply.
 - The **Kiro docs** say none of this: their example uses only `npx` and environment-variable
-  placeholders. Whether Kiro's implementation follows the specification is therefore unknown.
+  placeholders. The spec form was therefore unconfirmed when this section was written. It has
+  since been confirmed in Kiro (see above). The docs still do not describe it.
   The sim's README records the same gap for workspace configs: the working directory was found
   by testing.
-- I cannot test Kiro's panel from here. I can test the Bundle: it uses no relative reads, so it
-  starts from any working directory, and the tests spawn it under both resolutions.
+- The Bundle uses no relative reads, so it starts from any working directory, and the tests
+  spawn it under both resolutions.
 
 The tests cover two resolutions:
 1. **Spec form:** `${PLUGIN_ROOT}` replaced by the power folder's absolute path, cwd anywhere.
 2. **Relative form:** `node ./dwell-sim-mcp.mjs` with cwd set to the power folder (a client that
    starts servers in the plugin root and passes a relative path).
 
-Fallback entry, documented in the README and tested but not shipped in `mcp.json`, to be
-swapped in only if the panel shows the primary entry failing:
+Fallback entry, documented in the README and tested but not shipped in `mcp.json`. It stays a
+fallback: the spec form works in Kiro, so use this only if a future Kiro version stops expanding
+`${PLUGIN_ROOT}` in `args`:
 
 ```json
 "args": ["./dwell-sim-mcp.mjs"], "cwd": "${PLUGIN_ROOT}"

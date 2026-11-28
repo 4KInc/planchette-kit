@@ -40,10 +40,13 @@ Install, either way (Kiro IDE, Powers panel, Add Custom Power):
    `https://github.com/4KInc/planchette-kit/tree/main/power-planchette`, then click Install.
 
 Kiro runs the simulator as `power-planchette-dwell-sim` and shows its three tools, `list_users`,
-`simulate` and `compare`, in the power's details. If that server shows "Connection closed" or a message
-naming `${PLUGIN_ROOT}`, Kiro does not expand `${PLUGIN_ROOT}` in `mcp.json`. The Kiro docs do not say how
-`mcp.json` paths resolve; the Agent Plugins specification does. In that case replace the server's `args` in
-`power-planchette/mcp.json` with `["./dwell-sim-mcp.mjs"]` and add `"cwd": "${PLUGIN_ROOT}"`, then reinstall.
+`simulate` and `compare`, in the power's details. Checked in Kiro IDE on 28 Nov 2026: imported from the
+folder, the server shows Connected (3 tools), so Kiro expands `${PLUGIN_ROOT}` in `mcp.json` as the Agent
+Plugins specification says (the Kiro docs do not describe it). A plain "check my layout for accidental
+selections" prompt loads `check-dwell-layout`.
+**Fallback, only if your Kiro version does not expand it.** If the server shows "Connection closed" or a
+message naming `${PLUGIN_ROOT}`, replace the server's `args` in `power-planchette/mcp.json` with
+`["./dwell-sim-mcp.mjs"]` and add `"cwd": "${PLUGIN_ROOT}"`, then reinstall.
 The tests start the server both ways.
 
 **Rebuilding the simulator file.** `power-planchette/dwell-sim-mcp.mjs` is generated from

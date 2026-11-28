@@ -20,3 +20,5 @@ All numbers are accidental selections per 100 intended selections, from `dwell-s
 | **Worst** | **7.1** (seed 9) | **5.2** (seed 3) | **0.8** (seed 9) | **0** (seed 1) |
 ## Verdict
 **Pass.** The worst value is 7.1 (play-1920x1080, seed 9), at or below 10.
+## Note: small-range
+`small-range` (head range of 3 degrees) is not part of the gate. Its worst value over seeds 1 to 10 at 2100 ms is 9.2 per 100 intended (play-1920x1080), close to the limit of 10 but under it; play-1366x768 is 6.3, the summary layouts 2.4 or less. It was not investigated. It is the same open question as the Board's `small-range` (4.4 to 6.3 in `docs/board-gate.md`).
