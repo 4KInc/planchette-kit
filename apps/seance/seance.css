@@ -18,6 +18,7 @@
   --moss: #8fae7e;
   --edge: #6f7694;
   --moon-glow: #2a3150;
+  --ornament: #343a55;
   --fog: rgba(185, 190, 215, 0.07);
   /* sizes: the Profile defaults (accessibility.md); the page never shrinks below them */
   --target-size: 96px;
@@ -171,11 +172,12 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 4px s
 .letter { font: 40px/1 Georgia, 'Times New Roman', serif; }
 .word { font: 32px/1 Georgia, 'Times New Roman', serif; letter-spacing: 0.06em; }
 /* Decorative cells: not targets, not focusable, hidden from assistive technology. */
-.decor { border-radius: 10px; border: 2px dotted var(--edge); background: transparent; }
-.decor-moon-a, .decor-moon-b { border-color: transparent; background: radial-gradient(circle at 50% 50%, var(--surface-2) 0 28%, transparent 30%); }
-.decor-planchette { display: flex; align-items: center; justify-content: center; border-style: solid; border-color: transparent; }
+.decor { display: flex; align-items: center; justify-content: center; border: 0; background: transparent; }
 .decor-planchette svg { width: 64px; height: 64px; }
-.decor svg path, .decor svg circle { fill: none; stroke: var(--moss); stroke-width: 1.6; }
+.decor-planchette svg path, .decor-planchette svg circle { fill: none; stroke: var(--moss); stroke-width: 1.6; }
+/* Board ornaments: a crescent and a star, original shapes, drawn faintly with no border and no text. */
+.ornament { width: min(56px, 60%); height: auto; aspect-ratio: 1; }
+.ornament path, .ornament polygon { fill: var(--ornament); stroke: none; }
 /*
  * The spirit's marker (Requirement 3). Shape as well as colour: a thicker lantern border and a small
  * planchette glyph in the corner. Level 1 makes the border and glyph larger; level 2 also dims the

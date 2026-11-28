@@ -86,5 +86,6 @@ describe("Property 1: Deterministic", () => {
       }),
       { numRuns: 200 },
     );
-  });
+    // 15 s, not the 5 s default: alone this takes about 1.4 s, but a seed sweep runs it beside the whole suite and it timed out under CPU load.
+  }, 15_000);
 });

@@ -30,7 +30,7 @@ const surface = c('surface');
 const surface2 = c('surface-2');
 describe('Séance colours (Requirement 10 AC 3, Requirement 11 AC 5)', () => {
   it('defines every colour as a custom property in :root', () => {
-    for (const n of ['ground', 'surface', 'surface-2', 'bone', 'muted', 'dim-text', 'lantern', 'moss', 'edge', 'moon-glow', 'fog']) expect(() => token(n), n).not.toThrow();
+    for (const n of ['ground', 'surface', 'surface-2', 'bone', 'muted', 'dim-text', 'lantern', 'moss', 'edge', 'moon-glow', 'ornament', 'fog']) expect(() => token(n), n).not.toThrow();
   });
   it('the ground is a near-black blue, never #000', () => {
     expect(token('ground').toLowerCase()).not.toBe('#000000');
@@ -166,5 +166,16 @@ describe('empty Suggestion slots', () => {
   it('are invisible (no border, no box) but keep their space', () => {
     expect(css).toMatch(/\.target\[data-empty="true"\]\s*\{\s*visibility:\s*hidden;/);
     expect(css).not.toMatch(/data-empty="true"\][^{]*\{[^}]*dashed/);
+  });
+});
+describe('board ornaments', () => {
+  it('are faint (decoration, below 3:1 on purpose) but visible, with no border and no text', () => {
+    const r = ratio(c('ornament'), ground);
+    expect(r).toBeGreaterThan(1.3);
+    expect(r).toBeLessThan(3);
+    const decor = /\.decor\s*\{[^}]*\}/.exec(css)![0];
+    expect(decor).toContain('border: 0');
+    expect(decor).not.toMatch(/dotted|dashed|solid/);
+    expect(css).toMatch(/\.ornament path, \.ornament polygon\s*\{\s*fill: var\(--ornament\);\s*stroke: none;/);
   });
 });

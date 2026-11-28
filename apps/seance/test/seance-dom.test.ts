@@ -347,3 +347,21 @@ describe("the spirit's planchette", () => {
     expect(Number(m[1])).toBeCloseTo(cell.x + cell.width - 28 - 6, 5);
   });
 });
+describe('board ornaments', () => {
+  it('the five decorative cells are drawn shapes: no text, aria-hidden, not targets, not focusable', () => {
+    const decor = [...document.querySelectorAll<HTMLElement>('#board .decor')];
+    expect(decor).toHaveLength(5);
+    const kinds = decor.map((d) => d.querySelector('svg')?.getAttribute('class') ?? '');
+    expect(kinds.filter((k) => k.includes('ornament-crescent'))).toHaveLength(2);
+    expect(kinds.filter((k) => k.includes('ornament-star'))).toHaveLength(2);
+    for (const d of decor) {
+      expect(d.getAttribute('aria-hidden')).toBe('true');
+      expect(d.textContent).toBe('');
+      expect(d.dataset.planchetteTarget).toBeUndefined();
+      expect(d.tagName).toBe('DIV');
+      expect(d.tabIndex).toBe(-1);
+      expect(d.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+      expect(host.registered.has(d.className.split(' ').pop()!)).toBe(false);
+    }
+  });
+});

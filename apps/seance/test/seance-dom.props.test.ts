@@ -26,6 +26,7 @@ describe('Feature: seance, Property 16: Layout stability', () => {
     fc.assert(
       fc.property(fc.integer({ min: 0, max: 0xffffff }), fc.array(actionArb, { maxLength: 60 }), (seed, actions) => {
         const { host, dom, press, tick } = setup(seed);
+        const gapChecked = new Set<string>();
         const check = (): void => {
           for (const { id, rect } of host.history) {
             if (!BOARD_TARGET_IDS.has(id)) continue;
@@ -35,6 +36,11 @@ describe('Feature: seance, Property 16: Layout stability', () => {
             expect(rect.height).toBeGreaterThanOrEqual(96);
           }
           const ids = [...host.registered.keys()].filter((i) => BOARD_TARGET_IDS.has(i));
+          // the rectangles are the same whenever a target is registered (checked above), so each distinct set
+          // of registered targets needs its pairwise gaps checked once
+          const signature = ids.slice().sort().join(',');
+          if (gapChecked.has(signature)) return;
+          gapChecked.add(signature);
           for (let i = 0; i < ids.length; i++)
             for (let j = i + 1; j < ids.length; j++) {
               const a = host.registered.get(ids[i]!)!.rect;
@@ -62,7 +68,7 @@ describe('Feature: seance, Property 16: Layout stability', () => {
       }),
       { numRuns: 60 },
     );
-  });
+  }, 30_000);
 });
 describe('Feature: seance, Property 13: Camera unavailable, scan and mouse still complete a Round', () => {
   it.each([

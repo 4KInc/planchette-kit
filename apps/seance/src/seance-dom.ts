@@ -83,6 +83,31 @@ function planchetteGlyph(doc: Document, className: string): SVGSVGElement {
   svg.append(body, window_);
   return svg;
 }
+/** Which ornament each decorative cell shows: a crescent or a star, drawn here, original and without text. */
+const ORNAMENTS: Readonly<Record<string, 'crescent' | 'star'>> = {
+  'decor-moon-a': 'crescent',
+  'decor-moon-b': 'star',
+  'decor-left': 'star',
+  'decor-right': 'crescent',
+};
+function ornament(doc: Document, kind: 'crescent' | 'star'): SVGSVGElement {
+  const svg = doc.createElementNS(SVG_NS, 'svg');
+  svg.setAttribute('viewBox', '0 0 64 64');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('focusable', 'false');
+  svg.setAttribute('class', `ornament ornament-${kind}`);
+  if (kind === 'crescent') {
+    const p = doc.createElementNS(SVG_NS, 'path');
+    // a crescent open to the right: the outer arc of a circle of radius 24 and an inner arc of radius 20
+    p.setAttribute('d', 'M44 11.2 A24 24 0 1 0 44 52.8 A20 20 0 0 1 44 11.2 Z');
+    svg.append(p);
+  } else {
+    const p = doc.createElementNS(SVG_NS, 'polygon');
+    p.setAttribute('points', '32,10 37.3,24.7 52.9,25.2 40.6,34.8 44.9,49.8 32,41 19.1,49.8 23.4,34.8 11.1,25.2 26.7,24.7');
+    svg.append(p);
+  }
+  return svg;
+}
 export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
   const { host, document: doc, storage, seed, sound, saveProfile, isBlocked } = options;
   const clock = options.now ?? ((): number => doc.defaultView?.performance.now() ?? 0);
@@ -116,6 +141,8 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
       el.className = `decor cell ${cell.id}`;
       el.setAttribute('aria-hidden', 'true');
       if (cell.id === 'decor-planchette') el.append(planchetteGlyph(doc, 'decor-glyph'));
+      const kind = ORNAMENTS[cell.id];
+      if (kind !== undefined) el.append(ornament(doc, kind));
     } else {
       el = doc.createElement('button');
       (el as HTMLButtonElement).type = 'button';
