@@ -152,12 +152,13 @@ export interface SupportState {
   missStreak: number;
   hitStreak: number;
   offeredThisRound: boolean;
-  suggestion: { ms: number } | null;  // open until answered
+  suggestion: { ms: number } | null;  // open until answered or the Round ends
 }
 export type SupportInput =
   | { type: 'round-start' }
   | { type: 'hit' }
-  | { type: 'miss'; dwellMs: number }
+  | { type: 'miss'; dwellMs: number; dwellApplies?: boolean }
+  | { type: 'round-end' }
   | { type: 'accept' }
   | { type: 'dismiss' };
 export type SupportEvent =
@@ -171,9 +172,11 @@ export function stepSupport(state: SupportState, input: SupportInput, now: numbe
 Rules:
 - `round-start`: `missStreak = hitStreak = 0`, `offeredThisRound = false`. Level and an open
   Suggestion carry over.
+- `round-end`: close an open Suggestion (`suggestion-closed`); nothing else.
 - `miss`: `missStreak++`, `hitStreak = 0`. `target = missStreak >= suggestAfterMisses ? 2 :
   missStreak >= strongCueAfterMisses ? 1 : 0`. `level = max(level, target)`. If `missStreak >=
-  suggestAfterMisses`, no Suggestion is open, `!offeredThisRound` and `dwellMs < dwellMaxMs`,
+  suggestAfterMisses`, no Suggestion is open, `!offeredThisRound`, `dwellApplies !== false` (the page
+  passes `mode === 'head + dwell'`) and `dwellMs < dwellMaxMs`,
   open one: `ms = min(dwellMaxMs, ceil((dwellMs + suggestedDwellStepMs) / dwellStepMs) × dwellStepMs)`,
   set `offeredThisRound`, emit `suggest`.
 - `hit`: `missStreak = 0`, `hitStreak++`. When `hitStreak >= calmAfterHits`: `level = max(0,
@@ -352,37 +355,44 @@ default (no order passed).
 Two views share the page. The page is two columns, as the Board's: the left column holds the
 spelled-so-far line (80 px high, 48 px text, one line, scrolls inside if longer) over the board
 or the Summary; the right column is the side column.
-**Arithmetic at 1366 × 768 with the default sizes** (the Board's numbers, which Séance keeps):
+**Scaling.** The page is the Board's two-column page with no prediction strip, so it uses the same fit,
+now shared from the skeleton (`renderedCellSize(profileSize, gap, 0, viewport, 80)`; the Board's
+`board-scale.ts` re-exports it and its tests did not change). The page applies the result as
+`--target-size` and `--target-gap` on the root; the grid is `8s + 5g` wide, so cells are `(8s - g) / 7`
+wide and `s` high, and every target rectangle is read back from the page, not computed.
+**Arithmetic at 1366 x 768 with the default sizes (s = 96, g = 16):**
 - Horizontal: 12 + 848 + 16 + 478 + 12 = 1366. The grid is 848 px: 7 cells and 6 gaps of 16 px,
-  so a cell is (848 − 96) / 7 = 107.4 px wide and 96 px high. 107.4 ≥ 96 (target size).
-- Left column vertical: 80 (line) + 16 + (6 × 96 + 5 × 16 = 656) = 752; with 8 px top and bottom,
-  768. Same as the Board's Core view, so the Board's proven envelope applies.
-- Wide targets: YES and NO span 3 columns (3 × 107.4 + 2 × 16 = 354 px); GOODBYE spans 5
-  (5 × 107.4 + 4 × 16 = 601 px). Their labels are at most 24 px text and fit at those widths.
-- Side column (478 px, three cells of (478 − 32) / 3 = 148.7 × 96): suggestion row 96 + 16 +
-  action row 96 + 16 + camera row 96 = 320; Controls row about 48, Status panel 112 and notice 112
-  (the Board's measured heights) plus three 16 px gaps = 320 + 272 + 48 = 640. That is 112 px
-  less than the Board's 752, so it fits with room.
-These are the plan. Task 6's unit test checks the table and the extent arithmetic, and Task 11's
-viewport test checks the real page at both sizes. If a figure is wrong, the test fails and the
-design is corrected, not the test.
+  so a cell is (848 - 96) / 7 = 107.4 px wide and 96 px high.
+- Left column vertical: 80 (line) + 16 + (6 x 96 + 5 x 16 = 656) = 752; with 8 px top and bottom, 768.
+- Side column (478 px, three cells of (478 - 32) / 3 = 148.7 x 96): suggestion row 96 + 16 + action row
+  96 + 16 + camera row 96 = 320; Controls row 48, Status panel 112 and notice 112 plus three 16 px gaps =
+  640 in all, 112 px less than the left column.
+**At 1920 x 1080:** s = 148 (the left column limits: (1080 - 16 - 80 - 96) / 6 = 148), so the page is
+8 x 148 + 96 + 502 = 1782 px wide, centred, and 1080 high. Cells are (1184 - 16) / 7 = 166.9 x 148.
+Wide targets: YES and NO span 3 columns, GOODBYE 5. The tests read the rectangles from a real page at
+both sizes (Task 16), and a property test (Property 18) checks the size rule.
 **Summary view** (replaces the board; the line shows "Round complete: MOTH" or "You stopped this
-round"): rows 0 to 3 hold read-only figures at 24 px or larger (letters, seconds, accidental
-selections with their one-sentence meaning, taken back, dwell time and mode, and the Board's
-current dwell time); row 4 holds the Carry result or notice text; row 5 holds `carry-dwell`
-(columns 0 to 2), a gap cell, and `next-round` (columns 4 to 6): the two targets are one empty
-column plus two gaps (139 px) apart, which is more than twice the target spacing, so a stray
-dwell on one does not land on the other.
-**Marker and support** (CSS only, driven by attributes the DOM sets):
-- `[data-next="true"]` on the next target. Level 0: 4 px lantern outline plus a small planchette
-  glyph in the cell's top-right corner. The glyph is an inline `<svg>` element the DOM places in
-  the marked cell with `aria-hidden` (a CSS `url(data:…)` image would be blocked by the page's
-  `default-src 'self'`).
-- `.page[data-support="1"]`: 8 px outline, a 1.5 × larger glyph, and the callout in the line.
+round"): one bordered panel, `6s + 5g` high, filling the board's area at both sizes. Top to bottom: three
+figure cards (letters, time, accidental selections) with the value at 0.75 s px, then the lines for what an
+accidental selection is, taken back, and the input (with the Dwell time only in head + dwell), then the Board
+line, then at the bottom the two actions in two columns three gaps apart: Carry on the left (only when
+offered) and "Another round" on the right. At 1366 x 768 the actions are 376 x 96 px at (30, 646) and
+(454, 646); the figures take the space between, so there is no large empty panel.
+**Marker and support** (CSS only, driven by attributes the page sets):
+- `[data-next="true"]` on the next target. Level 0: 4 px lantern border and halo. The spirit's
+  planchette is one `#glide` element (an inline `<svg>`, `aria-hidden`) positioned by script at the next
+  target's top-right corner (6 px in from the right, 4 px down; 24 px at level 0, 28 px at levels 1 and 2). It
+  moves with a 600 ms transform transition only inside `@media (prefers-reduced-motion: no-preference)`; a new
+  Round, a resize and a level change place it without a transition. It stays in the corner, clear of the
+  label, which is centred (a 40 px letter in a 107 px cell ends at about 73 px from the left; the glyph starts
+  at 77 px or later). Travelling, it passes over other cells for under a second and rests on none.
+- `.page[data-support="1"]` and `"2"`: 8 px border, a 28 px glyph with a thicker stroke, and the callout in the line.
 - `.page[data-support="2"]`: also unmarked letters switch from `--bone` to `--dim-text`
   (`#9a96a8`, 5.6:1 on `--surface`, 4.9:1 on `--surface-2`) and keep their borders. Dimming is a colour
-  token, never `opacity`, so the contrast is exactly what the colour test computes.
+  token, never `opacity`, so the contrast is exactly what the colour test computes. The marked target is
+  told apart by a border 2x to 4x thicker, a halo and the glyph, not by colour alone.
 - Dwell progress: `createDwellRing` with the `outline` shape. Scan highlight: `createScanHighlight`.
+- Empty Suggestion slots: `visibility: hidden` (no border, no box, no focus), still in the grid.
 ## Theme
 A candle-lit dark board. Tokens (all in `seance.css` `:root`; the values below are proposals whose
 contrast against the surfaces was computed during design, and the colour test re-checks them):
@@ -404,8 +414,8 @@ those two pairs. The Board's stricter track-against-background rule (its Require
 Séance.
 The moon, fog and glow are CSS gradients on the page, behind the board, with `aria-hidden` and
 contrast never taken below the table's. The marker is an outline and a glyph, so it is visible
-without colour. A slow glow (opacity 0.85 to 1 over 4 s) on the marker is the only animation; it is
-off under `prefers-reduced-motion`. Fonts: `Georgia, 'Times New Roman', serif` for the spirit's
+without colour. A slow glow (opacity 0.85 to 1 over 4 s) on the glyph, the glide, and the fog's slow drift are the only motion; all of it is
+off under `prefers-reduced-motion`. The fog is a soft ellipse (`radial-gradient(ellipse closest-side …, transparent 100%)`) with no edge. Fonts: `Georgia, 'Times New Roman', serif` for the spirit's
 line, `system-ui` for the rest. The planchette glyph, moon and board border are original inline SVG
 and CSS.
 ## Data models
@@ -478,6 +488,9 @@ timestamps.
 17. **Arrival guard.** For any rect set and any pointer position, `guardedTargets` puts exactly
     the targets whose rect contains the pointer into `held` and the rest into `register`; with
     `null` it holds none; after a `pointer-move` outside a held rect, that rect is released.
+18. **Rendered cell size.** For any viewport of 1366 x 768 or more and any gap, `seanceCellSize` is at least the
+    Profile size; where the page fits at the Profile size it fits at the chosen size, and one px more would not
+    fit; it never decreases as the viewport grows.
 ## Error handling
 | Case | Behaviour |
 | --- | --- |

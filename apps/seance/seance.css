@@ -58,9 +58,10 @@ body {
   border-radius: 50%;
   background: radial-gradient(circle at 50% 50%, var(--moon-glow) 0%, rgba(42, 49, 80, 0) 68%);
 }
-.fog { position: absolute; left: -20%; width: 140%; height: 220px; background: linear-gradient(90deg, rgba(0,0,0,0) 0%, var(--fog) 50%, rgba(0,0,0,0) 100%); }
-.fog-a { bottom: 12%; }
-.fog-b { bottom: 38%; }
+/* Fog: a soft ellipse that fades to nothing on every side, so there is no edge or band to see. */
+.fog { position: absolute; left: -20%; width: 140%; height: 340px; background: radial-gradient(ellipse closest-side at 50% 50%, var(--fog) 0%, transparent 100%); }
+.fog-a { bottom: 4%; }
+.fog-b { bottom: 34%; }
 /*
  * Page: two columns, as the Board's. At 1366 x 768: 12 + 848 + 16 + 478 + 12 = 1366 across, and
  * the left column is the 80 px spelled line + 16 + 6 rows of 96 with 5 gaps of 16 = 752 high.
@@ -83,7 +84,7 @@ body {
 }
 section { margin: 0; padding: 0; }
 .spell { grid-area: spell; min-height: 0; }
-.board-area { grid-area: board; }
+.board-area { grid-area: board; position: relative; }
 .side {
   grid-area: side;
   display: grid;
@@ -140,7 +141,8 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 4px s
   hyphens: none;
 }
 .target[aria-pressed="true"] { background: var(--surface-2); border-width: 4px; }
-.target[data-empty="true"] { border-style: dashed; background: transparent; cursor: default; color: var(--bone); }
+/* An empty Suggestion slot keeps its place but cannot be seen, focused or selected. */
+.target[data-empty="true"] { visibility: hidden; }
 .target[data-held="true"] { border-style: dashed; background: transparent; cursor: default; }
 /* The board: 7 equal columns, rows of the target size. Placement comes from data-row, data-col and
    data-span, never from DOM order (positions are fixed for the life of the page). */
@@ -151,20 +153,20 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 4px s
   gap: var(--target-gap);
 }
 .cell { min-width: 0; }
-.board [data-row="0"], .summary [data-row="0"] { grid-row: 1; }
+.board [data-row="0"] { grid-row: 1; }
 .board [data-row="1"] { grid-row: 2; }
 .board [data-row="2"] { grid-row: 3; }
 .board [data-row="3"] { grid-row: 4; }
 .board [data-row="4"] { grid-row: 5; }
-.board [data-row="5"], .summary [data-row="5"] { grid-row: 6; }
-.board [data-col="0"], .summary [data-col="0"] { grid-column-start: 1; }
+.board [data-row="5"] { grid-row: 6; }
+.board [data-col="0"] { grid-column-start: 1; }
 .board [data-col="1"] { grid-column-start: 2; }
 .board [data-col="2"] { grid-column-start: 3; }
 .board [data-col="3"] { grid-column-start: 4; }
-.board [data-col="4"], .summary [data-col="4"] { grid-column-start: 5; }
+.board [data-col="4"] { grid-column-start: 5; }
 .board [data-col="5"] { grid-column-start: 6; }
 .board [data-col="6"] { grid-column-start: 7; }
-.board [data-span="3"], .summary [data-span="3"] { grid-column-end: span 3; }
+.board [data-span="3"] { grid-column-end: span 3; }
 .board [data-span="5"] { grid-column-end: span 5; }
 .letter { font: 40px/1 Georgia, 'Times New Roman', serif; }
 .word { font: 32px/1 Georgia, 'Times New Roman', serif; letter-spacing: 0.06em; }
@@ -188,31 +190,39 @@ button:focus-visible, select:focus-visible, input:focus-visible { outline: 4px s
   border-width: 8px;
   padding: 0;
 }
-.marker { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; pointer-events: none; }
-.marker path, .marker circle { fill: var(--lantern); stroke: var(--ground); stroke-width: 1.2; }
-.page[data-support="1"] .marker, .page[data-support="2"] .marker { width: 36px; height: 36px; top: 8px; right: 8px; }
+/* The planchette glyph: one element that glides to the next target's top-right corner (placed by script).
+   It never sits on the centred label. It moves only when the person has not asked for less motion. */
+.glide { position: absolute; left: 0; top: 0; width: 24px; height: 24px; z-index: 3; pointer-events: none; }
+.page[data-support="1"] .glide, .page[data-support="2"] .glide { width: 28px; height: 28px; }
+.page[data-support="1"] .glide-glyph path, .page[data-support="2"] .glide-glyph path { stroke-width: 2; }
+.glide-glyph { display: block; width: 100%; height: 100%; }
+.glide-glyph path, .glide-glyph circle { fill: var(--lantern); stroke: var(--ground); stroke-width: 1.2; }
 .page[data-support="2"] .board .target:not([data-next="true"]) { color: var(--dim-text); }
-/* Summary: the board's grid, replaced by figures, the Board's dwell time and two targets. */
+/* Summary: one panel that fills the board's area (6 rows high), with the figures large, the Board line,
+   and the two actions inside it at the bottom. The two actions are three gaps apart. */
 .summary {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  grid-template-rows: repeat(6, var(--target-size));
+  display: flex;
+  flex-direction: column;
   gap: var(--target-gap);
-}
-.figures {
-  grid-row: 1 / span 4;
-  grid-column: 1 / -1;
-  padding: 12px 20px;
+  height: calc(var(--target-size) * 6 + var(--target-gap) * 5);
+  padding: 16px;
   background: var(--surface);
   border: 2px solid var(--edge);
   border-radius: 10px;
   overflow: hidden;
 }
-.figures p { margin: 0 0 6px; }
-.figures .help { color: var(--muted); }
-.carry-text { grid-row: 5; grid-column: 1 / -1; margin: 0; color: var(--muted); align-self: center; }
-#carry-dwell { grid-row: 6; grid-column: 1 / span 3; }
-#next-round { grid-row: 6; grid-column: 5 / span 3; }
+.stats { flex: 1 1 auto; max-height: calc(var(--target-size) * 2.6); display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--target-gap); align-items: stretch; min-height: 0; }
+.stat { margin: 0; display: flex; flex-direction: column-reverse; align-items: center; justify-content: center; gap: 6px; padding: 8px; text-align: center; background: var(--surface-2); border-radius: 8px; }
+.stat-value { font-family: Georgia, 'Times New Roman', serif; font-size: calc(var(--target-size) * 0.75); line-height: 1; color: var(--bone); }
+.stat-label { color: var(--muted); }
+/* The lines under the figures share the spare height and grow with the cell size (never below 24 px). */
+.details { flex: 1 1 auto; display: flex; flex-direction: column; justify-content: center; font-size: max(24px, calc(var(--target-size) * 0.22)); }
+.details p { margin: 0 0 4px; }
+.details .help { color: var(--muted); }
+.carry-text { margin: 0; color: var(--muted); }
+.summary-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: calc(var(--target-gap) * 3); }
+#carry-dwell { grid-column: 1; }
+#next-round { grid-column: 2; }
 /* Side column */
 .suggest-row, .actions, .camera-rest {
   display: grid;
@@ -294,7 +304,9 @@ footer p { margin: 0; line-height: 1.2; color: var(--muted); }
 /* Motion: only when the person has not asked for less. The glow is a change of at most 15 % in
    opacity over 4 s; the fog drifts on 40 s and 90 s cycles, at most 0.12 opacity. */
 @media (prefers-reduced-motion: no-preference) {
-  .marker { animation: breathe 4s ease-in-out infinite alternate; }
+  .glide { transition: transform 600ms ease-in-out; }
+  .glide[data-snap="true"] { transition: none; }
+  .glide-glyph { animation: breathe 4s ease-in-out infinite alternate; }
   .fog-a { animation: drift 40s linear infinite alternate; }
   .fog-b { animation: drift 90s linear infinite alternate; }
   @keyframes breathe { from { opacity: 0.85; } to { opacity: 1; } }

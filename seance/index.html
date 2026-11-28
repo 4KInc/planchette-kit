@@ -20,21 +20,26 @@
       <section aria-labelledby="board-title" class="board-area" id="board-section">
         <h2 id="board-title" class="visually-hidden" data-text="page.boardTitle"></h2>
         <div id="board" class="board"></div>
+        <div id="glide" class="glide" aria-hidden="true" hidden></div>
       </section>
       <section aria-labelledby="summary-title" class="board-area" id="summary-section" hidden>
         <h2 id="summary-title" class="visually-hidden" data-text="page.summaryTitle"></h2>
         <div id="summary" class="summary">
-          <div class="figures">
-            <p id="summary-letters"></p>
-            <p id="summary-time"></p>
-            <p id="summary-accidental"></p>
+          <div class="stats">
+            <p class="stat"><span class="stat-label" data-text="summary.lettersLabel"></span><span class="stat-value" id="summary-letters"></span></p>
+            <p class="stat"><span class="stat-label" data-text="summary.timeLabel"></span><span class="stat-value" id="summary-time"></span></p>
+            <p class="stat"><span class="stat-label" data-text="summary.accidentalLabel"></span><span class="stat-value" id="summary-accidental"></span></p>
+          </div>
+          <div class="details">
             <p id="summary-accidental-meaning" class="help"></p>
             <p id="summary-taken-back"></p>
             <p id="summary-dwell"></p>
           </div>
           <p id="summary-board" class="carry-text" role="status"></p>
-          <button type="button" class="target cell summary-target" id="carry-dwell" data-planchette-target="carry-dwell" hidden></button>
-          <button type="button" class="target cell summary-target" id="next-round" data-planchette-target="next-round"></button>
+          <div class="summary-actions">
+            <button type="button" class="target summary-target" id="carry-dwell" data-planchette-target="carry-dwell" hidden></button>
+            <button type="button" class="target summary-target" id="next-round" data-planchette-target="next-round"></button>
+          </div>
         </div>
       </section>
       <p id="live" class="visually-hidden" role="status" aria-live="polite"></p>

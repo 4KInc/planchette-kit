@@ -11,6 +11,7 @@ import { carryDwellToBoard, clampDwell, readBoard, undoCarry, type CarryRecord, 
 import { messages } from './messages.js';
 import { createRound, stepRound, type RoundEvent, type RoundInput, type RoundState } from './round.js';
 import { BOARD_CELLS, guardedTargets, insideRect, type Point } from './seance-layout.js';
+import { seanceCellSize } from './seance-scale.js';
 import type { Sound } from './sound.js';
 import { pickMessage } from './spirit-messages.js';
 import { canOfferCarry, summarise } from './summary.js';
@@ -103,6 +104,8 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
   const nextButton = byId<HTMLButtonElement>(doc, 'next-round');
   const carryText = byId(doc, 'summary-board');
   const undoButton = byId<HTMLButtonElement>(doc, 'undo');
+  const glide = byId(doc, 'glide');
+  glide.append(planchetteGlyph(doc, 'glide-glyph'));
   const registry: TargetRegistry = createTargetRegistry(host);
   // ---- the board, from the fixed cell table
   const boardEls = new Map<string, HTMLElement>();
@@ -128,9 +131,6 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
     board.append(el);
   }
   const labelOf = (id: string): string => (id.startsWith('letter-') ? id.slice(-1).toUpperCase() : messageAt(`targets.${id}`));
-  // Summary targets use the same grid columns.
-  carryButton.dataset.row = '5';
-  nextButton.dataset.row = '5';
   const sideEls = ['stop', 'undo', 'cancel', 'sound-toggle', 'rest-area'].map((id) => doc.querySelector<HTMLElement>(`[data-planchette-target="${id}"]`)!);
   const cameraToggle = doc.querySelector<HTMLElement>('[data-planchette-target="camera-toggle"]');
   // ---- state
@@ -203,25 +203,49 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
     });
     spelledCallout.textContent = support.level >= 1 && round.status === 'playing' ? messages.round.next(nextLabel()) : '';
   }
-  function drawMarker(): void {
-    for (const el of boardEls.values()) {
-      if (el.dataset.next === 'true') {
-        delete el.dataset.next;
-        el.querySelector('.marker')?.remove();
-      }
+  /**
+   * The spirit's planchette: one glyph that glides to the corner of the next target, never onto its
+   * label (the label is centred; the glyph sits in the top-right corner). With `snap` it jumps there
+   * with no glide (a new Round, a resize). Under reduced motion the stylesheet has no transition at all.
+   */
+  const GLIDE_SIZE = (): number => (support.level >= 1 ? 28 : 24);
+  const GLIDE_INSET_X = 6;
+  const GLIDE_INSET_Y = 4;
+  function placeGlide(snap: boolean): void {
+    const id = view === 'play' && round.status === 'playing' ? round.message.steps[round.index] : undefined;
+    const el = id === undefined ? undefined : boardEls.get(id);
+    if (el === undefined) {
+      glide.hidden = true;
+      delete glide.dataset.target;
+      return;
     }
-    if (view !== 'play' || round.status !== 'playing') return;
-    const el = boardEls.get(round.message.steps[round.index]!);
-    if (el === undefined) return;
-    el.dataset.next = 'true';
-    el.append(planchetteGlyph(doc, 'marker'));
+    glide.hidden = false;
+    if (snap) glide.dataset.snap = 'true';
+    const r = el.getBoundingClientRect();
+    const b = boardSection.getBoundingClientRect();
+    const x = r.x - b.x + r.width - GLIDE_SIZE() - GLIDE_INSET_X;
+    const y = r.y - b.y + GLIDE_INSET_Y;
+    glide.dataset.target = id!;
+    glide.style.transform = `translate(${x}px, ${y}px)`;
+    if (snap) {
+      void glide.getBoundingClientRect(); // apply the jump before the transition is allowed again
+      delete glide.dataset.snap;
+    }
+  }
+  function drawMarker(snap = false): void {
+    for (const el of boardEls.values()) delete el.dataset.next;
+    if (view === 'play' && round.status === 'playing') {
+      const el = boardEls.get(round.message.steps[round.index]!);
+      if (el !== undefined) el.dataset.next = 'true';
+    }
+    placeGlide(snap);
   }
   function spelledSoFar(): string {
     return round.message.steps.slice(0, round.index).map(labelOf).join('');
   }
-  function redraw(announce: 'progress' | 'none' = 'progress'): void {
+  function redraw(announce: 'progress' | 'none' = 'progress', snap = false): void {
     drawSpelled();
-    drawMarker();
+    drawMarker(snap);
     if (announce === 'progress') say(messages.round.progress(spelledSoFar(), nextLabel()));
   }
   function openSuggestion(ms: number): void {
@@ -251,7 +275,10 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
   }
   function applySupport(events: readonly SupportEvent[]): void {
     for (const e of events) {
-      if (e.type === 'level') setLevel(e.level);
+      if (e.type === 'level') {
+        setLevel(e.level);
+        placeGlide(true); // the glyph's size follows the level
+      }
       else if (e.type === 'suggest') openSuggestion(e.ms);
       else if (e.type === 'suggestion-closed') closeSuggestion();
       else if (e.type === 'apply-dwell') {
@@ -266,12 +293,14 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
   function renderSummary(): void {
     const profile = host.getProfile();
     const data = summarise(round, { dwellMs: profile.dwellTime, mode: profile.mode });
-    byId(doc, 'summary-letters').textContent = messages.summary.letters(data.letters, data.steps);
-    byId(doc, 'summary-time').textContent = messages.summary.time(data.seconds);
-    byId(doc, 'summary-accidental').textContent = messages.summary.accidental(data.misses);
+    byId(doc, 'summary-letters').textContent = messages.summary.lettersValue(data.letters, data.steps);
+    byId(doc, 'summary-time').textContent = messages.summary.timeValue(data.seconds);
+    byId(doc, 'summary-accidental').textContent = messages.summary.accidentalValue(data.misses);
     byId(doc, 'summary-accidental-meaning').textContent = messages.summary.accidentalMeaning;
     byId(doc, 'summary-taken-back').textContent = messages.summary.takenBack(data.takenBack);
-    byId(doc, 'summary-dwell').textContent = messages.summary.dwellAndMode(data.dwellMs, messages.modeNames[data.mode] ?? data.mode);
+    const modeName = messages.modeNames[data.mode] ?? data.mode;
+    // A dwell time only means something in head + dwell; elsewhere the Summary names the input only.
+    byId(doc, 'summary-dwell').textContent = data.mode === 'head + dwell' ? messages.summary.dwellAndMode(data.dwellMs, modeName) : messages.summary.modeOnly(modeName);
     renderCarry(data.dwellMs);
   }
   /** The Carry offer and the Board line, from what the Board key holds right now. */
@@ -339,7 +368,7 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
     undoButton.setAttribute('aria-label', messages.actions.undoPlayHelp);
     feedSupport({ type: 'round-start' }, t);
     registerGuarded([...boardEls.values()]);
-    redraw('none');
+    redraw('none', true);
     say(messages.round.starting(nextLabel()));
   }
   function handleRound(events: readonly RoundEvent[], now: number): void {
@@ -349,13 +378,16 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
       if (e.type === 'hit') {
         feedSupport({ type: 'hit' }, now);
         if (!completed) sound.play('hit');
-      } else if (e.type === 'miss') feedSupport({ type: 'miss', dwellMs: dwellOf() }, now);
+      } else if (e.type === 'miss') feedSupport({ type: 'miss', dwellMs: dwellOf(), dwellApplies: modeOf() === 'head + dwell' }, now);
       else if (e.type === 'complete') {
         sound.play('complete');
         ended = true;
       } else if (e.type === 'stopped') ended = true;
     }
-    if (ended) showSummary();
+    if (ended) {
+      feedSupport({ type: 'round-end' }, now); // a Suggestion is about the Round just played
+      showSummary();
+    }
     else {
       const undone = events.find((e) => e.type === 'undone');
       redraw('none');
@@ -437,11 +469,24 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
   };
   const onModeChange = (): void => {
     if (playing()) modeChanged = true;
+    // A dwell Suggestion makes no sense once dwell no longer applies.
+    if (modeOf() !== 'head + dwell') feedSupport({ type: 'dismiss' }, clock());
     syncTargets();
   };
+  /** Sizes the page from the Profile and the viewport (Requirement 9): the fit grows cells to use a large screen. */
+  function applyLayout(): void {
+    if (win === null) return;
+    const { targetSize, targetSpacing } = host.getProfile();
+    const s = seanceCellSize(targetSize, targetSpacing, { width: win.innerWidth, height: win.innerHeight });
+    const root = doc.documentElement.style;
+    root.setProperty('--target-size', `${s}px`);
+    root.setProperty('--target-gap', `${targetSpacing}px`);
+  }
   function syncTargets(): void {
+    applyLayout();
     if (win !== null) host.setScreen({ width: win.innerWidth, height: win.innerHeight });
     registry.update();
+    placeGlide(true);
   }
   host.addEventListener('select', onSelect);
   host.addEventListener('cancel', onCancel);
@@ -450,6 +495,7 @@ export function mountSeanceDom(options: SeanceDomOptions): SeanceDom {
   win?.addEventListener('resize', syncTargets);
   // the side column's targets are present in every view
   closeSuggestion();
+  applyLayout();
   syncTargets();
   for (const el of sideEls) registry.register(el);
   if (cameraToggle !== null) registry.register(cameraToggle);

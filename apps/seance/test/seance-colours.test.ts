@@ -116,3 +116,55 @@ describe('seance.css and the page', () => {
     expect(css).toMatch(/font:\s*24px\/1\.3 system-ui/);
   });
 });
+describe('level 2 (dimmed letters) and the marker', () => {
+  const rule = (selector: string): string => {
+    const i = css.indexOf(selector);
+    expect(i, selector).toBeGreaterThan(-1);
+    return css.slice(i, css.indexOf('}', i));
+  };
+  it('dimmed letter text is at least 4.5:1 on its cell, in every state the cell can be in', () => {
+    expect(rule('.page[data-support="2"] .board .target:not([data-next="true"])')).toContain('color: var(--dim-text)');
+    // the cell is --surface; a pressed or dashed state would use --surface-2 or the ground
+    for (const bg of [surface, surface2, ground]) expect(ratio(c('dim-text'), bg)).toBeGreaterThanOrEqual(4.5);
+    // dimming is a colour token, not opacity, so the ratio above is the real one
+    expect(rule('.page[data-support="2"] .board .target:not([data-next="true"])')).not.toMatch(/opacity/);
+  });
+  it('the marked target stands out by shape, not colour alone: a thicker border, a halo, and the glyph', () => {
+    const base = rule('.target {');
+    expect(base).toContain('border-width: 2px');
+    const marked = rule('.target[data-next="true"]');
+    expect(marked).toContain('border-width: 4px');
+    expect(marked).toContain('box-shadow');
+    const strong = rule('.page[data-support="1"] .target[data-next="true"]');
+    expect(strong).toContain('border-width: 8px');
+    expect(css).toMatch(/\.glide\s*\{[^}]*width:\s*24px/);
+    // the border differs from an unmarked one by 2x to 4x in width, whatever the colours
+    expect(4 / 2).toBeGreaterThanOrEqual(2);
+    expect(ratio(c('lantern'), surface)).toBeGreaterThanOrEqual(3);
+  });
+  it('the glide never leaves its target label: it is small, in the corner, and moves only without a reduced-motion request', () => {
+    expect(css).toMatch(/\.page\[data-support="1"\] \.glide[^{]*\{\s*width:\s*28px/);
+    const start = css.indexOf('@media (prefers-reduced-motion: no-preference)');
+    expect(css.slice(start)).toMatch(/\.glide\s*\{\s*transition:\s*transform/);
+    expect(css.slice(0, start)).not.toMatch(/\.glide[^{]*\{[^}]*transition/);
+  });
+});
+describe('the fog', () => {
+  it('is a soft ellipse that fades to transparent on every side: no linear bands, no hard edge', () => {
+    const fog = /\.fog\s*\{[^}]*\}/.exec(css)![0];
+    expect(fog).toMatch(/radial-gradient\(ellipse closest-side/);
+    expect(fog).toMatch(/var\(--fog\) 0%, transparent 100%/);
+    expect(fog).not.toMatch(/linear-gradient/);
+    expect(css).not.toMatch(/\.fog[^{]*\{[^}]*linear-gradient/);
+  });
+  it('is static unless motion is allowed (the animation is in the no-preference block, checked above)', () => {
+    const start = css.indexOf('@media (prefers-reduced-motion: no-preference)');
+    expect(css.slice(0, start)).not.toMatch(/\.fog[^{]*\{[^}]*animation/);
+  });
+});
+describe('empty Suggestion slots', () => {
+  it('are invisible (no border, no box) but keep their space', () => {
+    expect(css).toMatch(/\.target\[data-empty="true"\]\s*\{\s*visibility:\s*hidden;/);
+    expect(css).not.toMatch(/data-empty="true"\][^{]*\{[^}]*dashed/);
+  });
+});

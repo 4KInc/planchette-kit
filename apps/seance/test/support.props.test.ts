@@ -4,10 +4,12 @@ import { SEANCE_CONFIG, cloneSupport, createSupport, stepSupport, type SupportEv
 const dwellArb = fc.integer({ min: 400, max: 3000 });
 const inputArb: fc.Arbitrary<SupportInput> = fc.oneof(
   { weight: 4, arbitrary: fc.constant<SupportInput>({ type: 'hit' }) },
-  { weight: 4, arbitrary: dwellArb.map((dwellMs): SupportInput => ({ type: 'miss', dwellMs })) },
+  { weight: 3, arbitrary: dwellArb.map((dwellMs): SupportInput => ({ type: 'miss', dwellMs })) },
+  { weight: 1, arbitrary: dwellArb.map((dwellMs): SupportInput => ({ type: 'miss', dwellMs, dwellApplies: false })) },
   { weight: 1, arbitrary: fc.constant<SupportInput>({ type: 'round-start' }) },
   { weight: 1, arbitrary: fc.constant<SupportInput>({ type: 'accept' }) },
   { weight: 1, arbitrary: fc.constant<SupportInput>({ type: 'dismiss' }) },
+  { weight: 1, arbitrary: fc.constant<SupportInput>({ type: 'round-end' }) },
 );
 const seqArb = fc.array(inputArb, { maxLength: 80 });
 describe('Feature: seance, Property 4: A Miss never lowers the Support level', () => {
@@ -60,6 +62,7 @@ describe('Feature: seance, Property 6: Suggestions are safe', () => {
           const events: SupportEvent[] = stepSupport(s, input, 0);
           for (const e of events) {
             if (e.type === 'suggest') {
+              expect(input.type === 'miss' && input.dwellApplies !== false).toBe(true);
               offers++;
               expect(e.ms).toBeGreaterThan(lastDwell);
               expect(e.ms).toBeLessThanOrEqual(SEANCE_CONFIG.dwellMaxMs);
@@ -72,6 +75,7 @@ describe('Feature: seance, Property 6: Suggestions are safe', () => {
             }
           }
           expect(offers).toBeLessThanOrEqual(1);
+          if (input.type === 'round-end') expect(s.suggestion).toBeNull();
           if (input.type !== 'accept') expect(events.some((e) => e.type === 'apply-dwell')).toBe(false);
         }
       }),

@@ -20,10 +20,12 @@ const SIDE: Record<string, [number, number]> = {
 export function expectedRect(el: HTMLElement): Rect {
   const id = el.dataset.planchetteTarget ?? '';
   if (id in SIDE) return { x: SIDE[id]![0], y: SIDE[id]![1], width: 148.7, height: 96 };
-  const inSummary = el.closest('#summary') !== null;
-  const row = inSummary ? 5 : Number(el.dataset.row ?? 0);
-  const col = id === 'carry-dwell' ? 0 : id === 'next-round' ? 4 : Number(el.dataset.col ?? 0);
-  const span = id === 'carry-dwell' || id === 'next-round' ? 3 : Number(el.dataset.span ?? 1);
+  // The Summary's two actions sit inside its panel, at the bottom: two columns of 376 px, 48 px apart.
+  if (id === 'carry-dwell') return { x: 30, y: 646, width: 376, height: 96 };
+  if (id === 'next-round') return { x: 454, y: 646, width: 376, height: 96 };
+  const row = Number(el.dataset.row ?? 0);
+  const col = Number(el.dataset.col ?? 0);
+  const span = Number(el.dataset.span ?? 1);
   return { x: 12 + col * (CELL_W + 16), y: 104 + row * 112, width: span * CELL_W + (span - 1) * 16, height: 96 };
 }
 /** jsdom has no layout: give every element the rectangle the real page gives it. Hidden ones get zero. */

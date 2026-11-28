@@ -2,6 +2,8 @@
  * support.ts: how strongly the game shows the next target, and when it offers a longer dwell
  * (design.md, `support.ts`). A deterministic state machine, `stepSupport(state, input, now)`.
  * It never changes the dwell itself: `apply-dwell` is only an event, emitted only for `accept`.
+ * A Suggestion is about dwell, so it is offered only while dwell applies (head + dwell); the stronger
+ * cue is useful in every mode. An open Suggestion is closed when the Round ends.
  */
 export const SEANCE_CONFIG = {
   /** Misses in a row (no Hit between) for level 1. */
@@ -23,13 +25,14 @@ export interface SupportState {
   missStreak: number;
   hitStreak: number;
   offeredThisRound: boolean;
-  /** Open until answered; survives the end of the Round. */
+  /** Open until answered, or until the Round ends. */
   suggestion: { ms: number } | null;
 }
 export type SupportInput =
   | { readonly type: 'round-start' }
   | { readonly type: 'hit' }
-  | { readonly type: 'miss'; readonly dwellMs: number }
+  | { readonly type: 'miss'; readonly dwellMs: number; readonly dwellApplies?: boolean }
+  | { readonly type: 'round-end' }
   | { readonly type: 'accept' }
   | { readonly type: 'dismiss' };
 export type SupportEvent =
@@ -69,6 +72,7 @@ export function stepSupport(state: SupportState, input: SupportInput, _now: numb
         state.missStreak >= c.suggestAfterMisses &&
         state.suggestion === null &&
         !state.offeredThisRound &&
+        input.dwellApplies !== false &&
         input.dwellMs < c.dwellMaxMs
       ) {
         state.suggestion = { ms: suggestedDwell(input.dwellMs) };
@@ -87,6 +91,11 @@ export function stepSupport(state: SupportState, input: SupportInput, _now: numb
           events.push({ type: 'level', level: state.level });
         }
       }
+      return events;
+    case 'round-end':
+      if (state.suggestion === null) return events;
+      state.suggestion = null;
+      events.push({ type: 'suggestion-closed' });
       return events;
     case 'accept':
       if (state.suggestion === null) return events;

@@ -25,12 +25,15 @@ const outDir = resolve(runDir, 'dist');
 const EXPECTED_EXPORTS = ['createPlanchette', 'pointToRotation', 'rotationToPoint'];
 /** The runtime names of the `./ui` entry point (Task 16). */
 const EXPECTED_UI_EXPORTS = [
+  'PAGE_FIT',
   'createDwellRing',
   'createScanHighlight',
   'createSettingsGate',
   'createTargetRegistry',
   'elementRect',
+  'fitCellSize',
   'mountInputControls',
+  'renderedCellSize',
   'roleOptionsOf',
 ];
 

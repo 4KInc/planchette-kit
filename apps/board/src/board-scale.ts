@@ -8,53 +8,26 @@
  * H is the Message bar height: 80 (one line) or 131 (two lines), chosen by `messageBarLayout`.
  */
 
-export interface Viewport {
-  readonly width: number;
-  readonly height: number;
-}
-
+import { PAGE_FIT, fitCellSize, renderedCellSize, type Viewport } from '@planchette/skeleton/ui';
+/**
+ * The fit formula and `renderedCellSize` moved to the skeleton's `./ui` entry (shared with Séance);
+ * they are re-exported here so the Board's imports and tests are unchanged.
+ */
+export { fitCellSize, renderedCellSize, type Viewport };
 /** Page padding above and below the columns: 8 px + 8 px. */
-const PAGE_PADDING_PX = 16;
-/** Right-column height not scaling with `s`, less the strip's `(k + 5)` gaps. */
-const RIGHT_COLUMN_FIXED_PX = 288;
-/** Page width not scaling with `s`: 24 px padding plus the 478 px right column. */
-const WIDTH_OVERHEAD_PX = 502;
+const PAGE_PADDING_PX = PAGE_FIT.pagePaddingPx;
 /** Rows in the tallest (Core) grid. */
-const GRID_ROWS = 6;
-/** Cell-width units per `s` across the six columns: 6 * 4/3. */
-const WIDTH_UNITS = 8;
+const GRID_ROWS = PAGE_FIT.gridRows;
 /** Right-column fixed rows (notice, controls, status) used by the page-height formula. */
-const RIGHT_COLUMN_ROWS_PX = 272;
-
+const RIGHT_COLUMN_ROWS_PX = PAGE_FIT.rightColumnRowsPx;
 /** Message bar (design.md "Message bar text", Req 14 AC 14 to 17). */
 export const BAR_TEXT_PX = 48;
 export const BAR_LINE_FACTOR = 1.3;
 export const BAR_BORDER_PX = 6;
-export const BAR_ONE_LINE_HEIGHT = 80;
+export const BAR_ONE_LINE_HEIGHT = PAGE_FIT.barOneLineHeight;
 /** Two 48 px lines at line height 1.3, plus the border: ceil(2 * 1.3 * 48) + 6 = 131. */
 export const BAR_TWO_LINE_HEIGHT = Math.ceil(2 * BAR_LINE_FACTOR * BAR_TEXT_PX) + BAR_BORDER_PX;
 export const TWO_LINE_MIN_VIEWPORT_HEIGHT = 900;
-
-/** The largest whole cell size at which the page fits, before the Profile floor. */
-function fitCellSize(gap: number, stripRows: number, viewport: Viewport, barHeight: number): number {
-  const k = stripRows;
-  const fitLeft = (viewport.height - PAGE_PADDING_PX - barHeight - GRID_ROWS * gap) / GRID_ROWS;
-  const fitRight = (viewport.height - RIGHT_COLUMN_FIXED_PX - (k + 5) * gap) / (k + 3);
-  const fitWidth = (viewport.width - WIDTH_OVERHEAD_PX - GRID_ROWS * gap) / WIDTH_UNITS;
-  return Math.floor(Math.min(fitLeft, fitRight, fitWidth));
-}
-
-export function renderedCellSize(
-  profileSize: number,
-  gap: number,
-  stripRows: number,
-  viewport: Viewport,
-  barHeight: number = BAR_ONE_LINE_HEIGHT,
-): number {
-  const fit = fitCellSize(gap, stripRows, viewport, barHeight);
-  if (!Number.isFinite(fit)) return profileSize;
-  return Math.max(profileSize, fit);
-}
 
 export interface MessageBarLayout {
   readonly lines: 1 | 2;

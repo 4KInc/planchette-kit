@@ -50,13 +50,24 @@ describe('support', () => {
     expect(stepSupport(s, { type: 'accept' }, 0)).toEqual([{ type: 'apply-dwell', ms: 2400 }, { type: 'suggestion-closed' }]);
     expect(stepSupport(s, { type: 'accept' }, 0)).toEqual([]);
   });
-  it('the level and an open Suggestion carry across round-start', () => {
+  it('the level carries across round-start, and the Round ending closes an open Suggestion', () => {
     const s = createSupport();
     for (let i = 0; i < 4; i++) stepSupport(s, miss(), 0);
+    expect(stepSupport(s, { type: 'round-end' }, 0)).toEqual([{ type: 'suggestion-closed' }]);
+    expect(s.suggestion).toBeNull();
+    expect(stepSupport(s, { type: 'round-end' }, 0)).toEqual([]);
     stepSupport(s, { type: 'round-start' }, 0);
     expect(s.level).toBe(2);
-    expect(s.suggestion).toEqual({ ms: 2400 });
     expect(s.missStreak).toBe(0);
+  });
+  it('offers a Suggestion only while dwell applies; the stronger cue is raised in every mode', () => {
+    for (const dwellApplies of [true, false]) {
+      const s = createSupport();
+      const events = [1, 2, 3, 4].flatMap(() => stepSupport(s, { type: 'miss', dwellMs: 2100, dwellApplies }, 0));
+      expect(events.some((e) => e.type === 'suggest'), String(dwellApplies)).toBe(dwellApplies);
+      expect(s.level).toBe(2);
+      expect(s.offeredThisRound).toBe(dwellApplies);
+    }
   });
   it('cloneSupport copies the Suggestion', () => {
     const s = createSupport();

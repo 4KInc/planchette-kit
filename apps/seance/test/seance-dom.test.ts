@@ -53,7 +53,12 @@ describe('Round loop', () => {
     const marked = document.querySelectorAll('[data-next="true"]');
     expect(marked).toHaveLength(1);
     expect((marked[0] as HTMLElement).dataset.planchetteTarget).toBe(messageSteps()[0]);
-    expect(marked[0]!.querySelector('svg.marker')).not.toBeNull();
+    // the spirit's planchette glides to that target's corner; it is one element, aria-hidden
+    const glide = $('glide');
+    expect(glide.hidden).toBe(false);
+    expect(glide.dataset.target).toBe(messageSteps()[0]);
+    expect(glide.getAttribute('aria-hidden')).toBe('true');
+    expect(glide.querySelector('svg')).not.toBeNull();
   });
   it('a full Round reaches the Summary, and the board targets are unregistered', () => {
     finishRound();
@@ -62,8 +67,9 @@ describe('Round loop', () => {
     expect(host.registered.has('goodbye')).toBe(false);
     expect(host.registered.has('next-round')).toBe(true);
     expect(host.registered.has('stop')).toBe(true);
-    expect($('summary-letters').textContent).toBe('Letters: 3 of 3');
-    expect($('summary-accidental').textContent).toBe('Accidental selections: 0');
+    expect($('summary-letters').textContent).toBe('3 of 3');
+    expect($('summary-accidental').textContent).toBe('0');
+    expect($('glide').hidden).toBe(true);
     expect($('spelled-letters').textContent).toMatch(/^Round complete: /);
     expect($('board-section').hidden).toBe(true);
   });
@@ -112,6 +118,9 @@ describe('Round loop', () => {
   });
 });
 describe('adaptation', () => {
+  beforeEach(() => {
+    host.profile.mode = 'head + dwell'; // a dwell Suggestion only makes sense where dwell applies
+  });
   it('two Misses give level 1 and a callout; four give level 2 and a Suggestion', () => {
     press(wrong());
     press(wrong());
@@ -215,7 +224,7 @@ describe('Carry to the Board', () => {
 });
 describe('arrival guard', () => {
   it('holds a target under the pointer when the view changes, and releases it when the pointer leaves', () => {
-    // the pointer rests where "Another round" will appear: row 5, columns 4 to 6 (x 560..864, y 664..760)
+    // the pointer rests where "Another round" will appear: the right button of the panel (x 454..830, y 646..742)
     host.emit('pointer-move', { x: 600, y: 700 });
     finishRound();
     expect(dom.state().held).toEqual(['next-round']);
@@ -243,5 +252,98 @@ describe('sound', () => {
     expect($('sound-toggle').textContent).toBe('Sound off');
     press('sound-toggle');
     expect($('sound-toggle').getAttribute('aria-pressed')).toBe('false'); // no AudioContext in this test: stays off
+  });
+});
+describe('dwell applies only in head + dwell', () => {
+  const modes = ['head + dwell', 'head + gesture', 'scan', 'gesture scan', 'mouse'] as const;
+  const missFour = (): void => {
+    for (let i = 0; i < 4; i++) press(wrong());
+  };
+  it.each(modes)('%s: the Suggestion appears only where dwell applies, and the stronger cue always does', (mode) => {
+    host.profile.mode = mode;
+    missFour();
+    expect(document.querySelector('.page')!.getAttribute('data-support')).toBe('2');
+    const shown = mode === 'head + dwell';
+    expect(dom.state().suggestion !== null).toBe(shown);
+    expect(host.registered.has('suggest-apply')).toBe(shown);
+    expect(host.registered.has('suggest-dismiss')).toBe(shown);
+    expect($('suggest-apply').textContent).toBe(shown ? 'Hold longer: 2400 ms' : '');
+  });
+  it.each(modes)('%s: the Summary shows the dwell time only in head + dwell, and always the input', (mode) => {
+    host.profile.mode = mode;
+    finishRound();
+    const line = $('summary-dwell').textContent!;
+    if (mode === 'head + dwell') expect(line).toBe('Dwell time: 2100 ms. Input: Head + dwell.');
+    else {
+      expect(line).not.toMatch(/dwell|ms/i);
+      expect(line).toMatch(/^Input: .+\.$/);
+    }
+  });
+  it('an open Suggestion closes when the Round ends (it does not stay on the Summary)', () => {
+    host.profile.mode = 'head + dwell';
+    missFour();
+    expect(host.registered.has('suggest-apply')).toBe(true);
+    finishRound();
+    expect(dom.state()).toMatchObject({ view: 'summary', suggestion: null });
+    expect(host.registered.has('suggest-apply')).toBe(false);
+    expect(host.registered.has('suggest-dismiss')).toBe(false);
+    expect($('suggest-apply').textContent).toBe('');
+  });
+  it('an open Suggestion also closes when the mode changes to one where dwell does not apply', () => {
+    host.profile.mode = 'head + dwell';
+    missFour();
+    host.profile.mode = 'mouse';
+    host.emit('mode-change', { mode: 'mouse' });
+    expect(dom.state().suggestion).toBeNull();
+    expect(host.registered.has('suggest-apply')).toBe(false);
+  });
+});
+describe('empty Suggestion slots', () => {
+  it('are not registered, cannot be reached, and are marked empty on first load', () => {
+    for (const id of ['suggest-apply', 'suggest-dismiss']) {
+      expect(host.registered.has(id), id).toBe(false);
+      const el = $(id) as HTMLButtonElement;
+      expect(el.dataset.empty).toBe('true');
+      expect(el.disabled).toBe(true);
+      expect(el.getAttribute('aria-hidden')).toBe('true');
+      expect(el.tabIndex).toBe(-1);
+      expect(el.textContent).toBe('');
+    }
+  });
+  it('are still in the layout (the elements stay), so nothing moves when a Suggestion opens', () => {
+    expect(document.querySelectorAll('#suggest-row > *')).toHaveLength(3);
+  });
+});
+describe("the spirit's planchette", () => {
+  it('glides to the next target after each Hit and goes away at the Summary', () => {
+    const steps = messageSteps();
+    expect($('glide').dataset.target).toBe(steps[0]);
+    press(steps[0]!);
+    expect($('glide').dataset.target).toBe(steps[1]);
+    press(steps[1]!);
+    expect($('glide').dataset.target).toBe(steps[2]);
+    press(steps[2]!);
+    expect($('glide').hidden).toBe(true);
+    expect($('glide').dataset.target).toBeUndefined();
+  });
+  it('sits in the corner of the next target, never over its centred label', () => {
+    const el = document.querySelector<HTMLElement>(`[data-planchette-target="${messageSteps()[0]}"]`)!;
+    const cell = host.registered.get(messageSteps()[0]!)!.rect;
+    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec($('glide').style.transform)!;
+    const [gx, gy] = [Number(m[1]), Number(m[2])];
+    expect(el).toBeTruthy();
+    // the board section has no rectangle in jsdom, so the translate is relative to the origin
+    expect(gx).toBeCloseTo(cell.x + cell.width - 24 - 6, 5);
+    expect(gy).toBeCloseTo(cell.y + 4, 5);
+    expect(gx).toBeGreaterThan(cell.x + cell.width / 2 + 20); // right of the label's centre column
+  });
+  it('is larger and keeps its corner at level 1 and above', () => {
+    const first = messageSteps()[0]!;
+    press(wrong());
+    press(wrong());
+    expect(document.querySelector('.page')!.getAttribute('data-support')).toBe('1');
+    const cell = host.registered.get(first)!.rect;
+    const m = /translate\(([-\d.]+)px, ([-\d.]+)px\)/.exec($('glide').style.transform)!;
+    expect(Number(m[1])).toBeCloseTo(cell.x + cell.width - 28 - 6, 5);
   });
 });

@@ -143,8 +143,9 @@ making me feel I failed, so that I can keep practising.
 5. A Miss SHALL NEVER lower the Support level (Property 4).
 6. THE Support level SHALL fall by one only after `calmAfterHits` Hits in a row (default 3),
    and never below 0 (Property 5). The level SHALL carry from one Round to the next.
-7. WHEN the level reaches 2 and no Suggestion has been shown in this Round and the Dwell
-   time is below its maximum, THE Séance SHALL offer a Suggestion: a longer dwell time equal
+7. WHEN the level reaches 2 and no Suggestion has been shown in this Round, the Dwell
+   time is below its maximum, AND the input mode is head + dwell (the only mode where dwell applies),
+   THE Séance SHALL offer a Suggestion: a longer dwell time equal
    to the current Dwell time plus `suggestedDwellStepMs` (default 300), kept inside 400 to
    3000 ms and on a 50 ms step. The Suggestion SHALL never be lower than the current Dwell
    time (Property 6).
@@ -154,7 +155,11 @@ making me feel I failed, so that I can keep practising.
    selects "Hold longer", THE Séance SHALL set the Profile's Dwell time to the suggested
    value through `setProfile` and save the Séance Profile. WHEN the person selects "Not now",
    or Cancel, THE Séance SHALL close the Suggestion and change nothing. THE Suggestion SHALL
-   never be applied by any other route, and it SHALL show at most once per Round.
+   never be applied by any other route, and it SHALL show at most once per Round. WHEN the Round ends,
+   or the input mode changes to one other than head + dwell, THE Séance SHALL close an open
+   Suggestion. WHILE no Suggestion is open, its two slots SHALL be invisible (no border, no box),
+   not registered as targets and not focusable, and SHALL keep their space so nothing moves.
+   In every mode other than head + dwell the stronger cue (AC 3) is still shown.
 9. THE adaptation SHALL NOT affect the Message, the Step order, the board layout, or any
    count.
 10. THE Séance SHALL use no word in any adaptation text that judges the player (no "wrong",
@@ -170,7 +175,8 @@ round, so that I can see how it went.
    selections (Misses), and the number Taken back.
 2. THE Summary SHALL state what an accidental selection is: "a letter or word that was not
    the one the spirit pointed to".
-3. THE Summary SHALL show the Dwell time and input mode in force at the end of the Round.
+3. THE Summary SHALL show the input mode in force at the end of the Round, and, only when that mode
+   is head + dwell, the Dwell time as well. In every other mode it names the input only.
 4. THE Summary SHALL give no score, grade, star rating or comparison with other Rounds or
    people, and SHALL use only calm wording.
 5. THE Summary SHALL offer "Another round" as a target. It SHALL start the next Round with
@@ -186,6 +192,10 @@ round, so that I can see how it went.
 8. A `select` stamped at or before the moment the view changed from the board to the Summary
    SHALL be ignored (the same reasoning as the Board's `settings-gate.ts`).
 9. THE Summary SHALL fit without page scroll at 1366×768 and 1920×1080 (Requirement 9).
+10. THE Summary SHALL be one panel that fills the board's area at both sizes: the three figures
+    (letters, time, accidental selections) large, the rest of the lines under them, and the
+    "Another round" and Carry targets inside the panel at its bottom, at least three target gaps
+    apart. There SHALL be no large empty panel.
 ### Requirement 5: Carrying the dwell time to the Board
 **User Story:** As a person or carer, I want to take the dwell time that worked in practice
 into the Board, so that the Board starts at a setting I have tried, and I want nothing to
@@ -234,7 +244,13 @@ so that I can learn the board.
    drawn large (at least 40 CSS px).
 5. THE decorative cells SHALL be neither targets nor focusable, and SHALL be hidden from
    screen readers.
-6. THE board SHALL be in reading order for scanning (top to bottom, left to right), and the
+6. THE spirit's planchette SHALL be one decorative element that glides to the next target's
+   top-right corner after each Hit, and SHALL never cover that target's label: at levels 0 and
+   above it is at most 28 px, 4 px from the top and 6 px from the right of the target (checked
+   against the real label boxes of every target at both sizes). It glides only when the person has
+   not asked for reduced motion; otherwise it jumps. It is hidden from assistive technology, makes no
+   flash, and has no data of its own (the marked target carries the meaning).
+7. THE board SHALL be in reading order for scanning (top to bottom, left to right), and the
    Séance SHALL pass no scan order to the skeleton.
 ### Requirement 7: Input modes and controls
 **User Story:** As a person with a specific combination of abilities, I want to use the mode
@@ -315,9 +331,11 @@ option, and calibrate, so that the game fits me.
 4. THE side column SHALL be 478 CSS px wide at 1366×768 (as in the Board) with three equal
    columns of targets, and SHALL hold: suggestion row, action row (Stop, Undo, Cancel),
    camera row (camera toggle, Sound, rest area), Controls row, Status panel, notice.
-5. AT 1920×1080, THE page MAY stay centred at its 1366-wide size (scaling to the viewport is
-   optional, Task O1). WHEN scaling is built, every figure in Requirements 6 and 9 SHALL hold
-   at the scaled size.
+5. THE page SHALL size its cells from the Profile's target and spacing sizes and the viewport,
+   with the skeleton's shared fit (`renderedCellSize`, moved there from the Board): the largest
+   whole cell size at which the page fits, never below the Profile's target size. At 1366×768 the
+   cell is 96 px; at 1920×1080 it is 148 px. Every figure in Requirements 6 and 9 SHALL hold at the
+   scaled size, and the board's positions SHALL stay in the same cells.
 ### Requirement 10: Accessibility
 **User Story:** As a person with low vision, motion sensitivity or a screen reader, and as a
 carer, I want Séance to follow the accessibility rules.
@@ -360,6 +378,8 @@ and as a person who may be anxious, I want it never to be frightening.
    test.
 6. THE slow glow around the marker MAY change opacity by at most 15 % over at least 3 s. It
    SHALL be off under reduced motion.
+7. THE fog SHALL be a soft ellipse that fades to transparent on every side, with no visible edge
+   or band at either size, and SHALL be static under reduced motion.
 ### Requirement 12: Sound
 **User Story:** As a player who likes sound, I want soft sounds I can switch on and off, and
 as a person who does not, I want silence.
@@ -448,7 +468,9 @@ safe under dwell before calling it done (product.md Principle 1).
 **User Story:** As an app developer, I want the input controls in the kit, so that every app has
 the same ones without copying them.
 #### Acceptance Criteria
-1. THE skeleton's `./ui` entry point SHALL export `mountInputControls` (the mode selector, camera
+1. THE skeleton's `./ui` entry point SHALL also export the page-fit `fitCellSize`, `renderedCellSize`
+   and `PAGE_FIT` (moved from `apps/board/src/board-scale.ts`, which re-exports them so its tests are
+   unchanged). It SHALL export `mountInputControls` (the mode selector, camera
    toggle, tracking-indicator visibility, message line, first-run hint, Calibrate handling and
    camera start/stop rules now in `apps/board/src/board-controls.ts`), `createSettingsGate` (now
    `apps/board/src/settings-gate.ts`), and the DOM-target helpers `elementRect`, `roleOptionsOf`
@@ -500,3 +522,5 @@ Detailed in design.md. In short:
 15. Sound plans stay inside the gain, length, fade and spacing limits.
 16. Board-target positions and sizes never change with Support level, Round, mode or Sound.
 17. The arrival guard never registers a target that contains the pointer at the moment the view changes.
+18. The rendered cell size fits the viewport at the default Profile size, is the largest whole size
+    that does, never goes below the Profile size, and never decreases as the viewport grows.

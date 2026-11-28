@@ -14,3 +14,4 @@ export {
 } from './input-controls.js';
 export { createSettingsGate, type SettingsGate } from './settings-gate.js';
 export { createTargetRegistry, elementRect, roleOptionsOf, type TargetHost, type TargetRegistry } from './dom-targets.js';
+export { PAGE_FIT, fitCellSize, renderedCellSize, type Viewport } from './viewport-fit.js';

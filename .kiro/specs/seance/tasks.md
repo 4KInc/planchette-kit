@@ -6,7 +6,8 @@ controls, then the theme, then the end-to-end and axe suite, then the dwell-simu
 tests are `apps/seance/test/<thing>.test.ts`, property tests `<thing>.props.test.ts`. Each of the
 seventeen properties in design.md is its own required sub-task, placed with the component it
 checks.
-**Budget: about two days (15.25 working hours).** The first plan was a day and a half (12.25 h). The
+**Budget: about two and a half days (about 19 working hours).** After the browser check of 07cbb5b the user
+made O1 (scaling) and O6 (the gliding planchette) required and added six fixes (Task 15a, about 3.5 h). Earlier: about two days (15.25 h). The first plan was a day and a half (12.25 h). The
 user then made the shared input controls (Task 11, 3 h) and the App B replacement (Task 14, 0.5 h)
 required, and Séance's own controls task shrank by 0.5 h because it uses the shared ones. Estimates are
 on each task. Anything beyond the required tasks is under "Optional" at the end, marked `*`. Checkpoint
@@ -303,15 +304,22 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
   - Follow the checkpoint rules. In addition, open the built page by hand in a browser (mouse mode, no
     camera) and play one Round: report in the journal line what looked wrong, if anything.
   - Journal line.
-- [ ] 16. End-to-end and accessibility (1.25 h)
-  - [ ] 16.1 Round in mouse and scan mode.
+- [x] 15a. Fixes after the user's browser check of 07cbb5b (3.5 h)
+  - [x] 15a.1 The Suggestion and the Dwell time line only in head + dwell; the Suggestion closes when the Round ends or the mode changes (`dwellApplies`, `round-end`; unit test per mode, `seance-dom.test.ts`, `support.test.ts`, Property 6).
+  - [x] 15a.2 Empty Suggestion slots invisible, unregistered and unfocusable, space kept (`visibility: hidden`; DOM and CSS tests).
+  - [x] 15a.3 The colour test asserts dimmed level-2 letters at 4.5:1 on their cell, and that the marked target differs by border width, halo and glyph.
+  - [x] 15a.4 Fog as soft radial ellipses with no edge or band, static under reduced motion (CSS test; screenshots at both sizes in Task 16).
+  - [x] 15a.5 Scaling at 1920x1080 (formerly O1): the Board's fit moved to `skeleton/ui` (`renderedCellSize`, `fitCellSize`, `PAGE_FIT`), the Board re-exports it with its tests unchanged, `seance-scale.ts`, Property 18; the Summary is one panel with "Another round" inside it.
+  - [x] 15a.6 The planchette glides to the next target's corner (formerly O6): one `#glide` element, transition only without a reduced-motion request, clear of the label (jsdom geometry tests here; real label boxes in Task 16).
+- [x] 16. End-to-end and accessibility (1.25 h)
+  - [x] 16.1 Round in mouse and scan mode.
     - Write `apps/seance/test/seance-round.e2e.ts` and `seance-scan.e2e.ts` as designed ("Testing
       strategy"): mouse mode (full Round via `[data-next="true"]`; Stop; Undo; a Miss; Suggestion shown and
       "Not now" / "Hold longer"; Summary figures; Another round; Carry and its Undo with the Board key
       untouched before the press, in head + dwell with `feedSamples` and no camera); scan mode (Space as the
       switch, play a short Round to the Summary). Patterns copied from `apps/board/test/board.e2e.ts`.
     - _Requirements: 16.2, 16.5_
-  - [ ] 16.2 Axe on every view, viewport, privacy.
+  - [x] 16.2 Axe on every view, viewport, privacy.
     - Write `seance-a11y.e2e.ts` (axe-core, no violations: play at level 0; play at level 2 with the
       Suggestion open; Summary completed; Summary stopped; Settings dialog; a camera-failure message
       showing; reduced motion emulated and no running animation), `seance-viewport.e2e.ts` (1366×768 and
@@ -355,18 +363,9 @@ No orphaned code. Focus only on tasks that involve writing, modifying or testing
     question in design.md (Notes, item 1) and waits for the user.
   - Journal line, including the final test counts.
 ## Optional (beyond the two days)
-Marked `*`, outside the 15.25 h above. **Order, if time allows, after Task 18: O6, then O1, then O5.**
+Marked `*`, outside the 15.25 h above. O1 (scaling) and O6 (the gliding planchette) were made required by the user and are done (Task 15a). **If time allows, after Task 18: O5.**
 O2 and O7 are skipped unless a property test finds a counterexample (then pinning it, O2, is required
 anyway, because tech.md says to keep it as a regression test).
-- [ ]* O6. Moving planchette (1 h). A glyph that slides between targets as the spirit "spells", off under
-  reduced motion, never covering a label or changing a target's position. No data in it (decoration only),
-  hidden from assistive technology.
-- [ ]* O1. Scale to the viewport at 1920×1080 (about 2 h). A `seance-scale.ts`: cells grow to fill the
-  viewport height. Check first whether the Board's `renderedCellSize` logic can move to the skeleton as a
-  small pure export now that the controls have moved (it is natural only if it can drop its Board-specific
-  arguments: prediction-strip rows and the Message-bar heights); if not, write Séance's own and say so.
-  Every figure in Requirements 6 and 9 must hold at the scaled size, the 1920 layouts are re-exported, and
-  the Task 17.2 gate is rerun. Needs a property test for the rendered cell size.
 - [ ]* O5. `compare` run (0.5 h). A `compare` of Séance's play layout at 1400 ms against 2100 ms, same seed
   and task, appended to the journal, to show the time cost as the Board's Task 37 did.
 - [ ]* O2. Pin counterexamples (0.5 h). `apps/seance/test/layout-regressions.test.ts`, as the Board's 36.3;
